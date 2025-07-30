@@ -10,6 +10,10 @@ import { Login } from "@/pages/Login";
 import { Dashboard } from "@/pages/Dashboard";
 import { Clientes } from "@/pages/escritorio/Clientes";
 import { Colaboradores } from "@/pages/escritorio/Colaboradores";
+import { Contatos } from "@/pages/escritorio/Contatos";
+import { Eventos } from "@/pages/escritorio/Eventos";
+import { Tributacao } from "@/pages/escritorio/Tributacao";
+import { Configuracoes } from "@/pages/escritorio/Configuracoes";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -73,16 +77,41 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/escritorio/*"
+        path="/escritorio/contatos"
         element={
           <ProtectedRoute>
             <MainLayout user={user} onLogout={logout}>
-              <div className="flex items-center justify-center h-64">
-                <div className="text-center">
-                  <h2 className="text-2xl font-bold mb-2">Em Desenvolvimento</h2>
-                  <p className="text-muted-foreground">Esta seção está sendo desenvolvida</p>
-                </div>
-              </div>
+              <Contatos />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/escritorio/eventos"
+        element={
+          <ProtectedRoute>
+            <MainLayout user={user} onLogout={logout}>
+              <Eventos />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/escritorio/tributacao"
+        element={
+          <ProtectedRoute>
+            <MainLayout user={user} onLogout={logout}>
+              <Tributacao />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/escritorio/configuracoes"
+        element={
+          <ProtectedRoute>
+            <MainLayout user={user} onLogout={logout}>
+              <Configuracoes />
             </MainLayout>
           </ProtectedRoute>
         }
