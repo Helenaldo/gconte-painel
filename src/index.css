@@ -2,95 +2,147 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+/* GCONTE PAINEL Design System - Inspirado no NobleUI 
 All colors MUST be HSL.
 */
 
 @layer base {
   :root {
+    /* Noble UI inspired color palette */
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 215 25% 27%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 215 25% 27%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 215 25% 27%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Primary - Noble blue */
+    --primary: 219 82% 56%;
+    --primary-foreground: 0 0% 98%;
+    --primary-hover: 219 82% 46%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Secondary - Light blue gray */
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 215 25% 27%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Muted colors */
+    --muted: 220 14% 96%;
+    --muted-foreground: 215 15% 58%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Accent - Success green */
+    --accent: 142 71% 45%;
+    --accent-foreground: 0 0% 98%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    /* States */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 98%;
+
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 98%;
+
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 98%;
+
+    /* Borders and inputs */
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 219 82% 56%;
 
     --radius: 0.5rem;
 
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
+    /* Sidebar - Noble style */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 215 25% 27%;
+    --sidebar-primary: 219 82% 56%;
     --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
+    --sidebar-accent: 220 14% 96%;
+    --sidebar-accent-foreground: 215 25% 27%;
     --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 219 82% 56%;
 
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Header */
+    --header-background: 0 0% 100%;
+    --header-foreground: 215 25% 27%;
+    --header-border: 220 13% 91%;
+
+    /* Custom gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(219 82% 56%), hsl(219 82% 46%));
+    --gradient-success: linear-gradient(135deg, hsl(142 71% 45%), hsl(142 71% 35%));
+    
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.05);
+    --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.1), 0 2px 4px -2px hsl(0 0% 0% / 0.1);
+    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.1), 0 4px 6px -4px hsl(0 0% 0% / 0.1);
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    /* Dark theme - Noble style */
+    --background: 210 22% 8%;
+    --foreground: 0 0% 98%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 210 22% 10%;
+    --card-foreground: 0 0% 98%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 210 22% 10%;
+    --popover-foreground: 0 0% 98%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 219 82% 56%;
+    --primary-foreground: 0 0% 98%;
+    --primary-hover: 219 82% 66%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 210 18% 14%;
+    --secondary-foreground: 0 0% 98%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 210 18% 14%;
+    --muted-foreground: 215 20% 65%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 142 71% 45%;
+    --accent-foreground: 0 0% 98%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 98%;
+
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 98%;
+
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 98%;
+
+    --border: 210 18% 20%;
+    --input: 210 18% 20%;
+    --ring: 219 82% 56%;
+
+    /* Sidebar dark */
+    --sidebar-background: 210 22% 8%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 219 82% 56%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 210 18% 14%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 210 18% 20%;
+    --sidebar-ring: 219 82% 56%;
+
+    /* Header dark */
+    --header-background: 210 22% 10%;
+    --header-foreground: 0 0% 98%;
+    --header-border: 210 18% 20%;
+
+    /* Dark gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(219 82% 56%), hsl(219 82% 66%));
+    --gradient-success: linear-gradient(135deg, hsl(142 71% 45%), hsl(142 71% 55%));
+    
+    /* Dark shadows */
+    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.3);
+    --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.4), 0 2px 4px -2px hsl(0 0% 0% / 0.4);
+    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.5), 0 4px 6px -4px hsl(0 0% 0% / 0.5);
   }
 }
 
