@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -7,9 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Plus, Search, Users, Pencil, Eye, Download, Upload, Calendar as CalendarIcon } from "lucide-react"
+import { Plus, Search, Users, Pencil, Eye, Download, Upload, Calendar as CalendarIcon, UserX } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { format } from "date-fns"
+import { format, parse } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 import InputMask from "react-input-mask"
@@ -69,6 +69,13 @@ export function Clientes() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingCliente, setEditingCliente] = useState<Cliente | null>(null)
   const [viewingCliente, setViewingCliente] = useState<Cliente | null>(null)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [statusFilter, setStatusFilter] = useState("ativos")
+  const [currentPage, setCurrentPage] = useState(1)
+  const [clienteDesdeInput, setClienteDesdeInput] = useState("")
+  const [fimContratoInput, setFimContratoInput] = useState("")
+  const itemsPerPage = 10
+  
   const [formData, setFormData] = useState({
     cnpj: "",
     nomeEmpresarial: "",
@@ -89,6 +96,101 @@ export function Clientes() {
   const validateCNPJ = (cnpj: string) => {
     const cleaned = cnpj.replace(/\D/g, "")
     return cleaned.length === 14
+  }
+
+  // Buscar dados por CNPJ
+  const buscarDadosCNPJ = async (cnpj: string) => {
+    const cnpjLimpo = cnpj.replace(/\D/g, "")
+    if (cnpjLimpo.length !== 14) return
+
+    try {
+      const response = await fetch(`https://www.receitaws.com.br/v1/cnpj/${cnpjLimpo}`)
+      const data = await response.json()
+      
+      if (data.status === "OK") {
+        setFormData(prev => ({
+          ...prev,
+          nomeEmpresarial: data.nome || "",
+          nomeFantasia: data.fantasia || "",
+          cep: data.cep || "",
+          logradouro: data.logradouro || "",
+          numero: data.numero || "",
+          complemento: data.complemento || "",
+          bairro: data.bairro || "",
+          municipio: data.municipio || "",
+          uf: data.uf || ""
+        }))
+        
+        toast({
+          title: "Sucesso",
+          description: "Dados do CNPJ preenchidos automaticamente"
+        })
+      }
+    } catch (error) {
+      console.error("Erro ao buscar dados do CNPJ:", error)
+    }
+  }
+
+  // Buscar endereço por CEP
+  const buscarEnderecoCEP = async (cep: string) => {
+    const cepLimpo = cep.replace(/\D/g, "")
+    if (cepLimpo.length !== 8) return
+
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`)
+      const data = await response.json()
+      
+      if (!data.erro) {
+        setFormData(prev => ({
+          ...prev,
+          logradouro: data.logradouro || "",
+          bairro: data.bairro || "",
+          municipio: data.localidade || "",
+          uf: data.uf || ""
+        }))
+        
+        toast({
+          title: "Sucesso",
+          description: "Endereço preenchido automaticamente"
+        })
+      }
+    } catch (error) {
+      console.error("Erro ao buscar CEP:", error)
+    }
+  }
+
+  // Filtrar clientes
+  const filteredClientes = clientes.filter(cliente => {
+    const matchesSearch = cliente.nomeEmpresarial.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         cliente.cnpj.includes(searchTerm) ||
+                         (cliente.nomeFantasia && cliente.nomeFantasia.toLowerCase().includes(searchTerm.toLowerCase()))
+    
+    const isActive = !cliente.fimContrato
+    const matchesStatus = statusFilter === "todos" || 
+                         (statusFilter === "ativos" && isActive) ||
+                         (statusFilter === "inativos" && !isActive)
+    
+    return matchesSearch && matchesStatus
+  })
+
+  // Paginação
+  const totalPages = Math.ceil(filteredClientes.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const paginatedClientes = filteredClientes.slice(startIndex, startIndex + itemsPerPage)
+
+  // Reset da página quando filtros mudam
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, statusFilter])
+
+  const parseDate = (dateString: string) => {
+    if (!dateString) return undefined
+    try {
+      const parsedDate = parse(dateString, "dd/MM/yyyy", new Date())
+      return isNaN(parsedDate.getTime()) ? undefined : parsedDate
+    } catch {
+      return undefined
+    }
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -163,6 +265,8 @@ export function Clientes() {
       clienteDesde: undefined,
       fimContrato: undefined
     })
+    setClienteDesdeInput("")
+    setFimContratoInput("")
     setEditingCliente(null)
     setIsModalOpen(false)
   }
@@ -183,12 +287,26 @@ export function Clientes() {
       clienteDesde: cliente.clienteDesde,
       fimContrato: cliente.fimContrato || undefined
     })
+    setClienteDesdeInput(format(cliente.clienteDesde, "dd/MM/yyyy"))
+    setFimContratoInput(cliente.fimContrato ? format(cliente.fimContrato, "dd/MM/yyyy") : "")
     setEditingCliente(cliente)
     setIsModalOpen(true)
   }
 
   const openViewModal = (cliente: Cliente) => {
     setViewingCliente(cliente)
+  }
+
+  const desativarCliente = (clienteId: string) => {
+    setClientes(prev => prev.map(cliente => 
+      cliente.id === clienteId 
+        ? { ...cliente, fimContrato: new Date() }
+        : cliente
+    ))
+    toast({ 
+      title: "Sucesso", 
+      description: "Cliente desativado com sucesso" 
+    })
   }
 
   const handleImportCSV = () => {
@@ -246,13 +364,18 @@ export function Clientes() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="cnpj">CNPJ *</Label>
-                    <InputMask
-                      mask="99.999.999/9999-99"
-                      value={formData.cnpj}
-                      onChange={(e) => setFormData(prev => ({...prev, cnpj: e.target.value}))}
-                    >
-                      {() => <Input placeholder="00.000.000/0000-00" />}
-                    </InputMask>
+                     <InputMask
+                       mask="99.999.999/9999-99"
+                       value={formData.cnpj}
+                       onChange={(e) => {
+                         setFormData(prev => ({...prev, cnpj: e.target.value}))
+                         if (e.target.value.replace(/\D/g, "").length === 14) {
+                           buscarDadosCNPJ(e.target.value)
+                         }
+                       }}
+                     >
+                       {() => <Input placeholder="00.000.000/0000-00" />}
+                     </InputMask>
                   </div>
 
                   <div className="space-y-2">
@@ -294,16 +417,21 @@ export function Clientes() {
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="cep">CEP</Label>
-                    <InputMask
-                      mask="99999-999"
-                      value={formData.cep}
-                      onChange={(e) => setFormData(prev => ({...prev, cep: e.target.value}))}
-                    >
-                      {() => <Input placeholder="00000-000" />}
-                    </InputMask>
-                  </div>
+                   <div className="space-y-2">
+                     <Label htmlFor="cep">CEP</Label>
+                     <InputMask
+                       mask="99999-999"
+                       value={formData.cep}
+                       onChange={(e) => {
+                         setFormData(prev => ({...prev, cep: e.target.value}))
+                         if (e.target.value.replace(/\D/g, "").length === 8) {
+                           buscarEnderecoCEP(e.target.value)
+                         }
+                       }}
+                     >
+                       {() => <Input placeholder="00000-000" />}
+                     </InputMask>
+                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="logradouro">Logradouro</Label>
@@ -374,59 +502,79 @@ export function Clientes() {
                     </Select>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>Cliente desde *</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !formData.clienteDesde && "text-muted-foreground"
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {formData.clienteDesde ? format(formData.clienteDesde, "PPP", { locale: ptBR }) : "Selecione"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={formData.clienteDesde}
-                          onSelect={(date) => setFormData(prev => ({...prev, clienteDesde: date}))}
-                          initialFocus
-                          className="pointer-events-auto"
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
+                   <div className="space-y-2">
+                     <Label>Cliente desde *</Label>
+                     <div className="flex gap-2">
+                       <InputMask
+                         mask="99/99/9999"
+                         value={clienteDesdeInput}
+                         onChange={(e) => {
+                           setClienteDesdeInput(e.target.value)
+                           const parsed = parseDate(e.target.value)
+                           if (parsed) {
+                             setFormData(prev => ({...prev, clienteDesde: parsed}))
+                           }
+                         }}
+                       >
+                         {() => <Input placeholder="dd/mm/aaaa" className="flex-1" />}
+                       </InputMask>
+                       <Popover>
+                         <PopoverTrigger asChild>
+                           <Button variant="outline" size="sm">
+                             <CalendarIcon className="h-4 w-4" />
+                           </Button>
+                         </PopoverTrigger>
+                         <PopoverContent className="w-auto p-0" align="start">
+                           <Calendar
+                             mode="single"
+                             selected={formData.clienteDesde}
+                             onSelect={(date) => {
+                               setFormData(prev => ({...prev, clienteDesde: date}))
+                               setClienteDesdeInput(date ? format(date, "dd/MM/yyyy") : "")
+                             }}
+                             initialFocus
+                             className="pointer-events-auto"
+                           />
+                         </PopoverContent>
+                       </Popover>
+                     </div>
+                   </div>
 
-                  <div className="space-y-2">
-                    <Label>Fim do contrato</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !formData.fimContrato && "text-muted-foreground"
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {formData.fimContrato ? format(formData.fimContrato, "PPP", { locale: ptBR }) : "Selecione"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={formData.fimContrato}
-                          onSelect={(date) => setFormData(prev => ({...prev, fimContrato: date}))}
-                          initialFocus
-                          className="pointer-events-auto"
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
+                   <div className="space-y-2">
+                     <Label>Fim do contrato</Label>
+                     <div className="flex gap-2">
+                       <InputMask
+                         mask="99/99/9999"
+                         value={fimContratoInput}
+                         onChange={(e) => {
+                           setFimContratoInput(e.target.value)
+                           const parsed = parseDate(e.target.value)
+                           setFormData(prev => ({...prev, fimContrato: parsed}))
+                         }}
+                       >
+                         {() => <Input placeholder="dd/mm/aaaa" className="flex-1" />}
+                       </InputMask>
+                       <Popover>
+                         <PopoverTrigger asChild>
+                           <Button variant="outline" size="sm">
+                             <CalendarIcon className="h-4 w-4" />
+                           </Button>
+                         </PopoverTrigger>
+                         <PopoverContent className="w-auto p-0" align="start">
+                           <Calendar
+                             mode="single"
+                             selected={formData.fimContrato}
+                             onSelect={(date) => {
+                               setFormData(prev => ({...prev, fimContrato: date}))
+                               setFimContratoInput(date ? format(date, "dd/MM/yyyy") : "")
+                             }}
+                             initialFocus
+                             className="pointer-events-auto"
+                           />
+                         </PopoverContent>
+                       </Popover>
+                     </div>
+                   </div>
                 </div>
 
                 <div className="flex justify-end gap-2 pt-4">
@@ -455,10 +603,24 @@ export function Clientes() {
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Buscar por nome ou CNPJ..." className="pl-10" />
+                <Input 
+                  placeholder="Buscar por nome ou CNPJ..." 
+                  className="pl-10"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
               </div>
             </div>
-            <Button variant="outline">Filtrar</Button>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ativos">Ativos</SelectItem>
+                <SelectItem value="inativos">Inativos</SelectItem>
+                <SelectItem value="todos">Todos</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
@@ -467,51 +629,114 @@ export function Clientes() {
         <CardHeader>
           <CardTitle>Lista de Clientes</CardTitle>
           <CardDescription>
-            {clientes.length} cliente(s) cadastrado(s)
+            {filteredClientes.length} cliente(s) encontrado(s) • Página {currentPage} de {totalPages}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {clientes.length === 0 ? (
+          {paginatedClientes.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Users className="mx-auto h-12 w-12 mb-4 opacity-50" />
-              <p>Nenhum cliente cadastrado</p>
-              <p className="text-sm">Clique em "Novo Cliente" para adicionar</p>
+              <p>Nenhum cliente encontrado</p>
+              <p className="text-sm">
+                {searchTerm || statusFilter !== "ativos" 
+                  ? "Tente ajustar os filtros de busca" 
+                  : 'Clique em "Novo Cliente" para adicionar'
+                }
+              </p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {clientes.map((cliente) => (
-                <div key={cliente.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex-1">
-                    <h4 className="font-medium">{cliente.nomeEmpresarial}</h4>
-                    {cliente.nomeFantasia && (
-                      <p className="text-sm text-muted-foreground">{cliente.nomeFantasia}</p>
-                    )}
-                    <p className="text-sm text-muted-foreground">
-                      {cliente.cnpj} • {cliente.ramoAtividade}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Cliente desde: {format(cliente.clienteDesde, "PPP", { locale: ptBR })}
-                    </p>
+            <>
+              <div className="space-y-4">
+                {paginatedClientes.map((cliente) => (
+                  <div key={cliente.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-medium">{cliente.nomeEmpresarial}</h4>
+                        {cliente.fimContrato && (
+                          <span className="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                            Inativo
+                          </span>
+                        )}
+                      </div>
+                      {cliente.nomeFantasia && (
+                        <p className="text-sm text-muted-foreground">{cliente.nomeFantasia}</p>
+                      )}
+                      <p className="text-sm text-muted-foreground">
+                        {cliente.cnpj} • {cliente.ramoAtividade}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Cliente desde: {format(cliente.clienteDesde, "PPP", { locale: ptBR })}
+                        {cliente.fimContrato && (
+                          <> • Inativo desde: {format(cliente.fimContrato, "PPP", { locale: ptBR })}</>
+                        )}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openViewModal(cliente)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openEditModal(cliente)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      {!cliente.fimContrato && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => desativarCliente(cliente.id)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <UserX className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openViewModal(cliente)}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openEditModal(cliente)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
+                ))}
+              </div>
+              
+              {totalPages > 1 && (
+                <div className="flex justify-center items-center gap-2 mt-6">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                  >
+                    Anterior
+                  </Button>
+                  
+                  <div className="flex gap-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                      <Button
+                        key={page}
+                        variant={currentPage === page ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setCurrentPage(page)}
+                        className="w-8"
+                      >
+                        {page}
+                      </Button>
+                    ))}
                   </div>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Próxima
+                  </Button>
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
