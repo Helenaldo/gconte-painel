@@ -170,7 +170,7 @@ export function Configuracoes() {
                     value={formData.cnpj}
                     onChange={(e) => setFormData(prev => ({...prev, cnpj: e.target.value}))}
                   >
-                    <Input placeholder="00.000.000/0000-00" />
+                    {() => <Input placeholder="00.000.000/0000-00" />}
                   </InputMask>
                 </div>
 
@@ -181,7 +181,7 @@ export function Configuracoes() {
                     value={formData.telefone}
                     onChange={(e) => setFormData(prev => ({...prev, telefone: e.target.value}))}
                   >
-                    <Input placeholder="(11) 99999-9999" />
+                    {() => <Input placeholder="(11) 99999-9999" />}
                   </InputMask>
                 </div>
 
@@ -192,7 +192,7 @@ export function Configuracoes() {
                     value={formData.cep}
                     onChange={(e) => setFormData(prev => ({...prev, cep: e.target.value}))}
                   >
-                    <Input placeholder="00000-000" />
+                    {() => <Input placeholder="00000-000" />}
                   </InputMask>
                 </div>
 

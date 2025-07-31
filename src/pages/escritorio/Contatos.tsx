@@ -174,7 +174,7 @@ export function Contatos() {
                   value={formData.telefone}
                   onChange={(e) => setFormData(prev => ({...prev, telefone: e.target.value}))}
                 >
-                  <Input placeholder="(11) 99999-9999" />
+                  {() => <Input placeholder="(11) 99999-9999" />}
                 </InputMask>
               </div>
 
