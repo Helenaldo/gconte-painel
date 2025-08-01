@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { NavLink, useLocation } from "react-router-dom"
+import { NavLink, useLocation, useSearchParams } from "react-router-dom"
 import { 
   LayoutDashboard, 
   Building2, 
@@ -127,10 +127,12 @@ const menuItems = [
 export function AppSidebar() {
   const { state } = useSidebar()
   const location = useLocation()
+  const [searchParams] = useSearchParams()
   const [openGroups, setOpenGroups] = useState<string[]>([])
 
   const isCollapsed = state === "collapsed"
   const currentPath = location.pathname
+  const balanceteId = searchParams.get('balancete_id')
 
   const isActive = (url: string) => currentPath === url
   const isGroupActive = (items: any[]) => items?.some(item => isActive(item.url))
@@ -180,25 +182,34 @@ export function AppSidebar() {
                         {!isCollapsed && (
                           <CollapsibleContent>
                             <SidebarMenuSub>
-                              {item.items.map((subItem) => (
-                                <SidebarMenuSubItem key={subItem.title}>
-                                  <SidebarMenuSubButton asChild>
-                                    <NavLink
-                                      to={subItem.url}
-                                      className={({ isActive }) =>
-                                        `flex items-center gap-2 ${
-                                          isActive
-                                            ? 'bg-sidebar-primary text-sidebar-primary-foreground'
-                                            : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                                        }`
-                                      }
-                                    >
-                                      <subItem.icon className="h-4 w-4" />
-                                      <span>{subItem.title}</span>
-                                    </NavLink>
-                                  </SidebarMenuSubButton>
-                                </SidebarMenuSubItem>
-                              ))}
+                              {item.items.map((subItem) => {
+                                // Para Parametrização, só mostrar se houver balancete_id na URL ou se estivermos na página
+                                if (subItem.title === "Parametrização" && 
+                                    !balanceteId && 
+                                    !currentPath.includes('/indicadores/parametrizacao')) {
+                                  return null
+                                }
+                                
+                                return (
+                                  <SidebarMenuSubItem key={subItem.title}>
+                                    <SidebarMenuSubButton asChild>
+                                      <NavLink
+                                        to={subItem.url}
+                                        className={({ isActive }) =>
+                                          `flex items-center gap-2 ${
+                                            isActive
+                                              ? 'bg-sidebar-primary text-sidebar-primary-foreground'
+                                              : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                                          }`
+                                        }
+                                      >
+                                        <subItem.icon className="h-4 w-4" />
+                                        <span>{subItem.title}</span>
+                                      </NavLink>
+                                    </SidebarMenuSubButton>
+                                  </SidebarMenuSubItem>
+                                )
+                              }).filter(Boolean)}
                             </SidebarMenuSub>
                           </CollapsibleContent>
                         )}

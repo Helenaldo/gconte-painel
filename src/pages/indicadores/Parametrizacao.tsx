@@ -47,6 +47,7 @@ export function Parametrizacao() {
   
   const [contaSelecionada, setContaSelecionada] = useState<string>("")
   const [contasSelecionadas, setContasSelecionadas] = useState<string[]>([])
+  const [parametrizacoesPendentes, setParametrizacoesPendentes] = useState<{[key: string]: string[]}>({})
   const [filtroPlano, setFiltroPlano] = useState("")
   const [filtroBalancete, setFiltroBalancete] = useState("")
 
@@ -121,53 +122,67 @@ export function Parametrizacao() {
 
   const handlePlanoContaClick = (planoContaId: string) => {
     console.log('🖱️ Clique na conta do plano:', planoContaId)
-    console.log('📊 Total de contas do balancete disponíveis:', contasBalancete.length)
-    console.log('⚙️ Total de parametrizações:', parametrizacoes.length)
-    
     setContaSelecionada(planoContaId)
     
-    // Carregar contas já parametrizadas para esta conta do plano
+    // Carregar contas já parametrizadas + pendentes para esta conta do plano
     const contasParam = parametrizacoes
       .filter(p => p.plano_conta_id === planoContaId)
       .map(p => p.conta_balancete_codigo)
     
-    console.log('✅ Contas já parametrizadas para esta conta do plano:', contasParam)
-    setContasSelecionadas(contasParam)
+    const contasPendentes = parametrizacoesPendentes[planoContaId] || []
+    const todasContas = [...new Set([...contasParam, ...contasPendentes])]
+    
+    setContasSelecionadas(todasContas)
   }
 
   const handleContaBalanceteToggle = (codigoConta: string, checked: boolean) => {
+    if (!contaSelecionada) return
+    
     if (checked) {
       setContasSelecionadas(prev => [...prev, codigoConta])
+      // Adicionar nas parametrizações pendentes
+      setParametrizacoesPendentes(prev => ({
+        ...prev,
+        [contaSelecionada]: [...(prev[contaSelecionada] || []), codigoConta]
+      }))
     } else {
       setContasSelecionadas(prev => prev.filter(c => c !== codigoConta))
+      // Remover das parametrizações pendentes
+      setParametrizacoesPendentes(prev => ({
+        ...prev,
+        [contaSelecionada]: (prev[contaSelecionada] || []).filter(c => c !== codigoConta)
+      }))
     }
   }
 
-  const handleSalvarParametrizacao = async () => {
-    if (!contaSelecionada || !balancete) {
+  const handleSalvarTodasParametrizacoes = async () => {
+    if (!balancete || Object.keys(parametrizacoesPendentes).length === 0) {
       toast({
-        title: "Selecione uma conta",
-        description: "Selecione uma conta do plano padrão primeiro",
+        title: "Nenhuma parametrização pendente",
+        description: "Faça pelo menos uma parametrização antes de salvar",
         variant: "destructive"
       })
       return
     }
 
     try {
-      // Remover parametrizações existentes para esta conta do plano
-      await supabase
-        .from('parametrizacoes')
-        .delete()
-        .eq('empresa_cnpj', balancete.cnpj)
-        .eq('plano_conta_id', contaSelecionada)
+      // Processar todas as parametrizações pendentes
+      for (const [planoContaId, contasCodigos] of Object.entries(parametrizacoesPendentes)) {
+        if (contasCodigos.length === 0) continue
 
-      // Inserir novas parametrizações
-      if (contasSelecionadas.length > 0) {
-        const novasParametrizacoes = contasSelecionadas.map(codigoConta => {
+        // Remover parametrizações existentes para esta conta do plano
+        await supabase
+          .from('parametrizacoes')
+          .delete()
+          .eq('empresa_cnpj', balancete.cnpj)
+          .eq('plano_conta_id', planoContaId)
+
+        // Inserir novas parametrizações
+        const novasParametrizacoes = contasCodigos.map(codigoConta => {
           const conta = contasBalancete.find(c => c.codigo === codigoConta)
           return {
             empresa_cnpj: balancete.cnpj,
-            plano_conta_id: contaSelecionada,
+            plano_conta_id: planoContaId,
             conta_balancete_codigo: codigoConta,
             conta_balancete_nome: conta?.nome || ""
           }
@@ -180,20 +195,48 @@ export function Parametrizacao() {
         if (error) throw error
       }
 
-      // Recarregar dados
+      // Limpar parametrizações pendentes e recarregar dados
+      setParametrizacoesPendentes({})
+      setContaSelecionada("")
+      setContasSelecionadas([])
       await loadData()
       
       toast({
-        title: "Parametrização salva",
-        description: "As configurações foram salvas com sucesso"
+        title: "Parametrizações salvas",
+        description: "Todas as configurações foram salvas com sucesso"
       })
     } catch (error) {
       console.error('Erro ao salvar:', error)
       toast({
         title: "Erro ao salvar",
-        description: "Não foi possível salvar a parametrização",
+        description: "Não foi possível salvar as parametrizações",
         variant: "destructive"
       })
+    }
+  }
+
+  const getParametrizacaoInfo = (planoContaId: string) => {
+    const contasParam = parametrizacoes
+      .filter(p => p.plano_conta_id === planoContaId)
+      .map(p => p.conta_balancete_codigo)
+    
+    const contasPendentes = parametrizacoesPendentes[planoContaId] || []
+    const todasContas = [...new Set([...contasParam, ...contasPendentes])]
+    
+    if (todasContas.length === 0) return null
+    
+    const contasComSaldo = todasContas
+      .map(codigo => contasBalancete.find(c => c.codigo === codigo))
+      .filter(Boolean)
+    
+    const saldoTotal = contasComSaldo.reduce((sum, conta) => sum + (conta?.saldo_atual || 0), 0)
+    const naturezaDominante = contasComSaldo.length > 0 ? contasComSaldo[0]?.natureza : 'devedora'
+    
+    return {
+      saldo: saldoTotal,
+      natureza: naturezaDominante,
+      quantidadeContas: todasContas.length,
+      isPendente: contasPendentes.length > 0
     }
   }
 
@@ -235,9 +278,18 @@ export function Parametrizacao() {
             {balancete.empresa} - {balancete.periodo}
           </p>
         </div>
-        <Button onClick={handleSalvarParametrizacao} disabled={!contaSelecionada}>
+        <Button 
+          onClick={handleSalvarTodasParametrizacoes} 
+          disabled={Object.keys(parametrizacoesPendentes).length === 0}
+          className="bg-primary hover:bg-primary/90"
+        >
           <Save className="h-4 w-4 mr-2" />
-          Salvar Parametrização
+          Salvar Todas as Parametrizações
+          {Object.keys(parametrizacoesPendentes).length > 0 && (
+            <Badge variant="secondary" className="ml-2">
+              {Object.keys(parametrizacoesPendentes).length}
+            </Badge>
+          )}
         </Button>
       </div>
 
@@ -283,11 +335,38 @@ export function Parametrizacao() {
                   onClick={() => handlePlanoContaClick(conta.id)}
                 >
                   <div className="flex justify-between items-start">
-                    <div>
+                    <div className="flex-1">
                       <div className="font-medium">{conta.codigo} - {conta.nome}</div>
-                      <Badge variant="secondary" className="text-xs mt-1">
-                        {conta.tipo.charAt(0).toUpperCase() + conta.tipo.slice(1)}
-                      </Badge>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="secondary" className="text-xs">
+                          {conta.tipo.charAt(0).toUpperCase() + conta.tipo.slice(1)}
+                        </Badge>
+                        {(() => {
+                          const info = getParametrizacaoInfo(conta.id)
+                          if (info) {
+                            return (
+                              <>
+                                <Badge 
+                                  variant={info.isPendente ? "outline" : "default"}
+                                  className={`text-xs ${info.isPendente ? 'border-orange-500 text-orange-700' : 'bg-green-600'}`}
+                                >
+                                  {info.isPendente ? 'Pendente' : 'Parametrizada'}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  R$ {info.saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </span>
+                                <Badge variant="outline" className="text-xs">
+                                  {info.natureza}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  ({info.quantidadeContas} conta{info.quantidadeContas !== 1 ? 's' : ''})
+                                </span>
+                              </>
+                            )
+                          }
+                          return null
+                        })()}
+                      </div>
                     </div>
                   </div>
                 </div>
