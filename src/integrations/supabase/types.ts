@@ -211,6 +211,7 @@ export type Database = {
           data: string
           descricao: string | null
           id: string
+          status: string
           tipo: string
           updated_at: string
           valor: number | null
@@ -221,6 +222,7 @@ export type Database = {
           data: string
           descricao?: string | null
           id?: string
+          status?: string
           tipo: string
           updated_at?: string
           valor?: number | null
@@ -231,6 +233,7 @@ export type Database = {
           data?: string
           descricao?: string | null
           id?: string
+          status?: string
           tipo?: string
           updated_at?: string
           valor?: number | null
