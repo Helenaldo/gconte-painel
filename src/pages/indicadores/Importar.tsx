@@ -461,7 +461,6 @@ export function Importar() {
             <TableHeader>
               <TableRow>
                 <TableHead>Empresa</TableHead>
-                <TableHead>CNPJ</TableHead>
                 <TableHead>Período</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
@@ -470,8 +469,12 @@ export function Importar() {
             <TableBody>
               {balancetesFiltrados.map((balancete) => (
                 <TableRow key={balancete.id}>
-                  <TableCell className="font-medium">{balancete.empresa}</TableCell>
-                  <TableCell>{balancete.cnpj}</TableCell>
+                  <TableCell className="font-medium">
+                    <div>
+                      <div>{balancete.empresa}</div>
+                      <div className="text-sm text-muted-foreground font-normal">{balancete.cnpj}</div>
+                    </div>
+                  </TableCell>
                   <TableCell>{balancete.periodo}</TableCell>
                   <TableCell>
                     {getStatusBadge(balancete.status, balancete.totalContas, balancete.contasParametrizadas)}
