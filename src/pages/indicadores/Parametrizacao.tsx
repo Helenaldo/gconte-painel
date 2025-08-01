@@ -58,6 +58,8 @@ export function Parametrizacao() {
 
   const loadData = async () => {
     try {
+      console.log('🔍 Carregando dados para balancete ID:', balanceteId)
+      
       // Carregar dados do balancete
       const { data: balanceteData, error: balanceteError } = await supabase
         .from('balancetes')
@@ -66,6 +68,7 @@ export function Parametrizacao() {
         .single()
 
       if (balanceteError) throw balanceteError
+      console.log('📋 Dados do balancete carregados:', balanceteData)
       setBalancete(balanceteData)
 
       // Carregar plano de contas
@@ -75,6 +78,7 @@ export function Parametrizacao() {
         .order('codigo')
 
       if (planoError) throw planoError
+      console.log('📊 Plano de contas carregado:', planoData?.length, 'contas')
       setPlanoContas(planoData)
 
       // Carregar contas do balancete
@@ -85,6 +89,7 @@ export function Parametrizacao() {
         .order('codigo')
 
       if (contasError) throw contasError
+      console.log('💰 Contas do balancete carregadas:', contasData?.length, 'contas')
 
       // Carregar parametrizações existentes
       const { data: paramData, error: paramError } = await supabase
@@ -93,6 +98,7 @@ export function Parametrizacao() {
         .eq('empresa_cnpj', balanceteData.cnpj)
 
       if (paramError) throw paramError
+      console.log('⚙️ Parametrizações existentes:', paramData?.length, 'parametrizações')
       setParametrizacoes(paramData)
 
       // Marcar contas já parametrizadas
@@ -101,9 +107,10 @@ export function Parametrizacao() {
         parametrizada: paramData.some(p => p.conta_balancete_codigo === conta.codigo)
       }))
 
+      console.log('✅ Contas com status de parametrização:', contasComStatus.length)
       setContasBalancete(contasComStatus)
     } catch (error) {
-      console.error('Erro ao carregar dados:', error)
+      console.error('❌ Erro ao carregar dados:', error)
       toast({
         title: "Erro ao carregar dados",
         description: "Não foi possível carregar as informações do balancete",
@@ -113,6 +120,10 @@ export function Parametrizacao() {
   }
 
   const handlePlanoContaClick = (planoContaId: string) => {
+    console.log('🖱️ Clique na conta do plano:', planoContaId)
+    console.log('📊 Total de contas do balancete disponíveis:', contasBalancete.length)
+    console.log('⚙️ Total de parametrizações:', parametrizacoes.length)
+    
     setContaSelecionada(planoContaId)
     
     // Carregar contas já parametrizadas para esta conta do plano
@@ -120,6 +131,7 @@ export function Parametrizacao() {
       .filter(p => p.plano_conta_id === planoContaId)
       .map(p => p.conta_balancete_codigo)
     
+    console.log('✅ Contas já parametrizadas para esta conta do plano:', contasParam)
     setContasSelecionadas(contasParam)
   }
 
