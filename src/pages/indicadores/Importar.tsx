@@ -198,33 +198,50 @@ export function Importar() {
       let nomeColIndex = -1
       let saldoColIndex = -1
 
-      for (let i = 0; i < jsonData.length; i++) {
+      console.log('🔍 Procurando colunas do balancete...')
+      console.log('📊 Total de linhas no arquivo:', jsonData.length)
+      
+      for (let i = 0; i < Math.min(50, jsonData.length); i++) {
         const row = jsonData[i] as any[]
         if (row) {
+          console.log(`Linha ${i}:`, row.slice(0, 10)) // Log das primeiras 10 colunas
+          
           for (let j = 0; j < row.length; j++) {
             const cell = String(row[j] || "").toLowerCase()
             if (cell.includes("código") || cell.includes("codigo")) {
               codigoColIndex = j
               headerRowIndex = i
+              console.log(`✅ Coluna CÓDIGO encontrada na posição ${j}, linha ${i}`)
             }
-            if (cell.includes("conta") || cell.includes("descrição") || cell.includes("descricao")) {
+            if (cell.includes("conta") || cell.includes("descrição") || cell.includes("descricao") || cell.includes("nome")) {
               nomeColIndex = j
               headerRowIndex = i
+              console.log(`✅ Coluna NOME encontrada na posição ${j}, linha ${i}`)
             }
-            if (cell.includes("saldo") && (cell.includes("atual") || cell.includes("final"))) {
+            if (cell.includes("saldo") && (cell.includes("atual") || cell.includes("final") || cell === "saldo")) {
               saldoColIndex = j
               headerRowIndex = i
+              console.log(`✅ Coluna SALDO encontrada na posição ${j}, linha ${i}`)
             }
           }
           if (headerRowIndex >= 0 && codigoColIndex >= 0 && nomeColIndex >= 0 && saldoColIndex >= 0) {
+            console.log(`🎯 Todas as colunas encontradas! Header na linha ${headerRowIndex}`)
             break
           }
         }
       }
 
+      console.log('📈 Índices das colunas:')
+      console.log(`- Código: ${codigoColIndex}`)
+      console.log(`- Nome: ${nomeColIndex}`) 
+      console.log(`- Saldo: ${saldoColIndex}`)
+      console.log(`- Header na linha: ${headerRowIndex}`)
+
       // Extrair contas do balancete
       const contas = []
-      if (headerRowIndex >= 0) {
+      if (headerRowIndex >= 0 && codigoColIndex >= 0 && nomeColIndex >= 0 && saldoColIndex >= 0) {
+        console.log('🔄 Extraindo contas do balancete...')
+        
         for (let i = headerRowIndex + 1; i < jsonData.length; i++) {
           const row = jsonData[i] as any[]
           if (row && row.length > Math.max(codigoColIndex, nomeColIndex, saldoColIndex)) {
@@ -249,9 +266,16 @@ export function Importar() {
               }
 
               contas.push({ codigo, nome, saldo, natureza })
+              
+              if (contas.length <= 5) {
+                console.log(`Conta ${contas.length}: ${codigo} - ${nome} - R$ ${saldo} (${natureza})`)
+              }
             }
           }
         }
+        console.log(`✅ Total de contas extraídas: ${contas.length}`)
+      } else {
+        console.log('❌ Não foi possível encontrar todas as colunas necessárias')
       }
 
       // Verificar se já existe balancete do mesmo período e empresa
