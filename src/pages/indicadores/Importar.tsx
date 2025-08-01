@@ -62,7 +62,7 @@ export function Importar() {
     }
   ])
   const [filtroEmpresa, setFiltroEmpresa] = useState("")
-  const [filtroAno, setFiltroAno] = useState("")
+  const [filtroAno, setFiltroAno] = useState("todos")
   const { toast } = useToast()
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -152,7 +152,7 @@ export function Importar() {
 
   const balancetesFiltrados = balancetes.filter(balancete => {
     const matchEmpresa = !filtroEmpresa || balancete.empresa.toLowerCase().includes(filtroEmpresa.toLowerCase())
-    const matchAno = !filtroAno || balancete.ano.toString() === filtroAno
+    const matchAno = filtroAno === "todos" || balancete.ano.toString() === filtroAno
     return matchEmpresa && matchAno
   })
 
@@ -232,7 +232,7 @@ export function Importar() {
                 <SelectValue placeholder="Ano" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos</SelectItem>
+                <SelectItem value="todos">Todos</SelectItem>
                 {anosDisponiveis.map(ano => (
                   <SelectItem key={ano} value={ano.toString()}>{ano}</SelectItem>
                 ))}
