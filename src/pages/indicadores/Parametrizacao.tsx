@@ -52,7 +52,6 @@ export function Parametrizacao() {
   const [filtroBalancete, setFiltroBalancete] = useState("")
 
   useEffect(() => {
-    console.log('🔄 useEffect disparado - balanceteId:', balanceteId)
     if (balanceteId) {
       loadData()
     }
@@ -60,8 +59,6 @@ export function Parametrizacao() {
 
   const loadData = async () => {
     try {
-      console.log('🔍 Carregando dados para balancete ID:', balanceteId)
-      
       // Carregar dados do balancete
       const { data: balanceteData, error: balanceteError } = await supabase
         .from('balancetes')
@@ -70,7 +67,6 @@ export function Parametrizacao() {
         .single()
 
       if (balanceteError) throw balanceteError
-      console.log('📋 Dados do balancete carregados:', balanceteData)
       setBalancete(balanceteData)
 
       // Carregar plano de contas
@@ -80,7 +76,6 @@ export function Parametrizacao() {
         .order('codigo')
 
       if (planoError) throw planoError
-      console.log('📊 Plano de contas carregado:', planoData?.length, 'contas')
       setPlanoContas(planoData)
 
       // Carregar contas do balancete
@@ -91,7 +86,6 @@ export function Parametrizacao() {
         .order('codigo')
 
       if (contasError) throw contasError
-      console.log('💰 Contas do balancete carregadas:', contasData?.length, 'contas')
 
       // Carregar parametrizações existentes
       const { data: paramData, error: paramError } = await supabase
@@ -100,7 +94,6 @@ export function Parametrizacao() {
         .eq('empresa_cnpj', balanceteData.cnpj)
 
       if (paramError) throw paramError
-      console.log('⚙️ Parametrizações existentes:', paramData?.length, 'parametrizações')
       setParametrizacoes(paramData)
 
       // Marcar contas já parametrizadas
@@ -109,10 +102,8 @@ export function Parametrizacao() {
         parametrizada: paramData.some(p => p.conta_balancete_codigo === conta.codigo)
       }))
 
-      console.log('✅ Contas com status de parametrização:', contasComStatus.length)
       setContasBalancete(contasComStatus)
     } catch (error) {
-      console.error('❌ Erro ao carregar dados:', error)
       toast({
         title: "Erro ao carregar dados",
         description: "Não foi possível carregar as informações do balancete",
@@ -122,7 +113,6 @@ export function Parametrizacao() {
   }
 
   const handlePlanoContaClick = (planoContaId: string) => {
-    console.log('🖱️ Clique na conta do plano:', planoContaId)
     setContaSelecionada(planoContaId)
     
     // Carregar contas já parametrizadas + pendentes para esta conta do plano
@@ -139,40 +129,24 @@ export function Parametrizacao() {
   const handleContaBalanceteToggle = (codigoConta: string, checked: boolean) => {
     if (!contaSelecionada) return
     
-    console.log('🔄 Toggle conta balancete:', { codigoConta, checked, contaSelecionada })
-    
     if (checked) {
-      setContasSelecionadas(prev => {
-        const novasContas = [...new Set([...prev, codigoConta])]
-        console.log('✅ Contas selecionadas após adicionar:', novasContas)
-        return novasContas
-      })
+      setContasSelecionadas(prev => [...new Set([...prev, codigoConta])])
       // Adicionar nas parametrizações pendentes (evitar duplicatas)
       setParametrizacoesPendentes(prev => {
         const contasExistentes = prev[contaSelecionada] || []
         const novasContas = [...new Set([...contasExistentes, codigoConta])]
-        const novoState = {
+        return {
           ...prev,
           [contaSelecionada]: novasContas
         }
-        console.log('📝 Parametrizações pendentes após adicionar:', novoState)
-        return novoState
       })
     } else {
-      setContasSelecionadas(prev => {
-        const novasContas = prev.filter(c => c !== codigoConta)
-        console.log('❌ Contas selecionadas após remover:', novasContas)
-        return novasContas
-      })
+      setContasSelecionadas(prev => prev.filter(c => c !== codigoConta))
       // Remover das parametrizações pendentes
-      setParametrizacoesPendentes(prev => {
-        const novoState = {
-          ...prev,
-          [contaSelecionada]: (prev[contaSelecionada] || []).filter(c => c !== codigoConta)
-        }
-        console.log('🗑️ Parametrizações pendentes após remover:', novoState)
-        return novoState
-      })
+      setParametrizacoesPendentes(prev => ({
+        ...prev,
+        [contaSelecionada]: (prev[contaSelecionada] || []).filter(c => c !== codigoConta)
+      }))
     }
   }
 
@@ -227,7 +201,6 @@ export function Parametrizacao() {
         description: "Todas as configurações foram salvas com sucesso"
       })
     } catch (error) {
-      console.error('Erro ao salvar:', error)
       toast({
         title: "Erro ao salvar",
         description: "Não foi possível salvar as parametrizações",
