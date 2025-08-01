@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Upload, FileSpreadsheet, Eye, Trash2, MoreVertical } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"
+import { supabase } from "@/integrations/supabase/client"
 import * as XLSX from 'xlsx'
 
 interface BalanceteImportado {
@@ -26,44 +27,47 @@ interface BalanceteImportado {
 export function Importar() {
   const [arquivo, setArquivo] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
-  const [balancetes, setBalancetes] = useState<BalanceteImportado[]>([
-    {
-      id: "1",
-      empresa: "EMPRESA EXEMPLO LTDA",
-      cnpj: "12.345.678/0001-90",
-      periodo: "12/2023",
-      ano: 2023,
-      status: "parametrizado",
-      totalContas: 30,
-      contasParametrizadas: 30,
-      dataImportacao: new Date()
-    },
-    {
-      id: "2", 
-      empresa: "COMÉRCIO ABC LTDA",
-      cnpj: "98.765.432/0001-10",
-      periodo: "11/2023",
-      ano: 2023,
-      status: "parametrizando",
-      totalContas: 25,
-      contasParametrizadas: 12,
-      dataImportacao: new Date()
-    },
-    {
-      id: "3",
-      empresa: "SERVIÇOS XYZ LTDA", 
-      cnpj: "11.222.333/0001-44",
-      periodo: "10/2023",
-      ano: 2023,
-      status: "pendente",
-      totalContas: 18,
-      contasParametrizadas: 0,
-      dataImportacao: new Date()
-    }
-  ])
+  const [balancetes, setBalancetes] = useState<BalanceteImportado[]>([])
   const [filtroEmpresa, setFiltroEmpresa] = useState("")
   const [filtroAno, setFiltroAno] = useState("todos")
   const { toast } = useToast()
+
+  // Carregar balancetes do banco
+  useEffect(() => {
+    loadBalancetes()
+  }, [])
+
+  const loadBalancetes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('balancetes')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+
+      const balancetesFormatados = data.map(b => ({
+        id: b.id,
+        empresa: b.empresa,
+        cnpj: b.cnpj,
+        periodo: b.periodo,
+        ano: b.ano,
+        status: b.status as 'pendente' | 'parametrizando' | 'parametrizado',
+        totalContas: b.total_contas,
+        contasParametrizadas: b.contas_parametrizadas,
+        dataImportacao: new Date(b.created_at)
+      }))
+
+      setBalancetes(balancetesFormatados)
+    } catch (error) {
+      console.error('Erro ao carregar balancetes:', error)
+      toast({
+        title: "Erro ao carregar dados",
+        description: "Não foi possível carregar os balancetes",
+        variant: "destructive"
+      })
+    }
+  }
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -91,37 +95,177 @@ export function Importar() {
     setIsUploading(true)
     
     try {
-      // Simular processamento do arquivo
+      // Ler o arquivo Excel
       const data = await arquivo.arrayBuffer()
       const workbook = XLSX.read(data, { type: 'array' })
+      const firstSheetName = workbook.SheetNames[0]
+      const worksheet = workbook.Sheets[firstSheetName]
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 })
+
+      // Buscar informações da empresa (primeiras linhas do arquivo)
+      let empresa = ""
+      let cnpj = ""
       
-      // Aqui você implementaria a lógica de leitura do balancete
-      // Por enquanto, vamos simular
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
-      const novoBalancete: BalanceteImportado = {
-        id: Date.now().toString(),
-        empresa: "NOVA EMPRESA LTDA",
-        cnpj: "55.666.777/0001-88",
-        periodo: "01/2024",
-        ano: 2024,
-        status: "pendente",
-        totalContas: 28,
-        contasParametrizadas: 0,
-        dataImportacao: new Date()
+      // Procurar empresa e CNPJ nas primeiras linhas
+      for (let i = 0; i < Math.min(10, jsonData.length); i++) {
+        const row = jsonData[i] as any[]
+        if (row && row.length > 0) {
+          const cellValue = String(row[0] || "").toLowerCase()
+          if (cellValue.includes("empresa") || cellValue.includes("razão")) {
+            empresa = String(row[1] || row[0] || "").replace(/empresa:?/i, "").trim()
+          }
+          if (cellValue.includes("cnpj") || /\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/.test(cellValue)) {
+            cnpj = String(row[1] || row[0] || "").replace(/cnpj:?/i, "").trim()
+            // Extrair CNPJ se estiver na mesma célula
+            const cnpjMatch = cnpj.match(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/)
+            if (cnpjMatch) cnpj = cnpjMatch[0]
+          }
+        }
       }
-      
-      setBalancetes(prev => [novoBalancete, ...prev])
+
+      // Valores padrão se não encontrar
+      if (!empresa) empresa = arquivo.name.replace('.xlsx', '').toUpperCase()
+      if (!cnpj) cnpj = "00.000.000/0001-00"
+
+      // Buscar data/período (pode estar no nome do arquivo ou no conteúdo)
+      const agora = new Date()
+      const mes = agora.getMonth() + 1
+      const ano = agora.getFullYear()
+      const periodo = `${mes.toString().padStart(2, '0')}/${ano}`
+
+      // Verificar se empresa existe nos clientes
+      let { data: clienteExistente, error: clienteError } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('cnpj', cnpj)
+        .single()
+
+      // Se não existir, criar automaticamente
+      if (!clienteExistente && !clienteError) {
+        const { error: insertError } = await supabase
+          .from('clients')
+          .insert({
+            nome_empresarial: empresa,
+            cnpj: cnpj,
+            ramo_atividade: 'Não informado'
+          })
+
+        if (insertError) {
+          console.error('Erro ao criar cliente:', insertError)
+        }
+      }
+
+      // Buscar dados das contas (procurar header com "código", "conta", "saldo")
+      let headerRowIndex = -1
+      let codigoColIndex = -1
+      let nomeColIndex = -1
+      let saldoColIndex = -1
+
+      for (let i = 0; i < jsonData.length; i++) {
+        const row = jsonData[i] as any[]
+        if (row) {
+          for (let j = 0; j < row.length; j++) {
+            const cell = String(row[j] || "").toLowerCase()
+            if (cell.includes("código") || cell.includes("codigo")) {
+              codigoColIndex = j
+              headerRowIndex = i
+            }
+            if (cell.includes("conta") || cell.includes("descrição") || cell.includes("descricao")) {
+              nomeColIndex = j
+              headerRowIndex = i
+            }
+            if (cell.includes("saldo") && (cell.includes("atual") || cell.includes("final"))) {
+              saldoColIndex = j
+              headerRowIndex = i
+            }
+          }
+          if (headerRowIndex >= 0 && codigoColIndex >= 0 && nomeColIndex >= 0 && saldoColIndex >= 0) {
+            break
+          }
+        }
+      }
+
+      // Extrair contas do balancete
+      const contas = []
+      if (headerRowIndex >= 0) {
+        for (let i = headerRowIndex + 1; i < jsonData.length; i++) {
+          const row = jsonData[i] as any[]
+          if (row && row.length > Math.max(codigoColIndex, nomeColIndex, saldoColIndex)) {
+            const codigo = String(row[codigoColIndex] || "").trim()
+            const nome = String(row[nomeColIndex] || "").trim()
+            const saldoStr = String(row[saldoColIndex] || "0")
+            
+            if (codigo && nome) {
+              // Converter saldo para número
+              let saldo = 0
+              let natureza = 'devedora'
+              
+              const saldoNumerico = parseFloat(saldoStr.replace(/[^\d,-]/g, '').replace(',', '.'))
+              if (!isNaN(saldoNumerico)) {
+                if (saldoNumerico < 0) {
+                  saldo = Math.abs(saldoNumerico)
+                  natureza = 'credora'
+                } else {
+                  saldo = saldoNumerico
+                  natureza = 'devedora'
+                }
+              }
+
+              contas.push({ codigo, nome, saldo, natureza })
+            }
+          }
+        }
+      }
+
+      // Salvar balancete no banco
+      const { data: balanceteData, error: balanceteError } = await supabase
+        .from('balancetes')
+        .insert({
+          empresa,
+          cnpj,
+          periodo,
+          ano,
+          mes,
+          arquivo_nome: arquivo.name,
+          total_contas: contas.length,
+          contas_parametrizadas: 0,
+          status: 'pendente'
+        })
+        .select()
+        .single()
+
+      if (balanceteError) throw balanceteError
+
+      // Salvar contas do balancete
+      if (contas.length > 0) {
+        const contasData = contas.map(conta => ({
+          balancete_id: balanceteData.id,
+          codigo: conta.codigo,
+          nome: conta.nome,
+          saldo_atual: conta.saldo,
+          natureza: conta.natureza
+        }))
+
+        const { error: contasError } = await supabase
+          .from('contas_balancete')
+          .insert(contasData)
+
+        if (contasError) throw contasError
+      }
+
+      // Recarregar lista
+      await loadBalancetes()
       setArquivo(null)
       
       toast({
         title: "Balancete importado com sucesso",
-        description: "O balancete foi processado e está pronto para parametrização"
+        description: `${contas.length} contas foram processadas e estão prontas para parametrização`
       })
     } catch (error) {
+      console.error('Erro na importação:', error)
       toast({
         title: "Erro na importação",
-        description: "Ocorreu um erro ao processar o arquivo",
+        description: "Ocorreu um erro ao processar o arquivo. Verifique o formato do arquivo.",
         variant: "destructive"
       })
     } finally {
@@ -142,12 +286,28 @@ export function Importar() {
     }
   }
 
-  const handleExcluir = (id: string) => {
-    setBalancetes(prev => prev.filter(b => b.id !== id))
-    toast({
-      title: "Balancete excluído",
-      description: "O balancete foi removido com sucesso"
-    })
+  const handleExcluir = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('balancetes')
+        .delete()
+        .eq('id', id)
+
+      if (error) throw error
+
+      await loadBalancetes()
+      toast({
+        title: "Balancete excluído",
+        description: "O balancete foi removido com sucesso"
+      })
+    } catch (error) {
+      console.error('Erro ao excluir balancete:', error)
+      toast({
+        title: "Erro ao excluir",
+        description: "Não foi possível excluir o balancete",
+        variant: "destructive"
+      })
+    }
   }
 
   const balancetesFiltrados = balancetes.filter(balancete => {
