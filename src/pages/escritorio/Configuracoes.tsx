@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Plus, Settings, Pencil, Building2, Upload } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import InputMask from "react-input-mask"
+import { supabase } from "@/integrations/supabase/client"
 
 interface Escritorio {
   id: string
@@ -23,7 +24,7 @@ interface Escritorio {
   uf: string
   telefone: string
   instagram: string
-  logomarca: string | null
+  logomarca_url: string | null
 }
 
 const estadosBrasil = [
@@ -51,7 +52,32 @@ export function Configuracoes() {
   })
   const { toast } = useToast()
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Carregar dados do escritório
+  useEffect(() => {
+    loadEscritorio()
+  }, [])
+
+  const loadEscritorio = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('office')
+        .select('*')
+        .single()
+      
+      if (error && error.code !== 'PGRST116') {
+        console.error('Erro ao carregar escritório:', error)
+        return
+      }
+      
+      if (data) {
+        setEscritorio(data)
+      }
+    } catch (error) {
+      console.error('Erro ao carregar escritório:', error)
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!formData.nome || !formData.cnpj || !formData.cep || !formData.telefone) {
@@ -63,18 +89,49 @@ export function Configuracoes() {
       return
     }
 
-    const novoEscritorio: Escritorio = {
-      id: escritorio?.id || "1",
-      ...formData,
-      logomarca: formData.logomarca ? URL.createObjectURL(formData.logomarca) : escritorio?.logomarca || null
-    }
+    try {
+      const escritorioData = {
+        nome: formData.nome,
+        cnpj: formData.cnpj,
+        logradouro: formData.logradouro || null,
+        numero: formData.numero || null,
+        complemento: formData.complemento || null,
+        bairro: formData.bairro || null,
+        cep: formData.cep,
+        municipio: formData.municipio || null,
+        uf: formData.uf || null,
+        telefone: formData.telefone,
+        instagram: formData.instagram || null,
+        logomarca_url: formData.logomarca ? URL.createObjectURL(formData.logomarca) : escritorio?.logomarca_url || null
+      }
 
-    setEscritorio(novoEscritorio)
-    setIsModalOpen(false)
-    toast({ 
-      title: "Sucesso", 
-      description: escritorio ? "Configurações atualizadas com sucesso" : "Escritório cadastrado com sucesso"
-    })
+      if (escritorio) {
+        const { error } = await supabase
+          .from('office')
+          .update(escritorioData)
+          .eq('id', escritorio.id)
+        
+        if (error) throw error
+        toast({ title: "Sucesso", description: "Configurações atualizadas com sucesso" })
+      } else {
+        const { error } = await supabase
+          .from('office')
+          .insert([escritorioData])
+        
+        if (error) throw error
+        toast({ title: "Sucesso", description: "Escritório cadastrado com sucesso" })
+      }
+
+      await loadEscritorio()
+      setIsModalOpen(false)
+    } catch (error: any) {
+      console.error('Erro ao salvar escritório:', error)
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao salvar escritório",
+        variant: "destructive"
+      })
+    }
   }
 
   const openEditModal = () => {
@@ -285,10 +342,10 @@ export function Configuracoes() {
                       onChange={handleFileChange}
                       className="flex-1"
                     />
-                    {(formData.logomarca || escritorio?.logomarca) && (
+                    {(formData.logomarca || escritorio?.logomarca_url) && (
                       <Avatar className="h-12 w-12">
                         <AvatarImage 
-                          src={formData.logomarca ? URL.createObjectURL(formData.logomarca) : escritorio?.logomarca || ""} 
+                          src={formData.logomarca ? URL.createObjectURL(formData.logomarca) : escritorio?.logomarca_url || ""} 
                           alt="Logomarca"
                           className="object-contain"
                         />
@@ -325,7 +382,7 @@ export function Configuracoes() {
               <div className="space-y-4">
                 <div className="flex items-center gap-4">
                   <Avatar className="h-16 w-16">
-                    <AvatarImage src={escritorio.logomarca || ""} alt="Logomarca" className="object-contain" />
+                    <AvatarImage src={escritorio.logomarca_url || ""} alt="Logomarca" className="object-contain" />
                     <AvatarFallback><Building2 className="h-8 w-8" /></AvatarFallback>
                   </Avatar>
                   <div>

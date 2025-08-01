@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,6 +9,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Plus, Search, ContactRound, Pencil, Eye, Trash2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import InputMask from "react-input-mask"
+import { supabase } from "@/integrations/supabase/client"
 
 interface Contato {
   id: string
@@ -19,25 +20,9 @@ interface Contato {
   telefone: string
 }
 
-const mockClientes = [
-  { id: "1", nome: "Empresa ABC Ltda" },
-  { id: "2", nome: "XYZ Comércio" },
-  { id: "3", nome: "Indústria 123" },
-]
-
-const mockContatos: Contato[] = [
-  {
-    id: "1",
-    clienteId: "1",
-    clienteNome: "Empresa ABC Ltda",
-    nome: "João Silva",
-    email: "joao@empresaabc.com",
-    telefone: "(11) 99999-9999"
-  },
-]
-
 export function Contatos() {
-  const [contatos, setContatos] = useState<Contato[]>(mockContatos)
+  const [contatos, setContatos] = useState<Contato[]>([])
+  const [clientes, setClientes] = useState<any[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingContato, setEditingContato] = useState<Contato | null>(null)
   const [viewingContato, setViewingContato] = useState<Contato | null>(null)
@@ -51,7 +36,54 @@ export function Contatos() {
   })
   const { toast } = useToast()
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Carregar clientes e contatos
+  useEffect(() => {
+    loadClientes()
+    loadContatos()
+  }, [])
+
+  const loadClientes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('id, nome_empresarial')
+        .order('nome_empresarial')
+      
+      if (error) throw error
+      setClientes(data || [])
+    } catch (error) {
+      console.error('Erro ao carregar clientes:', error)
+    }
+  }
+
+  const loadContatos = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('contacts')
+        .select(`
+          *,
+          clients!inner(nome_empresarial)
+        `)
+        .order('nome')
+      
+      if (error) throw error
+      
+      const contatosFormatados = (data || []).map(contato => ({
+        id: contato.id,
+        clienteId: contato.client_id,
+        clienteNome: contato.clients.nome_empresarial,
+        nome: contato.nome,
+        email: contato.email,
+        telefone: contato.telefone
+      }))
+      
+      setContatos(contatosFormatados)
+    } catch (error) {
+      console.error('Erro ao carregar contatos:', error)
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!formData.clienteId || !formData.nome || !formData.email || !formData.telefone) {
@@ -63,26 +95,41 @@ export function Contatos() {
       return
     }
 
-    const clienteNome = mockClientes.find(c => c.id === formData.clienteId)?.nome || ""
-
-    if (editingContato) {
-      setContatos(prev => prev.map(contato => 
-        contato.id === editingContato.id 
-          ? { ...contato, ...formData, clienteNome }
-          : contato
-      ))
-      toast({ title: "Sucesso", description: "Contato atualizado com sucesso" })
-    } else {
-      const novoContato: Contato = {
-        id: Date.now().toString(),
-        ...formData,
-        clienteNome
+    try {
+      const contatoData = {
+        client_id: formData.clienteId,
+        nome: formData.nome,
+        email: formData.email,
+        telefone: formData.telefone
       }
-      setContatos(prev => [...prev, novoContato])
-      toast({ title: "Sucesso", description: "Contato cadastrado com sucesso" })
-    }
 
-    resetForm()
+      if (editingContato) {
+        const { error } = await supabase
+          .from('contacts')
+          .update(contatoData)
+          .eq('id', editingContato.id)
+        
+        if (error) throw error
+        toast({ title: "Sucesso", description: "Contato atualizado com sucesso" })
+      } else {
+        const { error } = await supabase
+          .from('contacts')
+          .insert([contatoData])
+        
+        if (error) throw error
+        toast({ title: "Sucesso", description: "Contato cadastrado com sucesso" })
+      }
+
+      await loadContatos()
+      resetForm()
+    } catch (error: any) {
+      console.error('Erro ao salvar contato:', error)
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao salvar contato",
+        variant: "destructive"
+      })
+    }
   }
 
   const resetForm = () => {
@@ -106,11 +153,27 @@ export function Contatos() {
     setViewingContato(contato)
   }
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (deletingContato) {
-      setContatos(prev => prev.filter(c => c.id !== deletingContato.id))
-      setDeletingContato(null)
-      toast({ title: "Sucesso", description: "Contato excluído com sucesso" })
+      try {
+        const { error } = await supabase
+          .from('contacts')
+          .delete()
+          .eq('id', deletingContato.id)
+        
+        if (error) throw error
+        
+        setDeletingContato(null)
+        await loadContatos()
+        toast({ title: "Sucesso", description: "Contato excluído com sucesso" })
+      } catch (error: any) {
+        console.error('Erro ao excluir contato:', error)
+        toast({
+          title: "Erro",
+          description: "Erro ao excluir contato",
+          variant: "destructive"
+        })
+      }
     }
   }
 
@@ -157,9 +220,9 @@ export function Contatos() {
                     <SelectValue placeholder="Selecione um cliente" />
                   </SelectTrigger>
                   <SelectContent>
-                    {mockClientes.map(cliente => (
+                    {clientes.map(cliente => (
                       <SelectItem key={cliente.id} value={cliente.id}>
-                        {cliente.nome}
+                        {cliente.nome_empresarial}
                       </SelectItem>
                     ))}
                   </SelectContent>

@@ -18,9 +18,9 @@ import { supabase } from "@/integrations/supabase/client"
 interface Cliente {
   id: string
   cnpj: string
-  nomeEmpresarial: string
-  nomeFantasia: string
-  ramoAtividade: string
+  nome_empresarial: string
+  nome_fantasia: string
+  ramo_atividade: string
   cep: string
   logradouro: string
   numero: string
@@ -28,8 +28,8 @@ interface Cliente {
   bairro: string
   municipio: string
   uf: string
-  clienteDesde: Date
-  fimContrato: Date | null
+  cliente_desde: string
+  fim_contrato: string | null
 }
 
 const ramosAtividade = [
@@ -46,27 +46,8 @@ const estadosBrasil = [
   "RS", "RO", "RR", "SC", "SP", "SE", "TO"
 ]
 
-const mockClientes: Cliente[] = [
-  {
-    id: "1",
-    cnpj: "12.345.678/0001-90",
-    nomeEmpresarial: "Empresa ABC Ltda",
-    nomeFantasia: "ABC",
-    ramoAtividade: "Comércio",
-    cep: "01234-567",
-    logradouro: "Rua das Flores",
-    numero: "123",
-    complemento: "Sala 1",
-    bairro: "Centro",
-    municipio: "São Paulo",
-    uf: "SP",
-    clienteDesde: new Date(2020, 0, 15),
-    fimContrato: null
-  },
-]
-
 export function Clientes() {
-  const [clientes, setClientes] = useState<Cliente[]>(mockClientes)
+  const [clientes, setClientes] = useState<Cliente[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingCliente, setEditingCliente] = useState<Cliente | null>(null)
   const [viewingCliente, setViewingCliente] = useState<Cliente | null>(null)
@@ -79,9 +60,9 @@ export function Clientes() {
   
   const [formData, setFormData] = useState({
     cnpj: "",
-    nomeEmpresarial: "",
-    nomeFantasia: "",
-    ramoAtividade: "",
+    nome_empresarial: "",
+    nome_fantasia: "",
+    ramo_atividade: "",
     cep: "",
     logradouro: "",
     numero: "",
@@ -89,10 +70,33 @@ export function Clientes() {
     bairro: "",
     municipio: "",
     uf: "",
-    clienteDesde: undefined as Date | undefined,
-    fimContrato: undefined as Date | undefined
+    cliente_desde: undefined as Date | undefined,
+    fim_contrato: undefined as Date | undefined
   })
   const { toast } = useToast()
+
+  // Carregar clientes do banco de dados
+  const loadClientes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('*')
+        .order('nome_empresarial')
+      
+      if (error) {
+        console.error('Erro ao carregar clientes:', error)
+        return
+      }
+      
+      setClientes(data || [])
+    } catch (error) {
+      console.error('Erro ao carregar clientes:', error)
+    }
+  }
+
+  useEffect(() => {
+    loadClientes()
+  }, [])
 
   const validateCNPJ = (cnpj: string) => {
     const cleaned = cnpj.replace(/\D/g, "")
@@ -122,8 +126,8 @@ export function Clientes() {
       if (data?.status === "OK") {
         setFormData(prev => ({
           ...prev,
-          nomeEmpresarial: data.nome || "",
-          nomeFantasia: data.fantasia || "",
+          nome_empresarial: data.nome || "",
+          nome_fantasia: data.fantasia || "",
           cep: data.cep || "",
           logradouro: data.logradouro || "",
           numero: data.numero || "",
@@ -184,11 +188,11 @@ export function Clientes() {
 
   // Filtrar clientes
   const filteredClientes = clientes.filter(cliente => {
-    const matchesSearch = cliente.nomeEmpresarial.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = cliente.nome_empresarial.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          cliente.cnpj.includes(searchTerm) ||
-                         (cliente.nomeFantasia && cliente.nomeFantasia.toLowerCase().includes(searchTerm.toLowerCase()))
+                         (cliente.nome_fantasia && cliente.nome_fantasia.toLowerCase().includes(searchTerm.toLowerCase()))
     
-    const isActive = !cliente.fimContrato
+    const isActive = !cliente.fim_contrato
     const matchesStatus = statusFilter === "todos" || 
                          (statusFilter === "ativos" && isActive) ||
                          (statusFilter === "inativos" && !isActive)
@@ -216,10 +220,10 @@ export function Clientes() {
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!formData.cnpj || !formData.nomeEmpresarial || !formData.ramoAtividade || !formData.clienteDesde) {
+    if (!formData.cnpj || !formData.nome_empresarial || !formData.ramo_atividade || !formData.cliente_desde) {
       toast({
         title: "Erro",
         description: "CNPJ, Nome Empresarial, Ramo de Atividade e Cliente desde são obrigatórios",
@@ -237,47 +241,58 @@ export function Clientes() {
       return
     }
 
-    // Verificar CNPJ duplicado
-    const cnpjExists = clientes.some(cliente => 
-      cliente.cnpj === formData.cnpj && cliente.id !== editingCliente?.id
-    )
-    
-    if (cnpjExists) {
+    try {
+      const clientData = {
+        cnpj: formData.cnpj,
+        nome_empresarial: formData.nome_empresarial,
+        nome_fantasia: formData.nome_fantasia || null,
+        ramo_atividade: formData.ramo_atividade,
+        cep: formData.cep || null,
+        logradouro: formData.logradouro || null,
+        numero: formData.numero || null,
+        complemento: formData.complemento || null,
+        bairro: formData.bairro || null,
+        municipio: formData.municipio || null,
+        uf: formData.uf || null,
+        cliente_desde: formData.cliente_desde!.toISOString().split('T')[0],
+        fim_contrato: formData.fim_contrato ? formData.fim_contrato.toISOString().split('T')[0] : null
+      }
+
+      if (editingCliente) {
+        const { error } = await supabase
+          .from('clients')
+          .update(clientData)
+          .eq('id', editingCliente.id)
+        
+        if (error) throw error
+        toast({ title: "Sucesso", description: "Cliente atualizado com sucesso" })
+      } else {
+        const { error } = await supabase
+          .from('clients')
+          .insert([clientData])
+        
+        if (error) throw error
+        toast({ title: "Sucesso", description: "Cliente cadastrado com sucesso" })
+      }
+
+      await loadClientes()
+      resetForm()
+    } catch (error: any) {
+      console.error('Erro ao salvar cliente:', error)
       toast({
         title: "Erro",
-        description: "Não é possível cadastrar clientes com o mesmo CNPJ",
+        description: error.message || "Erro ao salvar cliente",
         variant: "destructive"
       })
-      return
     }
-
-    if (editingCliente) {
-      setClientes(prev => prev.map(cliente => 
-        cliente.id === editingCliente.id 
-          ? { ...cliente, ...formData, clienteDesde: formData.clienteDesde!, fimContrato: formData.fimContrato || null }
-          : cliente
-      ))
-      toast({ title: "Sucesso", description: "Cliente atualizado com sucesso" })
-    } else {
-      const novoCliente: Cliente = {
-        id: Date.now().toString(),
-        ...formData,
-        clienteDesde: formData.clienteDesde!,
-        fimContrato: formData.fimContrato || null
-      }
-      setClientes(prev => [...prev, novoCliente])
-      toast({ title: "Sucesso", description: "Cliente cadastrado com sucesso" })
-    }
-
-    resetForm()
   }
 
   const resetForm = () => {
     setFormData({
       cnpj: "",
-      nomeEmpresarial: "",
-      nomeFantasia: "",
-      ramoAtividade: "",
+      nome_empresarial: "",
+      nome_fantasia: "",
+      ramo_atividade: "",
       cep: "",
       logradouro: "",
       numero: "",
@@ -285,8 +300,8 @@ export function Clientes() {
       bairro: "",
       municipio: "",
       uf: "",
-      clienteDesde: undefined,
-      fimContrato: undefined
+      cliente_desde: undefined,
+      fim_contrato: undefined
     })
     setClienteDesdeInput("")
     setFimContratoInput("")
@@ -297,21 +312,21 @@ export function Clientes() {
   const openEditModal = (cliente: Cliente) => {
     setFormData({
       cnpj: cliente.cnpj,
-      nomeEmpresarial: cliente.nomeEmpresarial,
-      nomeFantasia: cliente.nomeFantasia,
-      ramoAtividade: cliente.ramoAtividade,
-      cep: cliente.cep,
-      logradouro: cliente.logradouro,
-      numero: cliente.numero,
-      complemento: cliente.complemento,
-      bairro: cliente.bairro,
-      municipio: cliente.municipio,
-      uf: cliente.uf,
-      clienteDesde: cliente.clienteDesde,
-      fimContrato: cliente.fimContrato || undefined
+      nome_empresarial: cliente.nome_empresarial,
+      nome_fantasia: cliente.nome_fantasia || "",
+      ramo_atividade: cliente.ramo_atividade,
+      cep: cliente.cep || "",
+      logradouro: cliente.logradouro || "",
+      numero: cliente.numero || "",
+      complemento: cliente.complemento || "",
+      bairro: cliente.bairro || "",
+      municipio: cliente.municipio || "",
+      uf: cliente.uf || "",
+      cliente_desde: new Date(cliente.cliente_desde),
+      fim_contrato: cliente.fim_contrato ? new Date(cliente.fim_contrato) : undefined
     })
-    setClienteDesdeInput(format(cliente.clienteDesde, "dd/MM/yyyy"))
-    setFimContratoInput(cliente.fimContrato ? format(cliente.fimContrato, "dd/MM/yyyy") : "")
+    setClienteDesdeInput(format(new Date(cliente.cliente_desde), "dd/MM/yyyy"))
+    setFimContratoInput(cliente.fim_contrato ? format(new Date(cliente.fim_contrato), "dd/MM/yyyy") : "")
     setEditingCliente(cliente)
     setIsModalOpen(true)
   }
@@ -320,24 +335,52 @@ export function Clientes() {
     setViewingCliente(cliente)
   }
 
-  const desativarCliente = (clienteId: string) => {
-    setClientes(prev => prev.map(cliente => 
-      cliente.id === clienteId 
-        ? { ...cliente, fimContrato: new Date() }
-        : cliente
-    ))
-    toast({ 
-      title: "Sucesso", 
-      description: "Cliente desativado com sucesso" 
-    })
+  const desativarCliente = async (clienteId: string) => {
+    try {
+      const { error } = await supabase
+        .from('clients')
+        .update({ fim_contrato: new Date().toISOString().split('T')[0] })
+        .eq('id', clienteId)
+      
+      if (error) throw error
+      
+      await loadClientes()
+      toast({ 
+        title: "Sucesso", 
+        description: "Cliente desativado com sucesso" 
+      })
+    } catch (error: any) {
+      console.error('Erro ao desativar cliente:', error)
+      toast({
+        title: "Erro",
+        description: "Erro ao desativar cliente",
+        variant: "destructive"
+      })
+    }
   }
 
-  const excluirCliente = (clienteId: string) => {
-    setClientes(prev => prev.filter(cliente => cliente.id !== clienteId))
-    toast({ 
-      title: "Sucesso", 
-      description: "Cliente excluído com sucesso" 
-    })
+  const excluirCliente = async (clienteId: string) => {
+    try {
+      const { error } = await supabase
+        .from('clients')
+        .delete()
+        .eq('id', clienteId)
+      
+      if (error) throw error
+      
+      await loadClientes()
+      toast({ 
+        title: "Sucesso", 
+        description: "Cliente excluído com sucesso" 
+      })
+    } catch (error: any) {
+      console.error('Erro ao excluir cliente:', error)
+      toast({
+        title: "Erro",
+        description: "Erro ao excluir cliente",
+        variant: "destructive"
+      })
+    }
   }
 
   const handleImportCSV = () => {
@@ -410,10 +453,10 @@ export function Clientes() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="ramoAtividade">Ramo de Atividade *</Label>
+                    <Label htmlFor="ramo_atividade">Ramo de Atividade *</Label>
                     <Select 
-                      value={formData.ramoAtividade} 
-                      onValueChange={(value) => setFormData(prev => ({...prev, ramoAtividade: value}))}
+                      value={formData.ramo_atividade} 
+                      onValueChange={(value) => setFormData(prev => ({...prev, ramo_atividade: value}))}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione o ramo" />
@@ -429,21 +472,21 @@ export function Clientes() {
                   </div>
 
                   <div className="col-span-2 space-y-2">
-                    <Label htmlFor="nomeEmpresarial">Nome Empresarial *</Label>
+                    <Label htmlFor="nome_empresarial">Nome Empresarial *</Label>
                     <Input
-                      id="nomeEmpresarial"
-                      value={formData.nomeEmpresarial}
-                      onChange={(e) => setFormData(prev => ({...prev, nomeEmpresarial: e.target.value}))}
+                      id="nome_empresarial"
+                      value={formData.nome_empresarial}
+                      onChange={(e) => setFormData(prev => ({...prev, nome_empresarial: e.target.value}))}
                       placeholder="Nome empresarial"
                     />
                   </div>
 
                   <div className="col-span-2 space-y-2">
-                    <Label htmlFor="nomeFantasia">Nome Fantasia</Label>
+                    <Label htmlFor="nome_fantasia">Nome Fantasia</Label>
                     <Input
-                      id="nomeFantasia"
-                      value={formData.nomeFantasia}
-                      onChange={(e) => setFormData(prev => ({...prev, nomeFantasia: e.target.value}))}
+                      id="nome_fantasia"
+                      value={formData.nome_fantasia}
+                      onChange={(e) => setFormData(prev => ({...prev, nome_fantasia: e.target.value}))}
                       placeholder="Nome fantasia"
                     />
                   </div>
@@ -558,9 +601,9 @@ export function Clientes() {
                          <PopoverContent className="w-auto p-0" align="start">
                            <Calendar
                              mode="single"
-                             selected={formData.clienteDesde}
+                             selected={formData.cliente_desde}
                              onSelect={(date) => {
-                               setFormData(prev => ({...prev, clienteDesde: date}))
+                               setFormData(prev => ({...prev, cliente_desde: date}))
                                setClienteDesdeInput(date ? format(date, "dd/MM/yyyy") : "")
                              }}
                              initialFocus
@@ -580,7 +623,7 @@ export function Clientes() {
                          onChange={(e) => {
                            setFimContratoInput(e.target.value)
                            const parsed = parseDate(e.target.value)
-                           setFormData(prev => ({...prev, fimContrato: parsed}))
+                           setFormData(prev => ({...prev, fim_contrato: parsed}))
                          }}
                        >
                          {() => <Input placeholder="dd/mm/aaaa" className="flex-1" />}
@@ -594,9 +637,9 @@ export function Clientes() {
                          <PopoverContent className="w-auto p-0" align="start">
                            <Calendar
                              mode="single"
-                             selected={formData.fimContrato}
+                             selected={formData.fim_contrato}
                              onSelect={(date) => {
-                               setFormData(prev => ({...prev, fimContrato: date}))
+                               setFormData(prev => ({...prev, fim_contrato: date}))
                                setFimContratoInput(date ? format(date, "dd/MM/yyyy") : "")
                              }}
                              initialFocus
@@ -682,23 +725,23 @@ export function Clientes() {
                   <div key={cliente.id} className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <h4 className="font-medium">{cliente.nomeEmpresarial}</h4>
-                        {cliente.fimContrato && (
+                        <h4 className="font-medium">{cliente.nome_empresarial}</h4>
+                        {cliente.fim_contrato && (
                           <span className="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
                             Inativo
                           </span>
                         )}
                       </div>
-                      {cliente.nomeFantasia && (
-                        <p className="text-sm text-muted-foreground">{cliente.nomeFantasia}</p>
+                      {cliente.nome_fantasia && (
+                        <p className="text-sm text-muted-foreground">{cliente.nome_fantasia}</p>
                       )}
                       <p className="text-sm text-muted-foreground">
-                        {cliente.cnpj} • {cliente.ramoAtividade}
+                        {cliente.cnpj} • {cliente.ramo_atividade}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        Cliente desde: {format(cliente.clienteDesde, "PPP", { locale: ptBR })}
-                        {cliente.fimContrato && (
-                          <> • Inativo desde: {format(cliente.fimContrato, "PPP", { locale: ptBR })}</>
+                        Cliente desde: {format(new Date(cliente.cliente_desde), "PPP", { locale: ptBR })}
+                        {cliente.fim_contrato && (
+                          <> • Inativo desde: {format(new Date(cliente.fim_contrato), "PPP", { locale: ptBR })}</>
                         )}
                       </p>
                     </div>
@@ -717,7 +760,7 @@ export function Clientes() {
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
-                       {!cliente.fimContrato && (
+                       {!cliente.fim_contrato && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -796,16 +839,16 @@ export function Clientes() {
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Ramo de Atividade</Label>
-                  <p className="mt-1">{viewingCliente.ramoAtividade}</p>
+                  <p className="mt-1">{viewingCliente.ramo_atividade}</p>
                 </div>
                 <div className="col-span-2">
                   <Label className="text-sm font-medium text-muted-foreground">Nome Empresarial</Label>
-                  <p className="mt-1">{viewingCliente.nomeEmpresarial}</p>
+                  <p className="mt-1">{viewingCliente.nome_empresarial}</p>
                 </div>
-                {viewingCliente.nomeFantasia && (
+                {viewingCliente.nome_fantasia && (
                   <div className="col-span-2">
                     <Label className="text-sm font-medium text-muted-foreground">Nome Fantasia</Label>
-                    <p className="mt-1">{viewingCliente.nomeFantasia}</p>
+                    <p className="mt-1">{viewingCliente.nome_fantasia}</p>
                   </div>
                 )}
                 <div className="col-span-2">
@@ -821,12 +864,12 @@ export function Clientes() {
                 </div>
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Cliente desde</Label>
-                  <p className="mt-1">{format(viewingCliente.clienteDesde, "PPP", { locale: ptBR })}</p>
+                  <p className="mt-1">{format(new Date(viewingCliente.cliente_desde), "PPP", { locale: ptBR })}</p>
                 </div>
-                {viewingCliente.fimContrato && (
+                {viewingCliente.fim_contrato && (
                   <div>
                     <Label className="text-sm font-medium text-muted-foreground">Fim do contrato</Label>
-                    <p className="mt-1">{format(viewingCliente.fimContrato, "PPP", { locale: ptBR })}</p>
+                    <p className="mt-1">{format(new Date(viewingCliente.fim_contrato), "PPP", { locale: ptBR })}</p>
                   </div>
                 )}
               </div>
