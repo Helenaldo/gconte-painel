@@ -14,6 +14,8 @@ import { Contatos } from "@/pages/escritorio/Contatos";
 import { Eventos } from "@/pages/escritorio/Eventos";
 import { Tributacao } from "@/pages/escritorio/Tributacao";
 import { Configuracoes } from "@/pages/escritorio/Configuracoes";
+import { Importar } from "@/pages/indicadores/Importar";
+import { Parametrizacao } from "@/pages/indicadores/Parametrizacao";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -118,6 +120,26 @@ function AppRoutes() {
           <ProtectedRoute>
             <MainLayout user={userForLayout} onLogout={logout}>
               <Configuracoes />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/indicadores/importar"
+        element={
+          <ProtectedRoute>
+            <MainLayout user={userForLayout} onLogout={logout}>
+              <Importar />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/indicadores/parametrizacao"
+        element={
+          <ProtectedRoute>
+            <MainLayout user={userForLayout} onLogout={logout}>
+              <Parametrizacao />
             </MainLayout>
           </ProtectedRoute>
         }
