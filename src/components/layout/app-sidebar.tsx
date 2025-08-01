@@ -127,7 +127,7 @@ const menuItems = [
 export function AppSidebar() {
   const { state } = useSidebar()
   const location = useLocation()
-  const [openGroups, setOpenGroups] = useState<string[]>(["Escritório", "Indicadores"])
+  const [openGroups, setOpenGroups] = useState<string[]>([])
 
   const isCollapsed = state === "collapsed"
   const currentPath = location.pathname
