@@ -138,24 +138,40 @@ export function Parametrizacao() {
   const handleContaBalanceteToggle = (codigoConta: string, checked: boolean) => {
     if (!contaSelecionada) return
     
+    console.log('🔄 Toggle conta balancete:', { codigoConta, checked, contaSelecionada })
+    
     if (checked) {
-      setContasSelecionadas(prev => [...new Set([...prev, codigoConta])])
+      setContasSelecionadas(prev => {
+        const novasContas = [...new Set([...prev, codigoConta])]
+        console.log('✅ Contas selecionadas após adicionar:', novasContas)
+        return novasContas
+      })
       // Adicionar nas parametrizações pendentes (evitar duplicatas)
       setParametrizacoesPendentes(prev => {
         const contasExistentes = prev[contaSelecionada] || []
         const novasContas = [...new Set([...contasExistentes, codigoConta])]
-        return {
+        const novoState = {
           ...prev,
           [contaSelecionada]: novasContas
         }
+        console.log('📝 Parametrizações pendentes após adicionar:', novoState)
+        return novoState
       })
     } else {
-      setContasSelecionadas(prev => prev.filter(c => c !== codigoConta))
+      setContasSelecionadas(prev => {
+        const novasContas = prev.filter(c => c !== codigoConta)
+        console.log('❌ Contas selecionadas após remover:', novasContas)
+        return novasContas
+      })
       // Remover das parametrizações pendentes
-      setParametrizacoesPendentes(prev => ({
-        ...prev,
-        [contaSelecionada]: (prev[contaSelecionada] || []).filter(c => c !== codigoConta)
-      }))
+      setParametrizacoesPendentes(prev => {
+        const novoState = {
+          ...prev,
+          [contaSelecionada]: (prev[contaSelecionada] || []).filter(c => c !== codigoConta)
+        }
+        console.log('🗑️ Parametrizações pendentes após remover:', novoState)
+        return novoState
+      })
     }
   }
 
