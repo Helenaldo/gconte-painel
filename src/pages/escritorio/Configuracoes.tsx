@@ -23,6 +23,7 @@ interface Escritorio {
   municipio: string
   uf: string
   telefone: string
+  email: string
   instagram: string
   logomarca_url: string | null
 }
@@ -47,6 +48,7 @@ export function Configuracoes() {
     municipio: "",
     uf: "",
     telefone: "",
+    email: "",
     instagram: "",
     logomarca: null as File | null
   })
@@ -101,6 +103,7 @@ export function Configuracoes() {
         municipio: formData.municipio || null,
         uf: formData.uf || null,
         telefone: formData.telefone,
+        email: formData.email || null,
         instagram: formData.instagram || null,
         logomarca_url: formData.logomarca ? URL.createObjectURL(formData.logomarca) : escritorio?.logomarca_url || null
       }
@@ -147,6 +150,7 @@ export function Configuracoes() {
         municipio: escritorio.municipio,
         uf: escritorio.uf,
         telefone: escritorio.telefone,
+        email: escritorio.email,
         instagram: escritorio.instagram,
         logomarca: null
       })
@@ -162,6 +166,7 @@ export function Configuracoes() {
         municipio: "",
         uf: "",
         telefone: "",
+        email: "",
         instagram: "",
         logomarca: null
       })
@@ -240,6 +245,17 @@ export function Configuracoes() {
                   >
                     {() => <Input placeholder="(11) 99999-9999 ou (11) 9999-9999" />}
                   </InputMask>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="email">E-mail</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData(prev => ({...prev, email: e.target.value}))}
+                    placeholder="contato@escritorio.com"
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -408,6 +424,7 @@ export function Configuracoes() {
                 <div>
                   <Label className="text-sm font-medium text-muted-foreground">Contato</Label>
                   <p className="mt-1">Telefone: {escritorio.telefone}</p>
+                  {escritorio.email && <p>E-mail: {escritorio.email}</p>}
                   {escritorio.instagram && <p>Instagram: {escritorio.instagram}</p>}
                 </div>
                 

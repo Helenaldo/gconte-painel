@@ -157,6 +157,7 @@ export type Database = {
           cnpj: string
           complemento: string | null
           created_at: string
+          email: string | null
           id: string
           instagram: string | null
           logomarca_url: string | null
@@ -174,6 +175,7 @@ export type Database = {
           cnpj: string
           complemento?: string | null
           created_at?: string
+          email?: string | null
           id?: string
           instagram?: string | null
           logomarca_url?: string | null
@@ -191,6 +193,7 @@ export type Database = {
           cnpj?: string
           complemento?: string | null
           created_at?: string
+          email?: string | null
           id?: string
           instagram?: string | null
           logomarca_url?: string | null
