@@ -49,7 +49,7 @@ function AppRoutes() {
     <Routes>
       <Route 
         path="/login" 
-        element={<Login isAuthenticated={isAuthenticated} onLogin={login} />} 
+        element={<Login />} 
       />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route
