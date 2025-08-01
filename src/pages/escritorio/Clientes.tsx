@@ -14,6 +14,7 @@ import { ptBR } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 import InputMask from "react-input-mask"
 import { supabase } from "@/integrations/supabase/client"
+import { ClienteDetails } from "@/components/cliente-details"
 
 interface Cliente {
   id: string
@@ -831,65 +832,20 @@ export function Clientes() {
 
       {/* Modal de Visualização */}
       <Dialog open={!!viewingCliente} onOpenChange={() => setViewingCliente(null)}>
-        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Detalhes do Cliente</DialogTitle>
           </DialogHeader>
           
           {viewingCliente && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">CNPJ</Label>
-                  <p className="mt-1">{viewingCliente.cnpj}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Ramo de Atividade</Label>
-                  <p className="mt-1">{viewingCliente.ramo_atividade}</p>
-                </div>
-                <div className="col-span-2">
-                  <Label className="text-sm font-medium text-muted-foreground">Nome Empresarial</Label>
-                  <p className="mt-1">{viewingCliente.nome_empresarial}</p>
-                </div>
-                {viewingCliente.nome_fantasia && (
-                  <div className="col-span-2">
-                    <Label className="text-sm font-medium text-muted-foreground">Nome Fantasia</Label>
-                    <p className="mt-1">{viewingCliente.nome_fantasia}</p>
-                  </div>
-                )}
-                <div className="col-span-2">
-                  <Label className="text-sm font-medium text-muted-foreground">Endereço</Label>
-                  <p className="mt-1">
-                    {[viewingCliente.logradouro, viewingCliente.numero].filter(Boolean).join(", ")}
-                    {viewingCliente.complemento && `, ${viewingCliente.complemento}`}
-                  </p>
-                  <p>
-                    {[viewingCliente.bairro, viewingCliente.municipio, viewingCliente.uf].filter(Boolean).join(" - ")}
-                  </p>
-                  {viewingCliente.cep && <p>CEP: {viewingCliente.cep}</p>}
-                </div>
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Cliente desde</Label>
-                  <p className="mt-1">{format(new Date(viewingCliente.cliente_desde), "PPP", { locale: ptBR })}</p>
-                </div>
-                {viewingCliente.fim_contrato && (
-                  <div>
-                    <Label className="text-sm font-medium text-muted-foreground">Fim do contrato</Label>
-                    <p className="mt-1">{format(new Date(viewingCliente.fim_contrato), "PPP", { locale: ptBR })}</p>
-                  </div>
-                )}
-              </div>
-              
-              <div className="flex justify-between pt-4">
-                <Button variant="outline">
-                  <Download className="mr-2 h-4 w-4" />
-                  Imprimir PDF
-                </Button>
+            <>
+              <ClienteDetails cliente={viewingCliente} />
+              <div className="flex justify-end pt-4 border-t">
                 <Button onClick={() => setViewingCliente(null)}>
                   Fechar
                 </Button>
               </div>
-            </div>
+            </>
           )}
         </DialogContent>
       </Dialog>
