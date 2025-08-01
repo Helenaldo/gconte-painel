@@ -37,7 +37,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 function AppRoutes() {
-  const { isAuthenticated, login, logout, user } = useAuth();
+  const { isAuthenticated, login, logout, profile } = useAuth();
+
+  const userForLayout = profile ? {
+    name: profile.nome,
+    email: profile.email,
+    avatar: profile.avatar_url
+  } : undefined;
 
   return (
     <Routes>
@@ -50,7 +56,7 @@ function AppRoutes() {
         path="/dashboard"
         element={
           <ProtectedRoute>
-            <MainLayout user={user} onLogout={logout}>
+            <MainLayout user={userForLayout} onLogout={logout}>
               <Dashboard />
             </MainLayout>
           </ProtectedRoute>
@@ -60,7 +66,7 @@ function AppRoutes() {
         path="/escritorio/clientes"
         element={
           <ProtectedRoute>
-            <MainLayout user={user} onLogout={logout}>
+            <MainLayout user={userForLayout} onLogout={logout}>
               <Clientes />
             </MainLayout>
           </ProtectedRoute>
@@ -70,7 +76,7 @@ function AppRoutes() {
         path="/escritorio/colaboradores"
         element={
           <ProtectedRoute>
-            <MainLayout user={user} onLogout={logout}>
+            <MainLayout user={userForLayout} onLogout={logout}>
               <Colaboradores />
             </MainLayout>
           </ProtectedRoute>
@@ -80,7 +86,7 @@ function AppRoutes() {
         path="/escritorio/contatos"
         element={
           <ProtectedRoute>
-            <MainLayout user={user} onLogout={logout}>
+            <MainLayout user={userForLayout} onLogout={logout}>
               <Contatos />
             </MainLayout>
           </ProtectedRoute>
@@ -90,7 +96,7 @@ function AppRoutes() {
         path="/escritorio/eventos"
         element={
           <ProtectedRoute>
-            <MainLayout user={user} onLogout={logout}>
+            <MainLayout user={userForLayout} onLogout={logout}>
               <Eventos />
             </MainLayout>
           </ProtectedRoute>
@@ -100,7 +106,7 @@ function AppRoutes() {
         path="/escritorio/tributacao"
         element={
           <ProtectedRoute>
-            <MainLayout user={user} onLogout={logout}>
+            <MainLayout user={userForLayout} onLogout={logout}>
               <Tributacao />
             </MainLayout>
           </ProtectedRoute>
@@ -110,7 +116,7 @@ function AppRoutes() {
         path="/escritorio/configuracoes"
         element={
           <ProtectedRoute>
-            <MainLayout user={user} onLogout={logout}>
+            <MainLayout user={userForLayout} onLogout={logout}>
               <Configuracoes />
             </MainLayout>
           </ProtectedRoute>
@@ -120,7 +126,7 @@ function AppRoutes() {
         path="/indicadores/*"
         element={
           <ProtectedRoute>
-            <MainLayout user={user} onLogout={logout}>
+            <MainLayout user={userForLayout} onLogout={logout}>
               <div className="flex items-center justify-center h-64">
                 <div className="text-center">
                   <h2 className="text-2xl font-bold mb-2">Em Desenvolvimento</h2>
@@ -135,7 +141,7 @@ function AppRoutes() {
         path="/honorarios"
         element={
           <ProtectedRoute>
-            <MainLayout user={user} onLogout={logout}>
+            <MainLayout user={userForLayout} onLogout={logout}>
               <div className="flex items-center justify-center h-64">
                 <div className="text-center">
                   <h2 className="text-2xl font-bold mb-2">Em Desenvolvimento</h2>
