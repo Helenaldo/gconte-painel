@@ -208,7 +208,7 @@ export function Importar() {
           
           for (let j = 0; j < row.length; j++) {
             const cell = String(row[j] || "").toLowerCase()
-            if (cell.includes("código") || cell.includes("codigo")) {
+            if (cell.includes("código") || cell.includes("codigo") || cell === "conta") {
               codigoColIndex = j
               headerRowIndex = i
               console.log(`✅ Coluna CÓDIGO encontrada na posição ${j}, linha ${i}`)
