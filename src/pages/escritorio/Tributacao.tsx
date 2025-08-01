@@ -22,8 +22,7 @@ interface Tributacao {
   clienteNome: string
   data: Date
   tipo: string
-  valor?: number
-  descricao?: string
+  status: string
 }
 
 interface Cliente {
@@ -46,12 +45,11 @@ export function Tributacao() {
   const [viewingTributacao, setViewingTributacao] = useState<Tributacao | null>(null)
   const [deletingTributacao, setDeletingTributacao] = useState<Tributacao | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
+  const [statusFilter, setStatusFilter] = useState("ativas")
   const [formData, setFormData] = useState({
     clienteId: "",
     data: undefined as Date | undefined,
-    tipo: "",
-    valor: "",
-    descricao: ""
+    tipo: ""
   })
   const [dateInput, setDateInput] = useState("")
   const [loading, setLoading] = useState(true)
@@ -100,8 +98,7 @@ export function Tributacao() {
         clienteNome: item.clients.nome_empresarial,
         data: new Date(item.data),
         tipo: item.tipo,
-        valor: item.valor,
-        descricao: item.descricao
+        status: item.status || 'ativa'
       }))
 
       setTributacoes(tributacoesFormatted)
@@ -136,9 +133,7 @@ export function Tributacao() {
           .update({
             client_id: formData.clienteId,
             data: formData.data.toISOString().split('T')[0],
-            tipo: formData.tipo,
-            valor: formData.valor ? parseFloat(formData.valor) : null,
-            descricao: formData.descricao || null
+            tipo: formData.tipo
           })
           .eq('id', editingTributacao.id)
 
@@ -151,8 +146,7 @@ export function Tributacao() {
             client_id: formData.clienteId,
             data: formData.data.toISOString().split('T')[0],
             tipo: formData.tipo,
-            valor: formData.valor ? parseFloat(formData.valor) : null,
-            descricao: formData.descricao || null
+            status: 'ativa'
           })
 
         if (error) throw error
@@ -172,7 +166,7 @@ export function Tributacao() {
   }
 
   const resetForm = () => {
-    setFormData({ clienteId: "", data: undefined, tipo: "", valor: "", descricao: "" })
+    setFormData({ clienteId: "", data: undefined, tipo: "" })
     setDateInput("")
     setEditingTributacao(null)
     setIsModalOpen(false)
@@ -182,9 +176,7 @@ export function Tributacao() {
     setFormData({
       clienteId: tributacao.client_id,
       data: tributacao.data,
-      tipo: tributacao.tipo,
-      valor: tributacao.valor?.toString() || "",
-      descricao: tributacao.descricao || ""
+      tipo: tributacao.tipo
     })
     setDateInput(format(tributacao.data, "dd/MM/yyyy"))
     setEditingTributacao(tributacao)
@@ -237,13 +229,17 @@ export function Tributacao() {
 
   const tributacoesFiltradas = useMemo(() => {
     return tributacoes.filter(tributacao => {
-      if (searchTerm) {
-        return tributacao.clienteNome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-               tributacao.tipo.toLowerCase().includes(searchTerm.toLowerCase())
-      }
-      return true
+      const matchesSearch = searchTerm ? 
+        (tributacao.clienteNome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+         tributacao.tipo.toLowerCase().includes(searchTerm.toLowerCase())) : true
+      
+      const matchesStatus = statusFilter === "todas" || 
+                           (statusFilter === "ativas" && tributacao.status === "ativa") ||
+                           (statusFilter === "inativas" && tributacao.status === "inativa")
+      
+      return matchesSearch && matchesStatus
     })
-  }, [tributacoes, searchTerm])
+  }, [tributacoes, searchTerm, statusFilter])
 
   return (
     <div className="space-y-6">
@@ -348,27 +344,6 @@ export function Tributacao() {
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="valor">Valor</Label>
-                <Input
-                  id="valor"
-                  type="number"
-                  step="0.01"
-                  placeholder="0,00"
-                  value={formData.valor}
-                  onChange={(e) => setFormData(prev => ({...prev, valor: e.target.value}))}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="descricao">Descrição</Label>
-                <Input
-                  id="descricao"
-                  placeholder="Informações adicionais..."
-                  value={formData.descricao}
-                  onChange={(e) => setFormData(prev => ({...prev, descricao: e.target.value}))}
-                />
-              </div>
 
               <div className="flex justify-end gap-2 pt-4">
                 <Button type="button" variant="outline" onClick={resetForm}>
@@ -391,14 +366,30 @@ export function Tributacao() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Buscar por cliente ou tipo..." 
-              className="pl-10"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Buscar por cliente ou tipo..." 
+                  className="pl-10"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="w-48">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ativas">Ativas</SelectItem>
+                  <SelectItem value="inativas">Inativas</SelectItem>
+                  <SelectItem value="todas">Todas</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -428,14 +419,13 @@ export function Tributacao() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <h4 className="font-medium">{tributacao.clienteNome}</h4>
+                      <Badge variant={tributacao.status === 'ativa' ? 'default' : 'secondary'}>
+                        {tributacao.status === 'ativa' ? 'Ativa' : 'Inativa'}
+                      </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">
                       {format(tributacao.data, "PPP", { locale: ptBR })} • {tributacao.tipo}
-                      {tributacao.valor && ` • R$ ${tributacao.valor.toFixed(2)}`}
                     </p>
-                    {tributacao.descricao && (
-                      <p className="text-sm text-muted-foreground mt-1">{tributacao.descricao}</p>
-                    )}
                   </div>
                   <div className="flex gap-2">
                     <Button
@@ -488,18 +478,14 @@ export function Tributacao() {
                 <Label className="text-sm font-medium text-muted-foreground">Tipo de Tributação</Label>
                 <p className="mt-1">{viewingTributacao.tipo}</p>
               </div>
-              {viewingTributacao.valor && (
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Valor</Label>
-                  <p className="mt-1">R$ {viewingTributacao.valor.toFixed(2)}</p>
-                </div>
-              )}
-              {viewingTributacao.descricao && (
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Descrição</Label>
-                  <p className="mt-1">{viewingTributacao.descricao}</p>
-                </div>
-              )}
+              <div>
+                <Label className="text-sm font-medium text-muted-foreground">Status</Label>
+                <p className="mt-1">
+                  <Badge variant={viewingTributacao.status === 'ativa' ? 'default' : 'secondary'}>
+                    {viewingTributacao.status === 'ativa' ? 'Ativa' : 'Inativa'}
+                  </Badge>
+                </p>
+              </div>
               
               <div className="flex justify-end pt-4">
                 <Button onClick={() => setViewingTributacao(null)}>

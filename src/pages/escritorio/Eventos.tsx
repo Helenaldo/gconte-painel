@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,21 +15,22 @@ import { ptBR } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 import ReactQuill from "react-quill"
 import "react-quill/dist/quill.snow.css"
+import { supabase } from "@/integrations/supabase/client"
 
 interface Evento {
   id: string
-  clienteId: string
+  client_id: string
   clienteNome: string
   data: Date
   setor: string
+  titulo: string
   descricao: string
 }
 
-const mockClientes = [
-  { id: "1", nome: "Empresa ABC Ltda" },
-  { id: "2", nome: "XYZ Comércio" },
-  { id: "3", nome: "Indústria 123" },
-]
+interface Cliente {
+  id: string
+  nome_empresarial: string
+}
 
 const setores = [
   "Contábil",
@@ -40,19 +41,9 @@ const setores = [
   "Outro"
 ]
 
-const mockEventos: Evento[] = [
-  {
-    id: "1",
-    clienteId: "1",
-    clienteNome: "Empresa ABC Ltda",
-    data: new Date(),
-    setor: "Contábil",
-    descricao: "Entrega de documentos contábeis"
-  },
-]
-
 export function Eventos() {
-  const [eventos, setEventos] = useState<Evento[]>(mockEventos)
+  const [eventos, setEventos] = useState<Evento[]>([])
+  const [clientes, setClientes] = useState<Cliente[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingEvento, setEditingEvento] = useState<Evento | null>(null)
   const [viewingEvento, setViewingEvento] = useState<Evento | null>(null)
@@ -62,15 +53,77 @@ export function Eventos() {
     clienteId: "",
     data: undefined as Date | undefined,
     setor: "",
+    titulo: "",
     descricao: ""
   })
   const [dateInput, setDateInput] = useState("")
+  const [loading, setLoading] = useState(true)
   const { toast } = useToast()
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    loadClientes()
+    loadEventos()
+  }, [])
+
+  const loadClientes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('id, nome_empresarial')
+        .order('nome_empresarial')
+
+      if (error) throw error
+      setClientes(data || [])
+    } catch (error) {
+      console.error('Erro ao carregar clientes:', error)
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar lista de clientes",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const loadEventos = async () => {
+    try {
+      setLoading(true)
+      const { data, error } = await supabase
+        .from('events')
+        .select(`
+          *,
+          clients!inner(nome_empresarial)
+        `)
+        .order('data', { ascending: false })
+
+      if (error) throw error
+
+      const eventosFormatted = (data || []).map(item => ({
+        id: item.id,
+        client_id: item.client_id,
+        clienteNome: item.clients.nome_empresarial,
+        data: new Date(item.data),
+        setor: item.setor,
+        titulo: item.titulo,
+        descricao: item.descricao
+      }))
+
+      setEventos(eventosFormatted)
+    } catch (error) {
+      console.error('Erro ao carregar eventos:', error)
+      toast({
+        title: "Erro", 
+        description: "Erro ao carregar eventos",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!formData.clienteId || !formData.data || !formData.setor || !formData.descricao) {
+    if (!formData.clienteId || !formData.data || !formData.setor || !formData.titulo || !formData.descricao) {
       toast({
         title: "Erro",
         description: "Todos os campos são obrigatórios",
@@ -79,42 +132,64 @@ export function Eventos() {
       return
     }
 
-    const clienteNome = mockClientes.find(c => c.id === formData.clienteId)?.nome || ""
+    try {
+      if (editingEvento) {
+        const { error } = await supabase
+          .from('events')
+          .update({
+            client_id: formData.clienteId,
+            data: formData.data.toISOString().split('T')[0],
+            setor: formData.setor,
+            titulo: formData.titulo,
+            descricao: formData.descricao
+          })
+          .eq('id', editingEvento.id)
 
-    if (editingEvento) {
-      setEventos(prev => prev.map(evento => 
-        evento.id === editingEvento.id 
-          ? { ...evento, ...formData, data: formData.data!, clienteNome }
-          : evento
-      ))
-      toast({ title: "Sucesso", description: "Evento atualizado com sucesso" })
-    } else {
-      const novoEvento: Evento = {
-        id: Date.now().toString(),
-        ...formData,
-        data: formData.data!,
-        clienteNome
+        if (error) throw error
+        toast({ title: "Sucesso", description: "Evento atualizado com sucesso" })
+      } else {
+        const { error } = await supabase
+          .from('events')
+          .insert({
+            client_id: formData.clienteId,
+            data: formData.data.toISOString().split('T')[0],
+            setor: formData.setor,
+            titulo: formData.titulo,
+            descricao: formData.descricao
+          })
+
+        if (error) throw error
+        toast({ title: "Sucesso", description: "Evento cadastrado com sucesso" })
       }
-      setEventos(prev => [...prev, novoEvento])
-      toast({ title: "Sucesso", description: "Evento cadastrado com sucesso" })
-    }
 
-    resetForm()
+      await loadEventos()
+      resetForm()
+    } catch (error) {
+      console.error('Erro ao salvar evento:', error)
+      toast({
+        title: "Erro",
+        description: "Erro ao salvar evento",
+        variant: "destructive"
+      })
+    }
   }
 
   const resetForm = () => {
-    setFormData({ clienteId: "", data: undefined, setor: "", descricao: "" })
+    setFormData({ clienteId: "", data: undefined, setor: "", titulo: "", descricao: "" })
+    setDateInput("")
     setEditingEvento(null)
     setIsModalOpen(false)
   }
 
   const openEditModal = (evento: Evento) => {
     setFormData({
-      clienteId: evento.clienteId,
+      clienteId: evento.client_id,
       data: evento.data,
       setor: evento.setor,
+      titulo: evento.titulo,
       descricao: evento.descricao
     })
+    setDateInput(format(evento.data, "dd/MM/yyyy"))
     setEditingEvento(evento)
     setIsModalOpen(true)
   }
@@ -123,11 +198,27 @@ export function Eventos() {
     setViewingEvento(evento)
   }
 
-  const handleDelete = () => {
-    if (deletingEvento) {
-      setEventos(prev => prev.filter(e => e.id !== deletingEvento.id))
+  const handleDelete = async () => {
+    if (!deletingEvento) return
+
+    try {
+      const { error } = await supabase
+        .from('events')
+        .delete()
+        .eq('id', deletingEvento.id)
+
+      if (error) throw error
+
+      await loadEventos()
       setDeletingEvento(null)
       toast({ title: "Sucesso", description: "Evento excluído com sucesso" })
+    } catch (error) {
+      console.error('Erro ao excluir evento:', error)
+      toast({
+        title: "Erro",
+        description: "Erro ao excluir evento",
+        variant: "destructive"
+      })
     }
   }
 
@@ -193,9 +284,9 @@ export function Eventos() {
                     <SelectValue placeholder="Selecione um cliente" />
                   </SelectTrigger>
                   <SelectContent>
-                    {mockClientes.map(cliente => (
+                    {clientes.map(cliente => (
                       <SelectItem key={cliente.id} value={cliente.id}>
-                        {cliente.nome}
+                        {cliente.nome_empresarial}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -260,6 +351,16 @@ export function Eventos() {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="titulo">Título *</Label>
+                <Input
+                  id="titulo"
+                  placeholder="Título do evento"
+                  value={formData.titulo}
+                  onChange={(e) => setFormData(prev => ({...prev, titulo: e.target.value}))}
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="descricao">Descrição *</Label>
                 <div className="min-h-[200px]">
                   <ReactQuill
@@ -317,7 +418,11 @@ export function Eventos() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {eventosFiltrados.length === 0 ? (
+          {loading ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <p>Carregando eventos...</p>
+            </div>
+          ) : eventosFiltrados.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <CalendarIcon className="mx-auto h-12 w-12 mb-4 opacity-50" />
               <p>Nenhum evento encontrado</p>
@@ -331,6 +436,7 @@ export function Eventos() {
                 <div key={evento.id} className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="flex-1">
                     <h4 className="font-medium">{evento.clienteNome}</h4>
+                    <p className="text-sm text-muted-foreground font-medium">{evento.titulo}</p>
                     <p className="text-sm text-muted-foreground">
                       {format(evento.data, "PPP", { locale: ptBR })} • {evento.setor}
                     </p>
@@ -385,6 +491,10 @@ export function Eventos() {
               <div>
                 <Label className="text-sm font-medium text-muted-foreground">Data</Label>
                 <p className="mt-1">{format(viewingEvento.data, "PPP", { locale: ptBR })}</p>
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-muted-foreground">Título</Label>
+                <p className="mt-1">{viewingEvento.titulo}</p>
               </div>
               <div>
                 <Label className="text-sm font-medium text-muted-foreground">Setor</Label>

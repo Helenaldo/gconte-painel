@@ -579,17 +579,23 @@ export function Clientes() {
                    <div className="space-y-2">
                      <Label>Cliente desde *</Label>
                      <div className="flex gap-2">
-                       <InputMask
-                         mask="99/99/9999"
-                         value={clienteDesdeInput}
-                         onChange={(e) => {
-                           setClienteDesdeInput(e.target.value)
-                           const parsed = parseDate(e.target.value)
-                           if (parsed) {
-                             setFormData(prev => ({...prev, clienteDesde: parsed}))
-                           }
-                         }}
-                       >
+                        <InputMask
+                          mask="99/99/9999"
+                          value={clienteDesdeInput}
+                          onChange={(e) => {
+                            const value = e.target.value
+                            setClienteDesdeInput(value)
+                            
+                            if (value.length === 10) {
+                              const parsed = parseDate(value)
+                              if (parsed) {
+                                setFormData(prev => ({...prev, cliente_desde: parsed}))
+                              }
+                            } else if (value.length < 10) {
+                              setFormData(prev => ({...prev, cliente_desde: undefined}))
+                            }
+                          }}
+                        >
                          {() => <Input placeholder="dd/mm/aaaa" className="flex-1" />}
                        </InputMask>
                        <Popover>
