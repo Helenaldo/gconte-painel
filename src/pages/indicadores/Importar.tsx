@@ -127,11 +127,35 @@ export function Importar() {
       if (!empresa) empresa = arquivo.name.replace('.xlsx', '').toUpperCase()
       if (!cnpj) cnpj = "00.000.000/0001-00"
 
-      // Buscar data/período (pode estar no nome do arquivo ou no conteúdo)
-      const agora = new Date()
-      const mes = agora.getMonth() + 1
-      const ano = agora.getFullYear()
-      const periodo = `${mes.toString().padStart(2, '0')}/${ano}`
+      // Buscar data/período no conteúdo do arquivo
+      let periodo = ""
+      let mes = 0
+      let ano = 0
+      
+      // Procurar por "Período: DD/MM/AAAA a DD/MM/AAAA"
+      for (let i = 0; i < Math.min(15, jsonData.length); i++) {
+        const row = jsonData[i] as any[]
+        if (row && row.length > 0) {
+          const cellValue = String(row[0] || "")
+          const periodoMatch = cellValue.match(/Período:\s*(\d{2}\/\d{2}\/\d{4})\s*a\s*(\d{2}\/\d{2}\/\d{4})/)
+          if (periodoMatch) {
+            const dataInicio = periodoMatch[1] // DD/MM/AAAA
+            const [dia, mesStr, anoStr] = dataInicio.split('/')
+            mes = parseInt(mesStr)
+            ano = parseInt(anoStr)
+            periodo = `${mesStr}/${anoStr}`
+            break
+          }
+        }
+      }
+      
+      // Fallback se não encontrar período
+      if (!periodo) {
+        const agora = new Date()
+        mes = agora.getMonth() + 1
+        ano = agora.getFullYear()
+        periodo = `${mes.toString().padStart(2, '0')}/${ano}`
+      }
 
       // Verificar se empresa existe nos clientes
       let { data: clienteExistente, error: clienteError } = await supabase
@@ -418,7 +442,6 @@ export function Importar() {
                 <TableHead>CNPJ</TableHead>
                 <TableHead>Período</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Data Importação</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -431,7 +454,6 @@ export function Importar() {
                   <TableCell>
                     {getStatusBadge(balancete.status, balancete.totalContas, balancete.contasParametrizadas)}
                   </TableCell>
-                  <TableCell>{balancete.dataImportacao.toLocaleDateString('pt-BR')}</TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
