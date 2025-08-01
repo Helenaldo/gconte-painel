@@ -1,11 +1,12 @@
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Plus, Search, ContactRound, Pencil, Eye } from "lucide-react"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { Plus, Search, ContactRound, Pencil, Eye, Trash2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import InputMask from "react-input-mask"
 
@@ -40,6 +41,8 @@ export function Contatos() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingContato, setEditingContato] = useState<Contato | null>(null)
   const [viewingContato, setViewingContato] = useState<Contato | null>(null)
+  const [deletingContato, setDeletingContato] = useState<Contato | null>(null)
+  const [searchTerm, setSearchTerm] = useState("")
   const [formData, setFormData] = useState({
     clienteId: "",
     nome: "",
@@ -102,6 +105,23 @@ export function Contatos() {
   const openViewModal = (contato: Contato) => {
     setViewingContato(contato)
   }
+
+  const handleDelete = () => {
+    if (deletingContato) {
+      setContatos(prev => prev.filter(c => c.id !== deletingContato.id))
+      setDeletingContato(null)
+      toast({ title: "Sucesso", description: "Contato excluído com sucesso" })
+    }
+  }
+
+  const contatosFiltrados = useMemo(() => {
+    if (!searchTerm) return contatos
+    
+    return contatos.filter(contato => 
+      contato.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      contato.email.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  }, [contatos, searchTerm])
 
   return (
     <div className="space-y-6">
@@ -203,10 +223,14 @@ export function Contatos() {
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Buscar por nome ou email..." className="pl-10" />
+                <Input 
+                  placeholder="Buscar por nome ou email..." 
+                  className="pl-10"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
               </div>
             </div>
-            <Button variant="outline">Filtrar</Button>
           </div>
         </CardContent>
       </Card>
@@ -215,19 +239,21 @@ export function Contatos() {
         <CardHeader>
           <CardTitle>Lista de Contatos</CardTitle>
           <CardDescription>
-            {contatos.length} contato(s) cadastrado(s)
+            {contatosFiltrados.length} contato(s) encontrado(s)
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {contatos.length === 0 ? (
+          {contatosFiltrados.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <ContactRound className="mx-auto h-12 w-12 mb-4 opacity-50" />
-              <p>Nenhum contato cadastrado</p>
-              <p className="text-sm">Clique em "Novo Contato" para adicionar</p>
+              <p>Nenhum contato encontrado</p>
+              <p className="text-sm">
+                {searchTerm ? "Tente um termo de busca diferente" : "Clique em 'Novo Contato' para adicionar"}
+              </p>
             </div>
           ) : (
             <div className="space-y-4">
-              {contatos.map((contato) => (
+              {contatosFiltrados.map((contato) => (
                 <div key={contato.id} className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="flex-1">
                     <h4 className="font-medium">{contato.nome}</h4>
@@ -248,6 +274,13 @@ export function Contatos() {
                       onClick={() => openEditModal(contato)}
                     >
                       <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDeletingContato(contato)}
+                    >
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
@@ -292,6 +325,25 @@ export function Contatos() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Modal de Confirmação de Exclusão */}
+      <AlertDialog open={!!deletingContato} onOpenChange={() => setDeletingContato(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza de que deseja excluir o contato "{deletingContato?.nome}"? 
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

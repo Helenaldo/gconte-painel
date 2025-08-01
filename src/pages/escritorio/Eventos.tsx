@@ -1,15 +1,16 @@
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Plus, Search, Calendar as CalendarIcon, Pencil, Eye } from "lucide-react"
+import { Plus, Search, Calendar as CalendarIcon, Pencil, Eye, Trash2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { format } from "date-fns"
+import { format, parse } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 import ReactQuill from "react-quill"
@@ -55,12 +56,15 @@ export function Eventos() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingEvento, setEditingEvento] = useState<Evento | null>(null)
   const [viewingEvento, setViewingEvento] = useState<Evento | null>(null)
+  const [deletingEvento, setDeletingEvento] = useState<Evento | null>(null)
+  const [searchTerm, setSearchTerm] = useState("")
   const [formData, setFormData] = useState({
     clienteId: "",
     data: undefined as Date | undefined,
     setor: "",
     descricao: ""
   })
+  const [dateInput, setDateInput] = useState("")
   const { toast } = useToast()
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -119,6 +123,39 @@ export function Eventos() {
     setViewingEvento(evento)
   }
 
+  const handleDelete = () => {
+    if (deletingEvento) {
+      setEventos(prev => prev.filter(e => e.id !== deletingEvento.id))
+      setDeletingEvento(null)
+      toast({ title: "Sucesso", description: "Evento excluído com sucesso" })
+    }
+  }
+
+  const handleDateInputChange = (value: string) => {
+    setDateInput(value)
+    
+    // Tentar fazer parse da data digitada (formato brasileiro: dd/mm/aaaa)
+    if (value.length === 10) {
+      try {
+        const parsedDate = parse(value, "dd/MM/yyyy", new Date())
+        if (!isNaN(parsedDate.getTime())) {
+          setFormData(prev => ({...prev, data: parsedDate}))
+        }
+      } catch (error) {
+        // Ignorar erros de parse
+      }
+    }
+  }
+
+  const eventosFiltrados = useMemo(() => {
+    if (!searchTerm) return eventos
+    
+    return eventos.filter(evento => 
+      evento.clienteNome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      evento.setor.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  }, [eventos, searchTerm])
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -140,6 +177,9 @@ export function Eventos() {
           <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingEvento ? "Editar Evento" : "Novo Evento"}</DialogTitle>
+              <DialogDescription>
+                Preencha as informações do evento. Você pode digitar a data no formato dd/mm/aaaa ou usar o calendário.
+              </DialogDescription>
             </DialogHeader>
             
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -164,29 +204,40 @@ export function Eventos() {
 
               <div className="space-y-2">
                 <Label>Data *</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !formData.data && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {formData.data ? format(formData.data, "PPP", { locale: ptBR }) : "Selecione uma data"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={formData.data}
-                      onSelect={(date) => setFormData(prev => ({...prev, data: date}))}
-                      initialFocus
-                      className="pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
+                <div className="flex gap-2">
+                  <Input
+                    type="text"
+                    placeholder="dd/mm/aaaa"
+                    value={dateInput}
+                    onChange={(e) => handleDateInputChange(e.target.value)}
+                    className="flex-1"
+                    maxLength={10}
+                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="icon">
+                        <CalendarIcon className="h-4 w-4" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={formData.data}
+                        onSelect={(date) => {
+                          setFormData(prev => ({...prev, data: date}))
+                          setDateInput(date ? format(date, "dd/MM/yyyy") : "")
+                        }}
+                        initialFocus
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                {formData.data && (
+                  <p className="text-sm text-muted-foreground">
+                    Data selecionada: {format(formData.data, "PPP", { locale: ptBR })}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -246,10 +297,14 @@ export function Eventos() {
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Buscar por cliente ou setor..." className="pl-10" />
+                <Input 
+                  placeholder="Buscar por cliente ou setor..." 
+                  className="pl-10"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
               </div>
             </div>
-            <Button variant="outline">Filtrar</Button>
           </div>
         </CardContent>
       </Card>
@@ -258,19 +313,21 @@ export function Eventos() {
         <CardHeader>
           <CardTitle>Lista de Eventos</CardTitle>
           <CardDescription>
-            {eventos.length} evento(s) cadastrado(s)
+            {eventosFiltrados.length} evento(s) encontrado(s)
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {eventos.length === 0 ? (
+          {eventosFiltrados.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <CalendarIcon className="mx-auto h-12 w-12 mb-4 opacity-50" />
-              <p>Nenhum evento cadastrado</p>
-              <p className="text-sm">Clique em "Novo Evento" para adicionar</p>
+              <p>Nenhum evento encontrado</p>
+              <p className="text-sm">
+                {searchTerm ? "Tente um termo de busca diferente" : "Clique em 'Novo Evento' para adicionar"}
+              </p>
             </div>
           ) : (
             <div className="space-y-4">
-              {eventos.map((evento) => (
+              {eventosFiltrados.map((evento) => (
                 <div key={evento.id} className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="flex-1">
                     <h4 className="font-medium">{evento.clienteNome}</h4>
@@ -296,6 +353,13 @@ export function Eventos() {
                       onClick={() => openEditModal(evento)}
                     >
                       <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDeletingEvento(evento)}
+                    >
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
@@ -343,6 +407,25 @@ export function Eventos() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Modal de Confirmação de Exclusão */}
+      <AlertDialog open={!!deletingEvento} onOpenChange={() => setDeletingEvento(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza de que deseja excluir o evento do cliente "{deletingEvento?.clienteNome}"? 
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

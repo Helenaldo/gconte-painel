@@ -177,11 +177,11 @@ export function Configuracoes() {
                 <div className="space-y-2">
                   <Label htmlFor="telefone">Telefone *</Label>
                   <InputMask
-                    mask="(99) 99999-9999"
+                    mask={formData.telefone.replace(/\D/g, '').length === 11 ? "(99) 99999-9999" : "(99) 9999-9999"}
                     value={formData.telefone}
                     onChange={(e) => setFormData(prev => ({...prev, telefone: e.target.value}))}
                   >
-                    {() => <Input placeholder="(11) 99999-9999" />}
+                    {() => <Input placeholder="(11) 99999-9999 ou (11) 9999-9999" />}
                   </InputMask>
                 </div>
 
@@ -289,7 +289,8 @@ export function Configuracoes() {
                       <Avatar className="h-12 w-12">
                         <AvatarImage 
                           src={formData.logomarca ? URL.createObjectURL(formData.logomarca) : escritorio?.logomarca || ""} 
-                          alt="Logomarca" 
+                          alt="Logomarca"
+                          className="object-contain"
                         />
                         <AvatarFallback><Building2 className="h-6 w-6" /></AvatarFallback>
                       </Avatar>
@@ -324,7 +325,7 @@ export function Configuracoes() {
               <div className="space-y-4">
                 <div className="flex items-center gap-4">
                   <Avatar className="h-16 w-16">
-                    <AvatarImage src={escritorio.logomarca || ""} alt="Logomarca" />
+                    <AvatarImage src={escritorio.logomarca || ""} alt="Logomarca" className="object-contain" />
                     <AvatarFallback><Building2 className="h-8 w-8" /></AvatarFallback>
                   </Avatar>
                   <div>

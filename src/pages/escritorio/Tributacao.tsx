@@ -1,16 +1,17 @@
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Search, Calculator, Calendar as CalendarIcon, Pencil, Eye } from "lucide-react"
+import { Plus, Search, Calculator, Calendar as CalendarIcon, Pencil, Eye, Trash2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { format } from "date-fns"
+import { format, parse } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 
@@ -52,12 +53,15 @@ export function Tributacao() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingTributacao, setEditingTributacao] = useState<Tributacao | null>(null)
   const [viewingTributacao, setViewingTributacao] = useState<Tributacao | null>(null)
+  const [deletingTributacao, setDeletingTributacao] = useState<Tributacao | null>(null)
   const [filtroStatus, setFiltroStatus] = useState<"todas" | "ativas" | "inativas">("todas")
+  const [searchTerm, setSearchTerm] = useState("")
   const [formData, setFormData] = useState({
     clienteId: "",
     data: undefined as Date | undefined,
     tipo: ""
   })
+  const [dateInput, setDateInput] = useState("")
   const { toast } = useToast()
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -124,10 +128,45 @@ export function Tributacao() {
     setViewingTributacao(tributacao)
   }
 
+  const handleDelete = () => {
+    if (deletingTributacao) {
+      setTributacoes(prev => prev.filter(t => t.id !== deletingTributacao.id))
+      setDeletingTributacao(null)
+      toast({ title: "Sucesso", description: "Tributação excluída com sucesso" })
+    }
+  }
+
+  const handleDateInputChange = (value: string) => {
+    setDateInput(value)
+    
+    // Tentar fazer parse da data digitada (formato brasileiro: dd/mm/aaaa)
+    if (value.length === 10) {
+      try {
+        const parsedDate = parse(value, "dd/MM/yyyy", new Date())
+        if (!isNaN(parsedDate.getTime())) {
+          setFormData(prev => ({...prev, data: parsedDate}))
+        }
+      } catch (error) {
+        // Ignorar erros de parse
+      }
+    }
+  }
+
   const tributacoesFiltradas = tributacoes.filter(tributacao => {
-    if (filtroStatus === "ativas") return tributacao.ativa
-    if (filtroStatus === "inativas") return !tributacao.ativa
-    return true
+    // Filtro por status
+    let matchesStatus = true
+    if (filtroStatus === "ativas") matchesStatus = tributacao.ativa
+    else if (filtroStatus === "inativas") matchesStatus = !tributacao.ativa
+
+    // Filtro por termo de busca
+    let matchesSearch = true
+    if (searchTerm) {
+      matchesSearch = 
+        tributacao.clienteNome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        tributacao.tipo.toLowerCase().includes(searchTerm.toLowerCase())
+    }
+
+    return matchesStatus && matchesSearch
   })
 
   return (
@@ -151,6 +190,9 @@ export function Tributacao() {
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>{editingTributacao ? "Editar Tributação" : "Nova Tributação"}</DialogTitle>
+              <DialogDescription>
+                Preencha as informações da tributação. Você pode digitar a data no formato dd/mm/aaaa ou usar o calendário.
+              </DialogDescription>
             </DialogHeader>
             
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -175,29 +217,40 @@ export function Tributacao() {
 
               <div className="space-y-2">
                 <Label>Data *</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !formData.data && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {formData.data ? format(formData.data, "PPP", { locale: ptBR }) : "Selecione uma data"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={formData.data}
-                      onSelect={(date) => setFormData(prev => ({...prev, data: date}))}
-                      initialFocus
-                      className="pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
+                <div className="flex gap-2">
+                  <Input
+                    type="text"
+                    placeholder="dd/mm/aaaa"
+                    value={dateInput}
+                    onChange={(e) => handleDateInputChange(e.target.value)}
+                    className="flex-1"
+                    maxLength={10}
+                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="icon">
+                        <CalendarIcon className="h-4 w-4" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={formData.data}
+                        onSelect={(date) => {
+                          setFormData(prev => ({...prev, data: date}))
+                          setDateInput(date ? format(date, "dd/MM/yyyy") : "")
+                        }}
+                        initialFocus
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                {formData.data && (
+                  <p className="text-sm text-muted-foreground">
+                    Data selecionada: {format(formData.data, "PPP", { locale: ptBR })}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -244,7 +297,12 @@ export function Tributacao() {
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Buscar por cliente ou tipo..." className="pl-10" />
+                <Input 
+                  placeholder="Buscar por cliente ou tipo..." 
+                  className="pl-10"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
               </div>
             </div>
             <Select value={filtroStatus} onValueChange={(value: any) => setFiltroStatus(value)}>
@@ -257,7 +315,6 @@ export function Tributacao() {
                 <SelectItem value="inativas">Inativas</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline">Filtrar</Button>
           </div>
         </CardContent>
       </Card>
@@ -306,6 +363,13 @@ export function Tributacao() {
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDeletingTributacao(tributacao)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -353,6 +417,25 @@ export function Tributacao() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Modal de Confirmação de Exclusão */}
+      <AlertDialog open={!!deletingTributacao} onOpenChange={() => setDeletingTributacao(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza de que deseja excluir a tributação de "{deletingTributacao?.clienteNome}"? 
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
