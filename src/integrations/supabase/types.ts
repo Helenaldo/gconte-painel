@@ -20,7 +20,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      fetch_cnpj_data: {
+        Args: { cnpj_param: string }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never

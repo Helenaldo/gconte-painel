@@ -13,6 +13,7 @@ import { format, parse } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 import InputMask from "react-input-mask"
+import { supabase } from "@/integrations/supabase/client"
 
 interface Cliente {
   id: string
@@ -104,10 +105,21 @@ export function Clientes() {
     if (cnpjLimpo.length !== 14) return
 
     try {
-      const response = await fetch(`https://www.receitaws.com.br/v1/cnpj/${cnpjLimpo}`)
-      const data = await response.json()
+      const { data, error } = await supabase.functions.invoke('fetch-cnpj', {
+        body: { cnpj: cnpjLimpo }
+      })
       
-      if (data.status === "OK") {
+      if (error) {
+        console.error("Erro ao buscar dados do CNPJ:", error)
+        toast({
+          title: "Erro",
+          description: "Erro ao consultar CNPJ",
+          variant: "destructive"
+        })
+        return
+      }
+      
+      if (data?.status === "OK") {
         setFormData(prev => ({
           ...prev,
           nomeEmpresarial: data.nome || "",
@@ -125,9 +137,20 @@ export function Clientes() {
           title: "Sucesso",
           description: "Dados do CNPJ preenchidos automaticamente"
         })
+      } else {
+        toast({
+          title: "Erro",
+          description: data?.error || "CNPJ não encontrado",
+          variant: "destructive"
+        })
       }
     } catch (error) {
       console.error("Erro ao buscar dados do CNPJ:", error)
+      toast({
+        title: "Erro",
+        description: "Erro ao consultar CNPJ",
+        variant: "destructive"
+      })
     }
   }
 
@@ -306,6 +329,14 @@ export function Clientes() {
     toast({ 
       title: "Sucesso", 
       description: "Cliente desativado com sucesso" 
+    })
+  }
+
+  const excluirCliente = (clienteId: string) => {
+    setClientes(prev => prev.filter(cliente => cliente.id !== clienteId))
+    toast({ 
+      title: "Sucesso", 
+      description: "Cliente excluído com sucesso" 
     })
   }
 
@@ -686,7 +717,7 @@ export function Clientes() {
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      {!cliente.fimContrato && (
+                       {!cliente.fimContrato && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -696,6 +727,14 @@ export function Clientes() {
                           <UserX className="h-4 w-4" />
                         </Button>
                       )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => excluirCliente(cliente.id)}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        🗑️
+                      </Button>
                     </div>
                   </div>
                 ))}
