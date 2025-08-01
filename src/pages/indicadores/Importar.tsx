@@ -241,6 +241,27 @@ export function Importar() {
         }
       }
 
+      // Verificar se já existe balancete do mesmo período e empresa
+      const { data: balanceteExistente } = await supabase
+        .from('balancetes')
+        .select('id')
+        .eq('cnpj', cnpj)
+        .eq('periodo', periodo)
+        .maybeSingle()
+
+      // Se existir, excluir o balancete anterior e suas contas
+      if (balanceteExistente) {
+        await supabase
+          .from('contas_balancete')
+          .delete()
+          .eq('balancete_id', balanceteExistente.id)
+
+        await supabase
+          .from('balancetes')
+          .delete()
+          .eq('id', balanceteExistente.id)
+      }
+
       // Salvar balancete no banco
       const { data: balanceteData, error: balanceteError } = await supabase
         .from('balancetes')
