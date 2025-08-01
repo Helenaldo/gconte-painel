@@ -138,7 +138,7 @@ export function Importar() {
         .from('clients')
         .select('id')
         .eq('cnpj', cnpj)
-        .single()
+        .maybeSingle()
 
       // Se não existir, criar automaticamente
       if (!clienteExistente && !clienteError) {
