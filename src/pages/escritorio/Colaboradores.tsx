@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Search, Mail, UserPlus, Users, Shield, User, Edit, MailCheck } from "lucide-react"
+import { Plus, Search, Mail, UserPlus, Users, Shield, User, Edit, MailCheck, Trash2, UserX, UserCheck } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/integrations/supabase/client"
 import { useAuth } from "@/context/auth-context"
@@ -19,6 +19,7 @@ interface Colaborador {
   email: string
   avatar_url?: string
   role: 'operador' | 'administrador'
+  status: 'ativo' | 'inativo'
   created_at: string
 }
 
@@ -41,6 +42,7 @@ export function Colaboradores() {
   const [selectedColaborador, setSelectedColaborador] = useState<Colaborador | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [roleFilter, setRoleFilter] = useState("all")
+  const [statusFilter, setStatusFilter] = useState("all")
   const [loading, setLoading] = useState(false)
   
   const [formData, setFormData] = useState({
@@ -65,7 +67,10 @@ export function Colaboradores() {
         .order('created_at', { ascending: false })
       
       if (error) throw error
-      setColaboradores(data || [])
+      setColaboradores((data || []).map(item => ({
+        ...item,
+        status: item.status as 'ativo' | 'inativo'
+      })))
     } catch (error: any) {
       console.error('Erro ao carregar colaboradores:', error)
       toast({
@@ -199,6 +204,78 @@ export function Colaboradores() {
     }
   }
 
+  const handleToggleStatus = async (colaborador: Colaborador) => {
+    const newStatus = colaborador.status === 'ativo' ? 'inativo' : 'ativo'
+    setLoading(true)
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ status: newStatus })
+        .eq('id', colaborador.id)
+      
+      if (error) throw error
+
+      toast({
+        title: "Sucesso",
+        description: `Colaborador ${newStatus === 'ativo' ? 'ativado' : 'desativado'} com sucesso`
+      })
+
+      await loadColaboradores()
+      
+    } catch (error: any) {
+      console.error('Erro ao alterar status:', error)
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao alterar status do colaborador",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDeleteColaborador = async (colaborador: Colaborador) => {
+    if (!confirm(`Tem certeza que deseja excluir ${colaborador.nome}? Esta ação não pode ser desfeita.`)) {
+      return
+    }
+    
+    setLoading(true)
+    
+    try {
+      // Delete from user_roles first
+      await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', colaborador.id)
+
+      // Delete from profiles
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', colaborador.id)
+      
+      if (error) throw error
+
+      toast({
+        title: "Sucesso",
+        description: "Colaborador excluído com sucesso"
+      })
+
+      await loadColaboradores()
+      
+    } catch (error: any) {
+      console.error('Erro ao excluir colaborador:', error)
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao excluir colaborador",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const resendInvitation = async (invitation: Invitation) => {
     setLoading(true)
     
@@ -254,7 +331,8 @@ export function Colaboradores() {
     const matchesSearch = colaborador.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          colaborador.email.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesRole = roleFilter === "all" || colaborador.role === roleFilter
-    return matchesSearch && matchesRole
+    const matchesStatus = statusFilter === "all" || colaborador.status === statusFilter
+    return matchesSearch && matchesRole && matchesStatus
   })
 
 
@@ -362,6 +440,17 @@ export function Colaboradores() {
             <SelectItem value="administrador">Administrador</SelectItem>
           </SelectContent>
         </Select>
+
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Filtrar por status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os status</SelectItem>
+            <SelectItem value="ativo">Ativos</SelectItem>
+            <SelectItem value="inativo">Inativos</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Pending Invitations */}
@@ -426,13 +515,14 @@ export function Colaboradores() {
                 <TableHead>Colaborador</TableHead>
                 <TableHead>E-mail</TableHead>
                 <TableHead>Nível</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Data de Cadastro</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredColaboradores.map((colaborador) => (
-                <TableRow key={colaborador.id}>
+                <TableRow key={colaborador.id} className={colaborador.status === 'inativo' ? 'opacity-60' : ''}>
                   <TableCell>
                     <div className="flex items-center space-x-3">
                       <Avatar className="h-8 w-8">
@@ -453,17 +543,53 @@ export function Colaboradores() {
                     </Badge>
                   </TableCell>
                   <TableCell>
+                    <Badge variant={colaborador.status === 'ativo' ? 'default' : 'secondary'}>
+                      {colaborador.status === 'ativo' ? (
+                        <><UserCheck className="mr-1 h-3 w-3" /> Ativo</>
+                      ) : (
+                        <><UserX className="mr-1 h-3 w-3" /> Inativo</>
+                      )}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
                     {new Date(colaborador.created_at).toLocaleDateString('pt-BR')}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openEditModal(colaborador)}
-                      disabled={colaborador.id === profile?.id}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openEditModal(colaborador)}
+                        title="Editar colaborador"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleToggleStatus(colaborador)}
+                        disabled={loading || colaborador.id === profile?.id}
+                        title={colaborador.status === 'ativo' ? 'Desativar colaborador' : 'Ativar colaborador'}
+                      >
+                        {colaborador.status === 'ativo' ? (
+                          <UserX className="h-4 w-4" />
+                        ) : (
+                          <UserCheck className="h-4 w-4" />
+                        )}
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeleteColaborador(colaborador)}
+                        disabled={loading || colaborador.id === profile?.id}
+                        className="text-destructive hover:text-destructive"
+                        title="Excluir colaborador"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
