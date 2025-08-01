@@ -42,7 +42,8 @@ export function Importar() {
       const { data, error } = await supabase
         .from('balancetes')
         .select('*')
-        .order('created_at', { ascending: false })
+        .order('empresa', { ascending: true })
+        .order('periodo', { ascending: false })
 
       if (error) throw error
 
