@@ -4,10 +4,12 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Label } from "@/components/ui/label"
-import { Download, Mail, Phone, Calendar, FileText } from "lucide-react"
+import { Download, Mail, Phone, Calendar, FileText, Printer } from "lucide-react"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { supabase } from "@/integrations/supabase/client"
+import { useToast } from "@/hooks/use-toast"
+import jsPDF from 'jspdf'
 
 interface Cliente {
   id: string
@@ -51,6 +53,22 @@ interface Tributacao {
   created_at: string
 }
 
+interface Office {
+  id: string
+  nome: string
+  cnpj: string
+  telefone: string
+  logradouro: string
+  numero: string
+  complemento: string
+  bairro: string
+  municipio: string
+  uf: string
+  cep: string
+  instagram: string
+  logomarca_url: string
+}
+
 interface ClienteDetailsProps {
   cliente: Cliente
 }
@@ -59,12 +77,21 @@ export function ClienteDetails({ cliente }: ClienteDetailsProps) {
   const [contatos, setContatos] = useState<Contato[]>([])
   const [eventos, setEventos] = useState<Evento[]>([])
   const [tributacoes, setTributacoes] = useState<Tributacao[]>([])
+  const [office, setOffice] = useState<Office | null>(null)
   const [loading, setLoading] = useState(true)
+  const { toast } = useToast()
 
   useEffect(() => {
     const loadClienteData = async () => {
       try {
         setLoading(true)
+        
+        // Carregar dados do escritório
+        const { data: officeData } = await supabase
+          .from('office')
+          .select('*')
+          .limit(1)
+          .single()
         
         // Carregar contatos
         const { data: contatosData } = await supabase
@@ -87,6 +114,7 @@ export function ClienteDetails({ cliente }: ClienteDetailsProps) {
           .eq('client_id', cliente.id)
           .order('data', { ascending: false })
         
+        setOffice(officeData)
         setContatos(contatosData || [])
         setEventos(eventosData || [])
         setTributacoes(tributacoesData || [])
@@ -100,9 +128,249 @@ export function ClienteDetails({ cliente }: ClienteDetailsProps) {
     loadClienteData()
   }, [cliente.id])
 
-  const handlePrintPDF = () => {
-    // Implementar geração de PDF futuramente
-    console.log('Imprimir PDF do cliente', cliente.id)
+  const handlePrintPDF = async () => {
+    try {
+      const pdf = new jsPDF()
+      let yPosition = 20
+
+      // Cabeçalho do escritório
+      if (office) {
+        // Título do escritório
+        pdf.setFontSize(16)
+        pdf.setFont("helvetica", "bold")
+        pdf.text(office.nome, 20, yPosition)
+        yPosition += 10
+
+        // CNPJ do escritório
+        pdf.setFontSize(10)
+        pdf.setFont("helvetica", "normal")
+        pdf.text(`CNPJ: ${office.cnpj}`, 20, yPosition)
+        yPosition += 8
+
+        // Endereço do escritório
+        const enderecoEscritorio = [
+          office.logradouro,
+          office.numero,
+          office.complemento
+        ].filter(Boolean).join(", ")
+        
+        if (enderecoEscritorio) {
+          pdf.text(enderecoEscritorio, 20, yPosition)
+          yPosition += 6
+        }
+
+        const cidadeEscritorio = [
+          office.bairro,
+          office.municipio,
+          office.uf
+        ].filter(Boolean).join(" - ")
+        
+        if (cidadeEscritorio) {
+          pdf.text(cidadeEscritorio, 20, yPosition)
+          yPosition += 6
+        }
+
+        if (office.cep) {
+          pdf.text(`CEP: ${office.cep}`, 20, yPosition)
+          yPosition += 6
+        }
+
+        if (office.telefone) {
+          pdf.text(`Telefone: ${office.telefone}`, 20, yPosition)
+          yPosition += 6
+        }
+
+        // Linha separadora
+        yPosition += 5
+        pdf.line(20, yPosition, 190, yPosition)
+        yPosition += 15
+      }
+
+      // Título do relatório
+      pdf.setFontSize(14)
+      pdf.setFont("helvetica", "bold")
+      pdf.text("RELATÓRIO DO CLIENTE", 20, yPosition)
+      yPosition += 15
+
+      // Dados do cliente
+      pdf.setFontSize(12)
+      pdf.setFont("helvetica", "bold")
+      pdf.text("DADOS DO CLIENTE", 20, yPosition)
+      yPosition += 10
+
+      pdf.setFontSize(10)
+      pdf.setFont("helvetica", "normal")
+      
+      pdf.text(`Nome Empresarial: ${cliente.nome_empresarial}`, 20, yPosition)
+      yPosition += 6
+      
+      if (cliente.nome_fantasia) {
+        pdf.text(`Nome Fantasia: ${cliente.nome_fantasia}`, 20, yPosition)
+        yPosition += 6
+      }
+      
+      pdf.text(`CNPJ: ${cliente.cnpj}`, 20, yPosition)
+      yPosition += 6
+      
+      pdf.text(`Ramo de Atividade: ${cliente.ramo_atividade}`, 20, yPosition)
+      yPosition += 6
+
+      // Endereço do cliente
+      const enderecoCliente = [
+        cliente.logradouro,
+        cliente.numero,
+        cliente.complemento
+      ].filter(Boolean).join(", ")
+      
+      if (enderecoCliente) {
+        pdf.text(`Endereço: ${enderecoCliente}`, 20, yPosition)
+        yPosition += 6
+      }
+
+      const cidadeCliente = [
+        cliente.bairro,
+        cliente.municipio,
+        cliente.uf
+      ].filter(Boolean).join(" - ")
+      
+      if (cidadeCliente) {
+        pdf.text(`Cidade: ${cidadeCliente}`, 20, yPosition)
+        yPosition += 6
+      }
+
+      if (cliente.cep) {
+        pdf.text(`CEP: ${cliente.cep}`, 20, yPosition)
+        yPosition += 6
+      }
+
+      pdf.text(`Cliente desde: ${format(new Date(cliente.cliente_desde), "PPP", { locale: ptBR })}`, 20, yPosition)
+      yPosition += 6
+
+      if (cliente.fim_contrato) {
+        pdf.text(`Fim do contrato: ${format(new Date(cliente.fim_contrato), "PPP", { locale: ptBR })}`, 20, yPosition)
+        yPosition += 6
+      }
+
+      yPosition += 10
+
+      // Contatos
+      if (contatos.length > 0) {
+        if (yPosition > 250) {
+          pdf.addPage()
+          yPosition = 20
+        }
+
+        pdf.setFontSize(12)
+        pdf.setFont("helvetica", "bold")
+        pdf.text("CONTATOS", 20, yPosition)
+        yPosition += 10
+
+        pdf.setFontSize(10)
+        pdf.setFont("helvetica", "normal")
+
+        contatos.forEach((contato) => {
+          if (yPosition > 270) {
+            pdf.addPage()
+            yPosition = 20
+          }
+          
+          pdf.text(`• ${contato.nome}`, 25, yPosition)
+          yPosition += 6
+          pdf.text(`  Email: ${contato.email}`, 25, yPosition)
+          yPosition += 6
+          pdf.text(`  Telefone: ${contato.telefone}`, 25, yPosition)
+          yPosition += 8
+        })
+      }
+
+      // Eventos
+      if (eventos.length > 0) {
+        if (yPosition > 200) {
+          pdf.addPage()
+          yPosition = 20
+        }
+
+        yPosition += 5
+        pdf.setFontSize(12)
+        pdf.setFont("helvetica", "bold")
+        pdf.text("EVENTOS", 20, yPosition)
+        yPosition += 10
+
+        pdf.setFontSize(10)
+        pdf.setFont("helvetica", "normal")
+
+        eventos.forEach((evento) => {
+          if (yPosition > 260) {
+            pdf.addPage()
+            yPosition = 20
+          }
+          
+          pdf.text(`• ${evento.titulo} (${evento.setor})`, 25, yPosition)
+          yPosition += 6
+          pdf.text(`  Data: ${format(new Date(evento.data), "PPP", { locale: ptBR })}`, 25, yPosition)
+          yPosition += 6
+          if (evento.descricao) {
+            pdf.text(`  Descrição: ${evento.descricao}`, 25, yPosition)
+            yPosition += 6
+          }
+          yPosition += 3
+        })
+      }
+
+      // Tributações
+      if (tributacoes.length > 0) {
+        if (yPosition > 200) {
+          pdf.addPage()
+          yPosition = 20
+        }
+
+        yPosition += 5
+        pdf.setFontSize(12)
+        pdf.setFont("helvetica", "bold")
+        pdf.text("HISTÓRICO DE TRIBUTAÇÃO", 20, yPosition)
+        yPosition += 10
+
+        pdf.setFontSize(10)
+        pdf.setFont("helvetica", "normal")
+
+        tributacoes.forEach((tributacao) => {
+          if (yPosition > 270) {
+            pdf.addPage()
+            yPosition = 20
+          }
+          
+          pdf.text(`• ${tributacao.tipo} - ${tributacao.status.toUpperCase()}`, 25, yPosition)
+          yPosition += 6
+          pdf.text(`  Data: ${format(new Date(tributacao.data), "PPP", { locale: ptBR })}`, 25, yPosition)
+          yPosition += 8
+        })
+      }
+
+      // Rodapé
+      const pageCount = pdf.getNumberOfPages()
+      for (let i = 1; i <= pageCount; i++) {
+        pdf.setPage(i)
+        pdf.setFontSize(8)
+        pdf.setFont("helvetica", "normal")
+        pdf.text(`Página ${i} de ${pageCount}`, 20, 285)
+        pdf.text(`Relatório gerado em ${format(new Date(), "PPpp", { locale: ptBR })}`, 120, 285)
+      }
+
+      // Salvar o PDF
+      pdf.save(`relatorio-cliente-${cliente.nome_empresarial.replace(/[^a-zA-Z0-9]/g, '-')}.pdf`)
+
+      toast({
+        title: "Sucesso",
+        description: "PDF gerado com sucesso!"
+      })
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error)
+      toast({
+        title: "Erro",
+        description: "Erro ao gerar PDF",
+        variant: "destructive"
+      })
+    }
   }
 
   if (loading) {
