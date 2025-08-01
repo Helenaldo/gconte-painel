@@ -33,7 +33,7 @@ interface Invitation {
 }
 
 export function Colaboradores() {
-  const { isAdmin, profile } = useAuth()
+  const { profile } = useAuth()
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([])
   const [invitations, setInvitations] = useState<Invitation[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -53,11 +53,9 @@ export function Colaboradores() {
   const { toast } = useToast()
 
   useEffect(() => {
-    if (isAdmin) {
-      loadColaboradores()
-      loadInvitations()
-    }
-  }, [isAdmin])
+    loadColaboradores()
+    loadInvitations()
+  }, [])
 
   const loadColaboradores = async () => {
     try {
@@ -259,21 +257,6 @@ export function Colaboradores() {
     return matchesSearch && matchesRole
   })
 
-  if (!isAdmin) {
-    return (
-      <div className="space-y-6">
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Shield className="h-16 w-16 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Acesso Restrito</h3>
-            <p className="text-muted-foreground text-center">
-              Apenas administradores podem gerenciar colaboradores
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
 
   return (
     <div className="space-y-6">
