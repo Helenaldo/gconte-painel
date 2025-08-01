@@ -168,31 +168,31 @@ export function Parametrizacao() {
     try {
       // Processar todas as parametrizações pendentes
       for (const [planoContaId, contasCodigos] of Object.entries(parametrizacoesPendentes)) {
-        if (contasCodigos.length === 0) continue
-
-        // Remover parametrizações existentes para esta conta do plano
+        // Sempre remover parametrizações existentes para esta conta do plano
         await supabase
           .from('parametrizacoes')
           .delete()
           .eq('empresa_cnpj', balancete.cnpj)
           .eq('plano_conta_id', planoContaId)
 
-        // Inserir novas parametrizações
-        const novasParametrizacoes = contasCodigos.map(codigoConta => {
-          const conta = contasBalancete.find(c => c.codigo === codigoConta)
-          return {
-            empresa_cnpj: balancete.cnpj,
-            plano_conta_id: planoContaId,
-            conta_balancete_codigo: codigoConta,
-            conta_balancete_nome: conta?.nome || ""
-          }
-        })
+        // Inserir novas parametrizações apenas se houver contas selecionadas
+        if (contasCodigos.length > 0) {
+          const novasParametrizacoes = contasCodigos.map(codigoConta => {
+            const conta = contasBalancete.find(c => c.codigo === codigoConta)
+            return {
+              empresa_cnpj: balancete.cnpj,
+              plano_conta_id: planoContaId,
+              conta_balancete_codigo: codigoConta,
+              conta_balancete_nome: conta?.nome || ""
+            }
+          })
 
-        const { error } = await supabase
-          .from('parametrizacoes')
-          .insert(novasParametrizacoes)
+          const { error } = await supabase
+            .from('parametrizacoes')
+            .insert(novasParametrizacoes)
 
-        if (error) throw error
+          if (error) throw error
+        }
       }
 
       // Limpar parametrizações pendentes e recarregar dados
