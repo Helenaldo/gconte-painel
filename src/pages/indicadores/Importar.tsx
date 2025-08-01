@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
 import { Upload, FileSpreadsheet, Eye, Trash2, MoreVertical } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -25,6 +26,7 @@ interface BalanceteImportado {
 }
 
 export function Importar() {
+  const navigate = useNavigate()
   const [arquivo, setArquivo] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [balancetes, setBalancetes] = useState<BalanceteImportado[]>([])
@@ -497,7 +499,9 @@ export function Importar() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => navigate(`/indicadores/parametrizacao?balancete_id=${balancete.id}`)}
+                        >
                           <Eye className="h-4 w-4 mr-2" />
                           Parametrizar
                         </DropdownMenuItem>

@@ -329,6 +329,74 @@ export type Database = {
         }
         Relationships: []
       }
+      parametrizacoes: {
+        Row: {
+          conta_balancete_codigo: string
+          conta_balancete_nome: string
+          created_at: string
+          empresa_cnpj: string
+          id: string
+          plano_conta_id: string
+          updated_at: string
+        }
+        Insert: {
+          conta_balancete_codigo: string
+          conta_balancete_nome: string
+          created_at?: string
+          empresa_cnpj: string
+          id?: string
+          plano_conta_id: string
+          updated_at?: string
+        }
+        Update: {
+          conta_balancete_codigo?: string
+          conta_balancete_nome?: string
+          created_at?: string
+          empresa_cnpj?: string
+          id?: string
+          plano_conta_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parametrizacoes_plano_conta_id_fkey"
+            columns: ["plano_conta_id"]
+            isOneToOne: false
+            referencedRelation: "plano_contas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plano_contas: {
+        Row: {
+          codigo: string
+          created_at: string
+          grupo: string
+          id: string
+          nome: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          codigo: string
+          created_at?: string
+          grupo: string
+          id?: string
+          nome: string
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          codigo?: string
+          created_at?: string
+          grupo?: string
+          id?: string
+          nome?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null

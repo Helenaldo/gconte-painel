@@ -1,501 +1,363 @@
-import { useState, useMemo } from "react"
-import { Search, ChevronRight, ChevronDown, Save, Trash2, Check } from "lucide-react"
+import { useState, useEffect } from "react"
+import { useSearchParams, useNavigate } from "react-router-dom"
+import { ArrowLeft, Save, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Progress } from "@/components/ui/progress"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/hooks/use-toast"
+import { supabase } from "@/integrations/supabase/client"
 
-// Plano de Contas Padrão
-const planoContasPadrao = [
-  {
-    codigo: "1",
-    nome: "ATIVO",
-    filhas: [
-      {
-        codigo: "1.1",
-        nome: "ATIVO CIRCULANTE",
-        filhas: [
-          {
-            codigo: "1.1.1",
-            nome: "DISPONÍVEL",
-            filhas: [
-              { codigo: "1.1.1.01", nome: "Caixa e equivalente de caixa" },
-              { codigo: "1.1.1.02", nome: "Bancos" },
-              { codigo: "1.1.1.03", nome: "Investimentos de liquidez imediata" }
-            ]
-          },
-          {
-            codigo: "1.1.2",
-            nome: "CONTAS A RECEBER",
-            filhas: [
-              { codigo: "1.1.2.01", nome: "Clientes" },
-              { codigo: "1.1.2.02", nome: "Outros valores a receber a curto prazo" }
-            ]
-          },
-          { codigo: "1.1.3", nome: "ESTOQUES" }
-        ]
-      },
-      {
-        codigo: "1.2",
-        nome: "ATIVO NÃO CIRCULANTE",
-        filhas: [
-          { codigo: "1.2.1", nome: "Realizável a longo prazo" },
-          { codigo: "1.2.2", nome: "Investimentos" },
-          { codigo: "1.2.3", nome: "Imobilizado" },
-          { codigo: "1.2.4", nome: "Intangível" }
-        ]
-      }
-    ]
-  },
-  {
-    codigo: "2",
-    nome: "PASSIVO",
-    filhas: [
-      {
-        codigo: "2.1",
-        nome: "PASSIVO CIRCULANTE",
-        filhas: [
-          { codigo: "2.1.1", nome: "Fornecedores" },
-          { codigo: "2.1.2", nome: "Obrigações sociais" },
-          { codigo: "2.1.3", nome: "Obrigações trabalhistas" },
-          { codigo: "2.1.4", nome: "Obrigações fiscais" },
-          { codigo: "2.1.5", nome: "Provisões a pagar" },
-          { codigo: "2.1.6", nome: "Tributos parcelados" },
-          { codigo: "2.1.7", nome: "Empréstimos e financiamentos" },
-          { codigo: "2.1.8", nome: "Outras contas a pagar de curto prazo" }
-        ]
-      },
-      {
-        codigo: "2.2",
-        nome: "PASSIVO NÃO CIRCULANTE",
-        filhas: [
-          { codigo: "2.2.1", nome: "Exigível a longo prazo" },
-          { codigo: "2.2.2", nome: "Empréstimos e financiamentos" },
-          { codigo: "2.2.3", nome: "Tributos parcelados" }
-        ]
-      }
-    ]
-  },
-  {
-    codigo: "3",
-    nome: "PATRIMÔNIO LÍQUIDO",
-    filhas: [
-      { codigo: "3.1", nome: "Capital social" },
-      { codigo: "3.2", nome: "Reservas" },
-      { codigo: "3.3", nome: "Lucro ou prejuízos acumulados" }
-    ]
-  },
-  {
-    codigo: "4",
-    nome: "RECEITAS",
-    filhas: [
-      { codigo: "4.1", nome: "Receita operacional" },
-      { codigo: "4.2", nome: "Receita bruta" },
-      { codigo: "4.3", nome: "Deduções da receita" },
-      { codigo: "4.4", nome: "Receita financeira" },
-      { codigo: "4.5", nome: "Receita não operacional" }
-    ]
-  },
-  {
-    codigo: "5",
-    nome: "CUSTOS E DESPESAS",
-    filhas: [
-      {
-        codigo: "5.1",
-        nome: "CUSTOS",
-        filhas: [
-          { codigo: "5.1.1", nome: "Custos dos serviços/produtos/mercadorias vendidas" },
-          { codigo: "5.1.2", nome: "Custos com pessoal" },
-          { codigo: "5.1.3", nome: "Custos com encargos sociais" }
-        ]
-      },
-      {
-        codigo: "5.2",
-        nome: "DESPESAS OPERACIONAIS",
-        filhas: [
-          { codigo: "5.2.1", nome: "Despesas administrativas" },
-          { codigo: "5.2.2", nome: "Despesas financeiras" },
-          { codigo: "5.2.3", nome: "Despesas tributárias (IRPJ e CSLL)" },
-          { codigo: "5.2.4", nome: "Despesas não operacionais" }
-        ]
-      }
-    ]
-  }
-]
-
-// Contas do Balancete (simuladas)
-const contasBalancete = [
-  { codigo: "1.01.01", nome: "CAIXA", saldoAtual: 5000.00, natureza: "devedora" },
-  { codigo: "1.01.02", nome: "BANCO CONTA MOVIMENTO", saldoAtual: 25000.00, natureza: "devedora" },
-  { codigo: "1.01.03", nome: "APLICAÇÕES FINANCEIRAS", saldoAtual: 15000.00, natureza: "devedora" },
-  { codigo: "1.02.01", nome: "DUPLICATAS A RECEBER", saldoAtual: 45000.00, natureza: "devedora" },
-  { codigo: "1.02.02", nome: "OUTROS CRÉDITOS", saldoAtual: 8000.00, natureza: "devedora" },
-  { codigo: "1.03.01", nome: "ESTOQUE DE MERCADORIAS", saldoAtual: 35000.00, natureza: "devedora" },
-  { codigo: "1.04.01", nome: "IMÓVEIS", saldoAtual: 200000.00, natureza: "devedora" },
-  { codigo: "2.01.01", nome: "FORNECEDORES", saldoAtual: -28000.00, natureza: "credora" },
-  { codigo: "2.01.02", nome: "SALÁRIOS A PAGAR", saldoAtual: -12000.00, natureza: "credora" },
-  { codigo: "2.01.03", nome: "IMPOSTOS A RECOLHER", saldoAtual: -8500.00, natureza: "credora" },
-  { codigo: "3.01.01", nome: "CAPITAL SOCIAL", saldoAtual: -100000.00, natureza: "credora" },
-  { codigo: "3.03.01", nome: "LUCROS ACUMULADOS", saldoAtual: -50000.00, natureza: "credora" },
-  { codigo: "4.01.01", nome: "RECEITA DE VENDAS", saldoAtual: -120000.00, natureza: "credora" },
-  { codigo: "5.01.01", nome: "CUSTO DAS MERCADORIAS VENDIDAS", saldoAtual: 75000.00, natureza: "devedora" },
-  { codigo: "5.02.01", nome: "DESPESAS ADMINISTRATIVAS", saldoAtual: 18000.00, natureza: "devedora" }
-]
-
-interface ContaPadrao {
+interface PlanoContaItem {
+  id: string
   codigo: string
   nome: string
-  filhas?: ContaPadrao[]
+  tipo: string
+  grupo: string
+}
+
+interface ContaBalancete {
+  id: string
+  codigo: string
+  nome: string
+  saldo_atual: number
+  natureza: string
+  parametrizada: boolean
 }
 
 interface Parametrizacao {
-  contaPadraoId: string
-  contasBalancete: string[]
-  valorTotal: number
+  plano_conta_id: string
+  conta_balancete_codigo: string
+  conta_balancete_nome: string
 }
 
 export function Parametrizacao() {
-  const [empresaSelecionada, setEmpresaSelecionada] = useState("")
-  const [periodoSelecionado, setPeriodoSelecionado] = useState("")
-  const [filtroBalancete, setFiltroBalancete] = useState("")
-  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set())
-  const [contaPadraoSelecionada, setContaPadraoSelecionada] = useState<string | null>(null)
-  const [parametrizacoes, setParametrizacoes] = useState<Record<string, Parametrizacao>>({})
-  const [isSaving, setIsSaving] = useState(false)
+  const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
   const { toast } = useToast()
+  
+  const balanceteId = searchParams.get('balancete_id')
+  const [balancete, setBalancete] = useState<any>(null)
+  const [planoContas, setPlanoContas] = useState<PlanoContaItem[]>([])
+  const [contasBalancete, setContasBalancete] = useState<ContaBalancete[]>([])
+  const [parametrizacoes, setParametrizacoes] = useState<Parametrizacao[]>([])
+  
+  const [contaSelecionada, setContaSelecionada] = useState<string>("")
+  const [contasSelecionadas, setContasSelecionadas] = useState<string[]>([])
+  const [filtroPlano, setFiltroPlano] = useState("")
+  const [filtroBalancete, setFiltroBalancete] = useState("")
 
-  const contasFiltradasBalancete = useMemo(() => {
-    return contasBalancete.filter(conta => 
-      conta.codigo.toLowerCase().includes(filtroBalancete.toLowerCase()) ||
-      conta.nome.toLowerCase().includes(filtroBalancete.toLowerCase())
-    )
-  }, [filtroBalancete])
-
-  const toggleNode = (codigo: string) => {
-    const newExpanded = new Set(expandedNodes)
-    if (newExpanded.has(codigo)) {
-      newExpanded.delete(codigo)
-    } else {
-      newExpanded.add(codigo)
+  useEffect(() => {
+    if (balanceteId) {
+      loadData()
     }
-    setExpandedNodes(newExpanded)
+  }, [balanceteId])
+
+  const loadData = async () => {
+    try {
+      // Carregar dados do balancete
+      const { data: balanceteData, error: balanceteError } = await supabase
+        .from('balancetes')
+        .select('*')
+        .eq('id', balanceteId)
+        .single()
+
+      if (balanceteError) throw balanceteError
+      setBalancete(balanceteData)
+
+      // Carregar plano de contas
+      const { data: planoData, error: planoError } = await supabase
+        .from('plano_contas')
+        .select('*')
+        .order('codigo')
+
+      if (planoError) throw planoError
+      setPlanoContas(planoData)
+
+      // Carregar contas do balancete
+      const { data: contasData, error: contasError } = await supabase
+        .from('contas_balancete')
+        .select('*')
+        .eq('balancete_id', balanceteId)
+        .order('codigo')
+
+      if (contasError) throw contasError
+
+      // Carregar parametrizações existentes
+      const { data: paramData, error: paramError } = await supabase
+        .from('parametrizacoes')
+        .select('*')
+        .eq('empresa_cnpj', balanceteData.cnpj)
+
+      if (paramError) throw paramError
+      setParametrizacoes(paramData)
+
+      // Marcar contas já parametrizadas
+      const contasComStatus = contasData.map(conta => ({
+        ...conta,
+        parametrizada: paramData.some(p => p.conta_balancete_codigo === conta.codigo)
+      }))
+
+      setContasBalancete(contasComStatus)
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error)
+      toast({
+        title: "Erro ao carregar dados",
+        description: "Não foi possível carregar as informações do balancete",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handlePlanoContaClick = (planoContaId: string) => {
+    setContaSelecionada(planoContaId)
+    
+    // Carregar contas já parametrizadas para esta conta do plano
+    const contasParam = parametrizacoes
+      .filter(p => p.plano_conta_id === planoContaId)
+      .map(p => p.conta_balancete_codigo)
+    
+    setContasSelecionadas(contasParam)
   }
 
   const handleContaBalanceteToggle = (codigoConta: string, checked: boolean) => {
-    if (!contaPadraoSelecionada) return
-
-    const parametrizacao = parametrizacoes[contaPadraoSelecionada] || {
-      contaPadraoId: contaPadraoSelecionada,
-      contasBalancete: [],
-      valorTotal: 0
-    }
-
-    let novasContas
     if (checked) {
-      novasContas = [...parametrizacao.contasBalancete, codigoConta]
+      setContasSelecionadas(prev => [...prev, codigoConta])
     } else {
-      novasContas = parametrizacao.contasBalancete.filter(c => c !== codigoConta)
+      setContasSelecionadas(prev => prev.filter(c => c !== codigoConta))
     }
-
-    const valorTotal = novasContas.reduce((total, codigo) => {
-      const conta = contasBalancete.find(c => c.codigo === codigo)
-      return total + Math.abs(conta?.saldoAtual || 0)
-    }, 0)
-
-    setParametrizacoes({
-      ...parametrizacoes,
-      [contaPadraoSelecionada]: {
-        ...parametrizacao,
-        contasBalancete: novasContas,
-        valorTotal
-      }
-    })
   }
-
-  const isContaParametrizada = (codigoConta: string) => {
-    return Object.values(parametrizacoes).some(p => 
-      p.contasBalancete.includes(codigoConta)
-    )
-  }
-
-  const renderContaPadrao = (conta: ContaPadrao, level: number = 0) => {
-    const isExpanded = expandedNodes.has(conta.codigo)
-    const hasFilhas = conta.filhas && conta.filhas.length > 0
-    const isSelected = contaPadraoSelecionada === conta.codigo
-    const isParametrizada = parametrizacoes[conta.codigo]
-
-    return (
-      <div key={conta.codigo}>
-        <div 
-          className={`flex items-center gap-2 p-2 hover:bg-muted/50 cursor-pointer rounded-md ${
-            isSelected ? 'bg-primary/10 border border-primary/20' : ''
-          } ${isParametrizada ? 'bg-green-50 border-green-200' : ''}`}
-          style={{ paddingLeft: `${level * 20 + 8}px` }}
-          onClick={() => setContaPadraoSelecionada(conta.codigo)}
-        >
-          {hasFilhas && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                toggleNode(conta.codigo)
-              }}
-              className="p-1 hover:bg-muted rounded"
-            >
-              {isExpanded ? (
-                <ChevronDown className="h-4 w-4" />
-              ) : (
-                <ChevronRight className="h-4 w-4" />
-              )}
-            </button>
-          )}
-          {!hasFilhas && <div className="w-6" />}
-          
-          <div className="flex-1 flex items-center gap-2">
-            <span className="text-sm font-mono text-muted-foreground">
-              {conta.codigo}
-            </span>
-            <span className="text-sm">{conta.nome}</span>
-            {isParametrizada && (
-              <Check className="h-4 w-4 text-green-600" />
-            )}
-          </div>
-          
-          {isParametrizada && (
-            <Badge variant="outline" className="text-xs">
-              R$ {parametrizacoes[conta.codigo].valorTotal.toLocaleString('pt-BR', {
-                minimumFractionDigits: 2
-              })}
-            </Badge>
-          )}
-        </div>
-        
-        {hasFilhas && isExpanded && (
-          <div>
-            {conta.filhas!.map(filha => renderContaPadrao(filha, level + 1))}
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  const totalContasParametrizadas = Object.keys(parametrizacoes).length
-  const totalContasPadrao = 50 // Valor estimado das contas do plano padrão
-  const progressoParametrizacao = (totalContasParametrizadas / totalContasPadrao) * 100
 
   const handleSalvarParametrizacao = async () => {
-    setIsSaving(true)
+    if (!contaSelecionada || !balancete) {
+      toast({
+        title: "Selecione uma conta",
+        description: "Selecione uma conta do plano padrão primeiro",
+        variant: "destructive"
+      })
+      return
+    }
+
     try {
-      // Simular salvamento
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      // Remover parametrizações existentes para esta conta do plano
+      await supabase
+        .from('parametrizacoes')
+        .delete()
+        .eq('empresa_cnpj', balancete.cnpj)
+        .eq('plano_conta_id', contaSelecionada)
+
+      // Inserir novas parametrizações
+      if (contasSelecionadas.length > 0) {
+        const novasParametrizacoes = contasSelecionadas.map(codigoConta => {
+          const conta = contasBalancete.find(c => c.codigo === codigoConta)
+          return {
+            empresa_cnpj: balancete.cnpj,
+            plano_conta_id: contaSelecionada,
+            conta_balancete_codigo: codigoConta,
+            conta_balancete_nome: conta?.nome || ""
+          }
+        })
+
+        const { error } = await supabase
+          .from('parametrizacoes')
+          .insert(novasParametrizacoes)
+
+        if (error) throw error
+      }
+
+      // Recarregar dados
+      await loadData()
       
       toast({
         title: "Parametrização salva",
-        description: "As parametrizações foram salvas com sucesso"
+        description: "As configurações foram salvas com sucesso"
       })
     } catch (error) {
+      console.error('Erro ao salvar:', error)
       toast({
         title: "Erro ao salvar",
-        description: "Ocorreu um erro ao salvar as parametrizações",
+        description: "Não foi possível salvar a parametrização",
         variant: "destructive"
       })
-    } finally {
-      setIsSaving(false)
     }
   }
 
-  const handleLimparParametrizacao = () => {
-    setParametrizacoes({})
-    setContaPadraoSelecionada(null)
-    toast({
-      title: "Parametrização limpa",
-      description: "Todas as parametrizações foram removidas"
-    })
+  const calcularSaldoTotal = () => {
+    return contasSelecionadas.reduce((total, codigo) => {
+      const conta = contasBalancete.find(c => c.codigo === codigo)
+      return total + (conta?.saldo_atual || 0)
+    }, 0)
+  }
+
+  const contasParametrizadas = contasBalancete.filter(c => c.parametrizada).length
+  const totalContas = contasBalancete.length
+  const progressoParametrizacao = totalContas > 0 ? (contasParametrizadas / totalContas) * 100 : 0
+
+  const planoContasFiltradas = planoContas.filter(conta =>
+    conta.nome.toLowerCase().includes(filtroPlano.toLowerCase()) ||
+    conta.codigo.toLowerCase().includes(filtroPlano.toLowerCase())
+  )
+
+  const contasBalanceteFiltradas = contasBalancete.filter(conta =>
+    conta.nome.toLowerCase().includes(filtroBalancete.toLowerCase()) ||
+    conta.codigo.toLowerCase().includes(filtroBalancete.toLowerCase())
+  )
+
+  if (!balancete) {
+    return <div>Carregando...</div>
   }
 
   return (
     <div className="container mx-auto max-w-7xl space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Parametrização</h1>
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <Button variant="outline" onClick={() => navigate('/indicadores/importar')}>
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <div className="flex-1">
+          <h1 className="text-3xl font-bold tracking-tight">Parametrização do Balancete</h1>
           <p className="text-muted-foreground">
-            Configure o mapeamento entre as contas do balancete e o plano de contas padrão
+            {balancete.empresa} - {balancete.periodo}
           </p>
         </div>
+        <Button onClick={handleSalvarParametrizacao} disabled={!contaSelecionada}>
+          <Save className="h-4 w-4 mr-2" />
+          Salvar Parametrização
+        </Button>
       </div>
 
-      {/* Filtros */}
+      {/* Progress */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex items-center gap-4">
-            <Select value={empresaSelecionada} onValueChange={setEmpresaSelecionada}>
-              <SelectTrigger className="w-64">
-                <SelectValue placeholder="Selecionar empresa" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="empresa1">EMPRESA EXEMPLO LTDA</SelectItem>
-                <SelectItem value="empresa2">COMÉRCIO ABC LTDA</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            <Select value={periodoSelecionado} onValueChange={setPeriodoSelecionado}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Período" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="12/2023">12/2023</SelectItem>
-                <SelectItem value="11/2023">11/2023</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <div className="flex-1" />
-            
-            <Badge variant="outline" className="text-sm">
-              {totalContasParametrizadas}/{totalContasPadrao} contas parametrizadas
-            </Badge>
-          </div>
-          
-          <div className="mt-4">
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span>Progresso da Parametrização</span>
+              <span>{contasParametrizadas}/{totalContas} contas</span>
+            </div>
             <Progress value={progressoParametrizacao} className="h-2" />
-            <p className="text-xs text-muted-foreground mt-1">
-              {progressoParametrizacao.toFixed(1)}% completo
-            </p>
           </div>
         </CardContent>
       </Card>
 
-      {/* Layout Principal */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-400px)]">
-        {/* Coluna Esquerda - Plano de Contas Padrão */}
-        <Card className="flex flex-col">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Plano de Contas Padrão</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Clique em uma conta para parametrizar
-            </p>
-          </CardHeader>
-          <CardContent className="flex-1 overflow-auto">
-            <div className="space-y-1">
-              {planoContasPadrao.map(conta => renderContaPadrao(conta))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Coluna Direita - Contas do Balancete */}
-        <Card className="flex flex-col">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Contas do Balancete</CardTitle>
+      {/* Main Content */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Plano Padrão */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Plano Padrão</CardTitle>
+            <CardDescription>Selecione uma conta para parametrizar</CardDescription>
             <div className="flex items-center gap-2">
-              <Search className="h-4 w-4 text-muted-foreground" />
+              <Search className="h-4 w-4" />
               <Input
-                placeholder="Buscar conta por código ou nome..."
-                value={filtroBalancete}
-                onChange={(e) => setFiltroBalancete(e.target.value)}
-                className="flex-1"
+                placeholder="Filtrar contas..."
+                value={filtroPlano}
+                onChange={(e) => setFiltroPlano(e.target.value)}
               />
             </div>
           </CardHeader>
-          <CardContent className="flex-1 overflow-auto">
-            {contaPadraoSelecionada && (
-              <div className="mb-4 p-3 bg-primary/5 rounded-lg border">
-                <p className="text-sm font-medium">Parametrizando conta:</p>
-                <p className="text-sm text-muted-foreground">{contaPadraoSelecionada}</p>
-              </div>
-            )}
-            
+          <CardContent className="max-h-[600px] overflow-y-auto">
             <div className="space-y-2">
-              {contasFiltradasBalancete.map((conta) => {
-                const isChecked = parametrizacoes[contaPadraoSelecionada || '']?.contasBalancete.includes(conta.codigo) || false
-                const isParametrizadaEmOutraConta = !isChecked && isContaParametrizada(conta.codigo)
-                
-                return (
-                  <div 
-                    key={conta.codigo}
-                    className={`flex items-center gap-3 p-3 border rounded-lg ${
-                      isParametrizadaEmOutraConta ? 'bg-green-50 border-green-200' : 'hover:bg-muted/50'
-                    }`}
-                  >
-                    <Checkbox
-                      checked={isChecked}
-                      disabled={!contaPadraoSelecionada || isParametrizadaEmOutraConta}
-                      onCheckedChange={(checked) => 
-                        handleContaBalanceteToggle(conta.codigo, checked as boolean)
-                      }
-                    />
-                    
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-mono text-muted-foreground">
-                            {conta.codigo}
-                          </p>
-                          <p className="text-sm font-medium">{conta.nome}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-medium">
-                            R$ {Math.abs(conta.saldoAtual).toLocaleString('pt-BR', {
-                              minimumFractionDigits: 2
-                            })}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {conta.natureza}
-                          </p>
-                        </div>
-                      </div>
+              {planoContasFiltradas.map((conta) => (
+                <div
+                  key={conta.id}
+                  className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                    contaSelecionada === conta.id 
+                      ? 'bg-primary/10 border-primary' 
+                      : 'hover:bg-muted'
+                  }`}
+                  onClick={() => handlePlanoContaClick(conta.id)}
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="font-medium">{conta.codigo} - {conta.nome}</div>
+                      <Badge variant="secondary" className="text-xs mt-1">
+                        {conta.tipo.charAt(0).toUpperCase() + conta.tipo.slice(1)}
+                      </Badge>
                     </div>
-                    
-                    {isParametrizadaEmOutraConta && (
-                      <Check className="h-4 w-4 text-green-600" />
-                    )}
                   </div>
-                )
-              })}
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
-      </div>
 
-      {/* Barra de Ações Fixa */}
-      <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border p-4">
-        <div className="container mx-auto max-w-7xl flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              onClick={handleSalvarParametrizacao}
-              disabled={isSaving || Object.keys(parametrizacoes).length === 0}
-              className="flex items-center gap-2"
-            >
-              {isSaving ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  Salvando...
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4" />
-                  Salvar Parametrização
-                </>
-              )}
-            </Button>
-            
-            <Button
-              variant="outline"
-              onClick={handleLimparParametrizacao}
-              disabled={Object.keys(parametrizacoes).length === 0}
-              className="flex items-center gap-2"
-            >
-              <Trash2 className="h-4 w-4" />
-              Limpar Parametrização
-            </Button>
-          </div>
-          
-          <div className="text-sm text-muted-foreground">
-            {totalContasParametrizadas} de {totalContasPadrao} contas parametrizadas
-          </div>
-        </div>
+        {/* Contas do Balancete */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Contas do Balancete</CardTitle>
+            <CardDescription>
+              {contaSelecionada ? 
+                `Selecione as contas que correspondem à conta escolhida` :
+                'Selecione uma conta do plano padrão primeiro'
+              }
+            </CardDescription>
+            {contaSelecionada && (
+              <>
+                <div className="flex items-center gap-2">
+                  <Search className="h-4 w-4" />
+                  <Input
+                    placeholder="Filtrar contas..."
+                    value={filtroBalancete}
+                    onChange={(e) => setFiltroBalancete(e.target.value)}
+                  />
+                </div>
+                {contasSelecionadas.length > 0 && (
+                  <div className="bg-muted p-3 rounded-lg">
+                    <div className="text-sm font-medium">
+                      Saldo Total Selecionado: R$ {calcularSaldoTotal().toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </CardHeader>
+          <CardContent className="max-h-[600px] overflow-y-auto">
+            {!contaSelecionada ? (
+              <div className="text-center text-muted-foreground py-8">
+                Selecione uma conta do plano padrão para começar
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {contasBalanceteFiltradas.map((conta) => (
+                  <div
+                    key={conta.id}
+                    className={`p-3 rounded-lg border ${
+                      conta.parametrizada ? 'bg-green-50 border-green-200' : ''
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Checkbox
+                        checked={contasSelecionadas.includes(conta.codigo)}
+                        onCheckedChange={(checked) => 
+                          handleContaBalanceteToggle(conta.codigo, checked as boolean)
+                        }
+                      />
+                      <div className="flex-1">
+                        <div className="font-medium">
+                          {conta.codigo} - {conta.nome}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          Saldo: R$ {conta.saldo_atual.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          <Badge variant="outline" className="ml-2">
+                            {conta.natureza}
+                          </Badge>
+                          {conta.parametrizada && (
+                            <Badge variant="default" className="ml-2 bg-green-600">
+                              Parametrizada
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   )
