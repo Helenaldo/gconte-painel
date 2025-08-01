@@ -52,6 +52,7 @@ export function Parametrizacao() {
   const [filtroBalancete, setFiltroBalancete] = useState("")
 
   useEffect(() => {
+    console.log('🔄 useEffect disparado - balanceteId:', balanceteId)
     if (balanceteId) {
       loadData()
     }
