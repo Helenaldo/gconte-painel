@@ -14,7 +14,237 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      clients: {
+        Row: {
+          bairro: string | null
+          cep: string | null
+          cliente_desde: string
+          cnpj: string
+          complemento: string | null
+          created_at: string
+          fim_contrato: string | null
+          id: string
+          logradouro: string | null
+          municipio: string | null
+          nome_empresarial: string
+          nome_fantasia: string | null
+          numero: string | null
+          ramo_atividade: string
+          uf: string | null
+          updated_at: string
+        }
+        Insert: {
+          bairro?: string | null
+          cep?: string | null
+          cliente_desde?: string
+          cnpj: string
+          complemento?: string | null
+          created_at?: string
+          fim_contrato?: string | null
+          id?: string
+          logradouro?: string | null
+          municipio?: string | null
+          nome_empresarial: string
+          nome_fantasia?: string | null
+          numero?: string | null
+          ramo_atividade: string
+          uf?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bairro?: string | null
+          cep?: string | null
+          cliente_desde?: string
+          cnpj?: string
+          complemento?: string | null
+          created_at?: string
+          fim_contrato?: string | null
+          id?: string
+          logradouro?: string | null
+          municipio?: string | null
+          nome_empresarial?: string
+          nome_fantasia?: string | null
+          numero?: string | null
+          ramo_atividade?: string
+          uf?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      contacts: {
+        Row: {
+          client_id: string
+          created_at: string
+          email: string
+          id: string
+          nome: string
+          telefone: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          email: string
+          id?: string
+          nome: string
+          telefone: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          email?: string
+          id?: string
+          nome?: string
+          telefone?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      events: {
+        Row: {
+          client_id: string
+          created_at: string
+          data: string
+          descricao: string | null
+          id: string
+          setor: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          data: string
+          descricao?: string | null
+          id?: string
+          setor: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          data?: string
+          descricao?: string | null
+          id?: string
+          setor?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "events_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      office: {
+        Row: {
+          bairro: string | null
+          cep: string | null
+          cnpj: string
+          complemento: string | null
+          created_at: string
+          id: string
+          instagram: string | null
+          logomarca_url: string | null
+          logradouro: string | null
+          municipio: string | null
+          nome: string
+          numero: string | null
+          telefone: string | null
+          uf: string | null
+          updated_at: string
+        }
+        Insert: {
+          bairro?: string | null
+          cep?: string | null
+          cnpj: string
+          complemento?: string | null
+          created_at?: string
+          id?: string
+          instagram?: string | null
+          logomarca_url?: string | null
+          logradouro?: string | null
+          municipio?: string | null
+          nome: string
+          numero?: string | null
+          telefone?: string | null
+          uf?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bairro?: string | null
+          cep?: string | null
+          cnpj?: string
+          complemento?: string | null
+          created_at?: string
+          id?: string
+          instagram?: string | null
+          logomarca_url?: string | null
+          logradouro?: string | null
+          municipio?: string | null
+          nome?: string
+          numero?: string | null
+          telefone?: string | null
+          uf?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      taxation: {
+        Row: {
+          client_id: string
+          created_at: string
+          data: string
+          descricao: string | null
+          id: string
+          tipo: string
+          updated_at: string
+          valor: number | null
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          data: string
+          descricao?: string | null
+          id?: string
+          tipo: string
+          updated_at?: string
+          valor?: number | null
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          data?: string
+          descricao?: string | null
+          id?: string
+          tipo?: string
+          updated_at?: string
+          valor?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "taxation_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
