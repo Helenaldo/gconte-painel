@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,21 +14,22 @@ import { useToast } from "@/hooks/use-toast"
 import { format, parse } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { cn } from "@/lib/utils"
+import { supabase } from "@/integrations/supabase/client"
 
 interface Tributacao {
   id: string
-  clienteId: string
+  client_id: string
   clienteNome: string
   data: Date
   tipo: string
-  ativa: boolean
+  valor?: number
+  descricao?: string
 }
 
-const mockClientes = [
-  { id: "1", nome: "Empresa ABC Ltda" },
-  { id: "2", nome: "XYZ Comércio" },
-  { id: "3", nome: "Indústria 123" },
-]
+interface Cliente {
+  id: string
+  nome_empresarial: string
+}
 
 const tiposTributacao = [
   "Simples Nacional",
@@ -37,89 +38,155 @@ const tiposTributacao = [
   "Real Trimestral"
 ]
 
-const mockTributacoes: Tributacao[] = [
-  {
-    id: "1",
-    clienteId: "1",
-    clienteNome: "Empresa ABC Ltda",
-    data: new Date(),
-    tipo: "Simples Nacional",
-    ativa: true
-  },
-]
-
 export function Tributacao() {
-  const [tributacoes, setTributacoes] = useState<Tributacao[]>(mockTributacoes)
+  const [tributacoes, setTributacoes] = useState<Tributacao[]>([])
+  const [clientes, setClientes] = useState<Cliente[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingTributacao, setEditingTributacao] = useState<Tributacao | null>(null)
   const [viewingTributacao, setViewingTributacao] = useState<Tributacao | null>(null)
   const [deletingTributacao, setDeletingTributacao] = useState<Tributacao | null>(null)
-  const [filtroStatus, setFiltroStatus] = useState<"todas" | "ativas" | "inativas">("todas")
   const [searchTerm, setSearchTerm] = useState("")
   const [formData, setFormData] = useState({
     clienteId: "",
     data: undefined as Date | undefined,
-    tipo: ""
+    tipo: "",
+    valor: "",
+    descricao: ""
   })
   const [dateInput, setDateInput] = useState("")
+  const [loading, setLoading] = useState(true)
   const { toast } = useToast()
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    loadClientes()
+    loadTributacoes()
+  }, [])
+
+  const loadClientes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('id, nome_empresarial')
+        .order('nome_empresarial')
+
+      if (error) throw error
+      setClientes(data || [])
+    } catch (error) {
+      console.error('Erro ao carregar clientes:', error)
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar lista de clientes",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const loadTributacoes = async () => {
+    try {
+      setLoading(true)
+      const { data, error } = await supabase
+        .from('taxation')
+        .select(`
+          *,
+          clients!inner(nome_empresarial)
+        `)
+        .order('data', { ascending: false })
+
+      if (error) throw error
+
+      const tributacoesFormatted = (data || []).map(item => ({
+        id: item.id,
+        client_id: item.client_id,
+        clienteNome: item.clients.nome_empresarial,
+        data: new Date(item.data),
+        tipo: item.tipo,
+        valor: item.valor,
+        descricao: item.descricao
+      }))
+
+      setTributacoes(tributacoesFormatted)
+    } catch (error) {
+      console.error('Erro ao carregar tributações:', error)
+      toast({
+        title: "Erro", 
+        description: "Erro ao carregar tributações",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!formData.clienteId || !formData.data || !formData.tipo) {
       toast({
         title: "Erro",
-        description: "Todos os campos são obrigatórios",
+        description: "Cliente, data e tipo são obrigatórios",
         variant: "destructive"
       })
       return
     }
 
-    const clienteNome = mockClientes.find(c => c.id === formData.clienteId)?.nome || ""
+    try {
+      if (editingTributacao) {
+        const { error } = await supabase
+          .from('taxation')
+          .update({
+            client_id: formData.clienteId,
+            data: formData.data.toISOString().split('T')[0],
+            tipo: formData.tipo,
+            valor: formData.valor ? parseFloat(formData.valor) : null,
+            descricao: formData.descricao || null
+          })
+          .eq('id', editingTributacao.id)
 
-    if (editingTributacao) {
-      setTributacoes(prev => prev.map(tributacao => 
-        tributacao.id === editingTributacao.id 
-          ? { ...tributacao, ...formData, data: formData.data!, clienteNome }
-          : tributacao
-      ))
-      toast({ title: "Sucesso", description: "Tributação atualizada com sucesso" })
-    } else {
-      // Inativar tributações anteriores do mesmo cliente
-      setTributacoes(prev => prev.map(t => 
-        t.clienteId === formData.clienteId ? { ...t, ativa: false } : t
-      ))
+        if (error) throw error
+        toast({ title: "Sucesso", description: "Tributação atualizada com sucesso" })
+      } else {
+        const { error } = await supabase
+          .from('taxation')
+          .insert({
+            client_id: formData.clienteId,
+            data: formData.data.toISOString().split('T')[0],
+            tipo: formData.tipo,
+            valor: formData.valor ? parseFloat(formData.valor) : null,
+            descricao: formData.descricao || null
+          })
 
-      const novaTributacao: Tributacao = {
-        id: Date.now().toString(),
-        ...formData,
-        data: formData.data!,
-        clienteNome,
-        ativa: true
+        if (error) throw error
+        toast({ title: "Sucesso", description: "Tributação cadastrada com sucesso" })
       }
-      setTributacoes(prev => [...prev, novaTributacao])
-      toast({ 
-        title: "Sucesso", 
-        description: "Tributação cadastrada com sucesso. Tributações anteriores foram inativadas automaticamente."
+
+      await loadTributacoes()
+      resetForm()
+    } catch (error) {
+      console.error('Erro ao salvar tributação:', error)
+      toast({
+        title: "Erro",
+        description: "Erro ao salvar tributação",
+        variant: "destructive"
       })
     }
-
-    resetForm()
   }
 
   const resetForm = () => {
-    setFormData({ clienteId: "", data: undefined, tipo: "" })
+    setFormData({ clienteId: "", data: undefined, tipo: "", valor: "", descricao: "" })
+    setDateInput("")
     setEditingTributacao(null)
     setIsModalOpen(false)
   }
 
   const openEditModal = (tributacao: Tributacao) => {
     setFormData({
-      clienteId: tributacao.clienteId,
+      clienteId: tributacao.client_id,
       data: tributacao.data,
-      tipo: tributacao.tipo
+      tipo: tributacao.tipo,
+      valor: tributacao.valor?.toString() || "",
+      descricao: tributacao.descricao || ""
     })
+    setDateInput(format(tributacao.data, "dd/MM/yyyy"))
     setEditingTributacao(tributacao)
     setIsModalOpen(true)
   }
@@ -128,11 +195,27 @@ export function Tributacao() {
     setViewingTributacao(tributacao)
   }
 
-  const handleDelete = () => {
-    if (deletingTributacao) {
-      setTributacoes(prev => prev.filter(t => t.id !== deletingTributacao.id))
+  const handleDelete = async () => {
+    if (!deletingTributacao) return
+
+    try {
+      const { error } = await supabase
+        .from('taxation')
+        .delete()
+        .eq('id', deletingTributacao.id)
+
+      if (error) throw error
+
+      await loadTributacoes()
       setDeletingTributacao(null)
       toast({ title: "Sucesso", description: "Tributação excluída com sucesso" })
+    } catch (error) {
+      console.error('Erro ao excluir tributação:', error)
+      toast({
+        title: "Erro",
+        description: "Erro ao excluir tributação",
+        variant: "destructive"
+      })
     }
   }
 
@@ -152,22 +235,15 @@ export function Tributacao() {
     }
   }
 
-  const tributacoesFiltradas = tributacoes.filter(tributacao => {
-    // Filtro por status
-    let matchesStatus = true
-    if (filtroStatus === "ativas") matchesStatus = tributacao.ativa
-    else if (filtroStatus === "inativas") matchesStatus = !tributacao.ativa
-
-    // Filtro por termo de busca
-    let matchesSearch = true
-    if (searchTerm) {
-      matchesSearch = 
-        tributacao.clienteNome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        tributacao.tipo.toLowerCase().includes(searchTerm.toLowerCase())
-    }
-
-    return matchesStatus && matchesSearch
-  })
+  const tributacoesFiltradas = useMemo(() => {
+    return tributacoes.filter(tributacao => {
+      if (searchTerm) {
+        return tributacao.clienteNome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+               tributacao.tipo.toLowerCase().includes(searchTerm.toLowerCase())
+      }
+      return true
+    })
+  }, [tributacoes, searchTerm])
 
   return (
     <div className="space-y-6">
@@ -206,9 +282,9 @@ export function Tributacao() {
                     <SelectValue placeholder="Selecione um cliente" />
                   </SelectTrigger>
                   <SelectContent>
-                    {mockClientes.map(cliente => (
+                    {clientes.map(cliente => (
                       <SelectItem key={cliente.id} value={cliente.id}>
-                        {cliente.nome}
+                        {cliente.nome_empresarial}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -272,6 +348,28 @@ export function Tributacao() {
                 </Select>
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="valor">Valor</Label>
+                <Input
+                  id="valor"
+                  type="number"
+                  step="0.01"
+                  placeholder="0,00"
+                  value={formData.valor}
+                  onChange={(e) => setFormData(prev => ({...prev, valor: e.target.value}))}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="descricao">Descrição</Label>
+                <Input
+                  id="descricao"
+                  placeholder="Informações adicionais..."
+                  value={formData.descricao}
+                  onChange={(e) => setFormData(prev => ({...prev, descricao: e.target.value}))}
+                />
+              </div>
+
               <div className="flex justify-end gap-2 pt-4">
                 <Button type="button" variant="outline" onClick={resetForm}>
                   Cancelar
@@ -293,28 +391,14 @@ export function Tributacao() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Buscar por cliente ou tipo..." 
-                  className="pl-10"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-            </div>
-            <Select value={filtroStatus} onValueChange={(value: any) => setFiltroStatus(value)}>
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todas">Todas</SelectItem>
-                <SelectItem value="ativas">Ativas</SelectItem>
-                <SelectItem value="inativas">Inativas</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="relative">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Buscar por cliente ou tipo..." 
+              className="pl-10"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
         </CardContent>
       </Card>
@@ -327,7 +411,11 @@ export function Tributacao() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {tributacoesFiltradas.length === 0 ? (
+          {loading ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <p>Carregando tributações...</p>
+            </div>
+          ) : tributacoesFiltradas.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Calculator className="mx-auto h-12 w-12 mb-4 opacity-50" />
               <p>Nenhuma tributação encontrada</p>
@@ -340,13 +428,14 @@ export function Tributacao() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <h4 className="font-medium">{tributacao.clienteNome}</h4>
-                      <Badge variant={tributacao.ativa ? "default" : "secondary"}>
-                        {tributacao.ativa ? "Ativa" : "Inativa"}
-                      </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">
                       {format(tributacao.data, "PPP", { locale: ptBR })} • {tributacao.tipo}
+                      {tributacao.valor && ` • R$ ${tributacao.valor.toFixed(2)}`}
                     </p>
+                    {tributacao.descricao && (
+                      <p className="text-sm text-muted-foreground mt-1">{tributacao.descricao}</p>
+                    )}
                   </div>
                   <div className="flex gap-2">
                     <Button
@@ -399,14 +488,18 @@ export function Tributacao() {
                 <Label className="text-sm font-medium text-muted-foreground">Tipo de Tributação</Label>
                 <p className="mt-1">{viewingTributacao.tipo}</p>
               </div>
-              <div>
-                <Label className="text-sm font-medium text-muted-foreground">Status</Label>
-                <div className="mt-1">
-                  <Badge variant={viewingTributacao.ativa ? "default" : "secondary"}>
-                    {viewingTributacao.ativa ? "Ativa" : "Inativa"}
-                  </Badge>
+              {viewingTributacao.valor && (
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Valor</Label>
+                  <p className="mt-1">R$ {viewingTributacao.valor.toFixed(2)}</p>
                 </div>
-              </div>
+              )}
+              {viewingTributacao.descricao && (
+                <div>
+                  <Label className="text-sm font-medium text-muted-foreground">Descrição</Label>
+                  <p className="mt-1">{viewingTributacao.descricao}</p>
+                </div>
+              )}
               
               <div className="flex justify-end pt-4">
                 <Button onClick={() => setViewingTributacao(null)}>
