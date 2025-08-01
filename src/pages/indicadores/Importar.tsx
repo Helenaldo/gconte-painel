@@ -111,7 +111,17 @@ export function Importar() {
       for (let i = 0; i < Math.min(10, jsonData.length); i++) {
         const row = jsonData[i] as any[]
         if (row && row.length > 0) {
-          const cellValue = String(row[0] || "").toLowerCase()
+          const cellValue = String(row[0] || "")
+          
+          // Procurar padrão "Empresa: NOME - CNPJ: XX.XXX.XXX/XXXX-XX"
+          const empresaCnpjMatch = cellValue.match(/Empresa:\s*(.+?)\s*-\s*CNPJ:\s*(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})/)
+          if (empresaCnpjMatch) {
+            empresa = empresaCnpjMatch[1].trim()
+            cnpj = empresaCnpjMatch[2].trim()
+            break
+          }
+          
+          // Fallback para padrões individuais
           if (cellValue.includes("empresa") || cellValue.includes("razão")) {
             empresa = String(row[1] || row[0] || "").replace(/empresa:?/i, "").trim()
           }
