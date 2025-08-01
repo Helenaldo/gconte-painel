@@ -139,12 +139,16 @@ export function Parametrizacao() {
     if (!contaSelecionada) return
     
     if (checked) {
-      setContasSelecionadas(prev => [...prev, codigoConta])
-      // Adicionar nas parametrizações pendentes
-      setParametrizacoesPendentes(prev => ({
-        ...prev,
-        [contaSelecionada]: [...(prev[contaSelecionada] || []), codigoConta]
-      }))
+      setContasSelecionadas(prev => [...new Set([...prev, codigoConta])])
+      // Adicionar nas parametrizações pendentes (evitar duplicatas)
+      setParametrizacoesPendentes(prev => {
+        const contasExistentes = prev[contaSelecionada] || []
+        const novasContas = [...new Set([...contasExistentes, codigoConta])]
+        return {
+          ...prev,
+          [contaSelecionada]: novasContas
+        }
+      })
     } else {
       setContasSelecionadas(prev => prev.filter(c => c !== codigoConta))
       // Remover das parametrizações pendentes
