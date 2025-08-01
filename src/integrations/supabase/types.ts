@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      balancetes: {
+        Row: {
+          ano: number
+          arquivo_nome: string
+          cnpj: string
+          contas_parametrizadas: number | null
+          created_at: string | null
+          empresa: string
+          id: string
+          mes: number
+          periodo: string
+          status: string
+          total_contas: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          ano: number
+          arquivo_nome: string
+          cnpj: string
+          contas_parametrizadas?: number | null
+          created_at?: string | null
+          empresa: string
+          id?: string
+          mes: number
+          periodo: string
+          status?: string
+          total_contas?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          ano?: number
+          arquivo_nome?: string
+          cnpj?: string
+          contas_parametrizadas?: number | null
+          created_at?: string | null
+          empresa?: string
+          id?: string
+          mes?: number
+          periodo?: string
+          status?: string
+          total_contas?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       clients: {
         Row: {
           bairro: string | null
@@ -105,6 +150,47 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contas_balancete: {
+        Row: {
+          balancete_id: string
+          codigo: string
+          created_at: string | null
+          id: string
+          natureza: string
+          nome: string
+          saldo_atual: number
+          updated_at: string | null
+        }
+        Insert: {
+          balancete_id: string
+          codigo: string
+          created_at?: string | null
+          id?: string
+          natureza: string
+          nome: string
+          saldo_atual: number
+          updated_at?: string | null
+        }
+        Update: {
+          balancete_id?: string
+          codigo?: string
+          created_at?: string | null
+          id?: string
+          natureza?: string
+          nome?: string
+          saldo_atual?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contas_balancete_balancete_id_fkey"
+            columns: ["balancete_id"]
+            isOneToOne: false
+            referencedRelation: "balancetes"
             referencedColumns: ["id"]
           },
         ]
