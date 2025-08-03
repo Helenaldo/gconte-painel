@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { CalendarIcon, Filter, RotateCcw, FileText, AlertTriangle, CheckCircle, ChevronRight, ChevronDown } from "lucide-react"
+import { CalendarIcon, Filter, RotateCcw, FileText, AlertTriangle, CheckCircle, ChevronRight, ChevronDown, Printer } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/integrations/supabase/client"
+import jsPDF from "jspdf"
 
 interface ContaValidacao {
   id: string
@@ -394,6 +395,108 @@ export function Dados() {
     return contasAnaliticas.reduce((total, conta) => {
       return total + calcularValorParametrizado(conta, parametrizacoes, contasBalancete)
     }, 0)
+  }
+
+  const gerarPDFBalancete = async (validacao: BalancoValidacao) => {
+    try {
+      // Buscar dados do balancete para o mês específico
+      const balanceteDoMes = contasBalanceteData.filter(cb => 
+        cb.mes === validacao.mes && cb.ano === validacao.ano
+      )
+
+      // Buscar empresa
+      const empresa = empresas.find(e => e.cnpj === empresaSelecionada)
+      
+      if (!empresa) {
+        toast({
+          title: "Erro",
+          description: "Empresa não encontrada",
+          variant: "destructive"
+        })
+        return
+      }
+
+      // Criar PDF
+      const pdf = new jsPDF()
+      
+      // Configurar fonte
+      pdf.setFont('helvetica')
+      
+      // Cabeçalho
+      pdf.setFontSize(16)
+      pdf.text('BALANCETE DE VERIFICAÇÃO', 105, 20, { align: 'center' })
+      
+      pdf.setFontSize(12)
+      pdf.text(`Empresa: ${empresa.nome}`, 20, 35)
+      pdf.text(`CNPJ: ${empresa.cnpj}`, 20, 45)
+      pdf.text(`Período: ${validacao.mes.toString().padStart(2, '0')}/${validacao.ano}`, 20, 55)
+      
+      // Cabeçalho da tabela
+      let yPosition = 75
+      pdf.setFontSize(10)
+      pdf.text('CÓDIGO', 20, yPosition)
+      pdf.text('CONTA', 50, yPosition)
+      pdf.text('VALOR', 160, yPosition)
+      
+      // Linha separadora
+      pdf.line(20, yPosition + 3, 190, yPosition + 3)
+      yPosition += 10
+      
+      // Buscar todas as contas do plano com valores parametrizados
+      const contasComValor = planoContasData
+        .filter(conta => {
+          const parametrizacoes = parametrizacoesData.filter(p => p.plano_conta_id === conta.id)
+          return parametrizacoes.length > 0
+        })
+        .map(conta => {
+          const valorParametrizado = calcularValorParametrizado(conta, parametrizacoesData, balanceteDoMes)
+          return {
+            codigo: conta.codigo,
+            nome: conta.nome,
+            valor: valorParametrizado
+          }
+        })
+        .filter(conta => Math.abs(conta.valor) > 0.01) // Apenas contas com saldo
+        .sort((a, b) => a.codigo.localeCompare(b.codigo))
+      
+      // Adicionar contas ao PDF
+      contasComValor.forEach(conta => {
+        if (yPosition > 280) { // Nova página se necessário
+          pdf.addPage()
+          yPosition = 20
+        }
+        
+        pdf.text(conta.codigo, 20, yPosition)
+        
+        // Limitar o nome da conta para caber na página
+        const nomeFormatado = conta.nome.length > 50 ? 
+          conta.nome.substring(0, 50) + '...' : conta.nome
+        pdf.text(nomeFormatado, 50, yPosition)
+        
+        // Valor formatado
+        const valorFormatado = formatarMoeda(conta.valor)
+        pdf.text(valorFormatado, 160, yPosition)
+        
+        yPosition += 8
+      })
+      
+      // Salvar PDF
+      const nomeArquivo = `balancete_${empresa.nome.replace(/\s+/g, '_')}_${validacao.mes.toString().padStart(2, '0')}_${validacao.ano}.pdf`
+      pdf.save(nomeArquivo)
+      
+      toast({
+        title: "PDF gerado com sucesso!",
+        description: `Balancete de ${validacao.mes.toString().padStart(2, '0')}/${validacao.ano} foi baixado`
+      })
+      
+    } catch (error) {
+      console.error("Erro ao gerar PDF:", error)
+      toast({
+        title: "Erro ao gerar PDF",
+        description: "Não foi possível gerar o balancete em PDF",
+        variant: "destructive"
+      })
+    }
   }
 
   const exportarRelatorio = async () => {
@@ -800,6 +903,7 @@ export function Dados() {
                     <TableHead>Diferença Patrimonial</TableHead>
                     <TableHead>Diferença Resultado</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead className="w-20">Ação</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -855,11 +959,30 @@ export function Dados() {
                               </TooltipProvider>
                             )}
                           </TableCell>
+                          <TableCell>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => gerarPDFBalancete(validacao)}
+                                    className="h-8 w-8 p-0"
+                                  >
+                                    <Printer className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Gerar PDF do Balancete de {validacao.mes.toString().padStart(2, '0')}/{validacao.ano}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </TableCell>
                         </TableRow>
                         
                         {!validacao.isConsistente && isExpanded && (
                           <TableRow>
-                            <TableCell colSpan={9} className="p-0">
+                            <TableCell colSpan={10} className="p-0">
                               {renderDetalhesBalanco(validacao)}
                             </TableCell>
                           </TableRow>
