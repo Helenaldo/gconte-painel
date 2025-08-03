@@ -299,8 +299,12 @@ export function Dados() {
   }
 
   const calcularValorGrupo = (prefixo: string, planoContas: any[], parametrizacoes: any[], contasBalancete: any[]) => {
-    const contasGrupo = planoContas.filter(c => c.codigo.startsWith(prefixo))
-    return contasGrupo.reduce((total, conta) => {
+    // Somar apenas as contas de nível 4 (analíticas) para evitar duplicação
+    const contasAnaliticas = planoContas.filter(c => 
+      c.codigo.startsWith(prefixo + '.') && 
+      c.codigo.split('.').length === 4
+    )
+    return contasAnaliticas.reduce((total, conta) => {
       return total + calcularValorParametrizado(conta, parametrizacoes, contasBalancete)
     }, 0)
   }
