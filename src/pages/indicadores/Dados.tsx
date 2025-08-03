@@ -258,10 +258,13 @@ export function Dados() {
 
   const calcularValorParametrizado = (conta: any, parametrizacoes: any[], contasBalancete: any[]) => {
     const contasParam = parametrizacoes.filter(p => p.plano_conta_id === conta.id)
-    return contasParam.reduce((total, param) => {
+    const valorBruto = contasParam.reduce((total, param) => {
       const contaBalancete = contasBalancete.find(cb => cb.codigo === param.conta_balancete_codigo)
       return total + (contaBalancete?.saldo_atual || 0)
     }, 0)
+    
+    // Aplicar sinal baseado na natureza da conta
+    return conta.natureza === 'credora' ? -valorBruto : valorBruto
   }
 
   const calcularSomaFilhas = (contaMae: any, planoContas: any[], parametrizacoes: any[], contasBalancete: any[]) => {
@@ -271,10 +274,8 @@ export function Dados() {
     )
     
     return contasFilhas.reduce((total, filha) => {
-      const valorParametrizado = calcularValorParametrizado(filha, parametrizacoes, contasBalancete)
-      // Aplicar sinal baseado na natureza da conta
-      const valorComSinal = filha.natureza === 'credora' ? -valorParametrizado : valorParametrizado
-      return total + valorComSinal
+      const valorFilha = calcularValorParametrizado(filha, parametrizacoes, contasBalancete)
+      return total + valorFilha
     }, 0)
   }
 
