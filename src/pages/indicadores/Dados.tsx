@@ -271,7 +271,10 @@ export function Dados() {
     )
     
     return contasFilhas.reduce((total, filha) => {
-      return total + calcularValorParametrizado(filha, parametrizacoes, contasBalancete)
+      const valorParametrizado = calcularValorParametrizado(filha, parametrizacoes, contasBalancete)
+      // Aplicar sinal baseado na natureza da conta
+      const valorComSinal = filha.natureza === 'credora' ? -valorParametrizado : valorParametrizado
+      return total + valorComSinal
     }, 0)
   }
 
