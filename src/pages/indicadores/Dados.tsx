@@ -281,23 +281,18 @@ export function Dados() {
       return saldo >= 0 ? 'devedora' : 'credora' // Saldo positivo = devedora, saldo negativo = credora
     }
     
-    // Verificar primeiro por código específico para Patrimônio Líquido
-    if (conta.codigo?.startsWith('2.3')) {
-      return 'credora' // Capital Social, Reservas, etc. são sempre credoras
-    }
-    
-    // Verificar contas de receita por código específico
-    if (conta.codigo?.startsWith('3.1')) {
+    // Verificar todas as contas de receita PRIMEIRO (código 3)
+    if (conta.codigo?.startsWith('3')) {
       // Exceção: Deduções da Receita é conta redutora (devedora)
       if (conta.codigo === '3.1.2') {
         return 'devedora'
       }
-      return 'credora' // Outras receitas são credoras
+      return 'credora' // Todas as outras receitas são credoras
     }
     
-    // Verificar todas as contas de receita (código 3)
-    if (conta.codigo?.startsWith('3')) {
-      return 'credora' // Receitas são credoras
+    // Verificar primeiro por código específico para Patrimônio Líquido
+    if (conta.codigo?.startsWith('2.3')) {
+      return 'credora' // Capital Social, Reservas, etc. são sempre credoras
     }
     
     if (conta.tipo === 'ativo') {
