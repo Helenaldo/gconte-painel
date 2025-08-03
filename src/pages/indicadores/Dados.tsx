@@ -274,11 +274,16 @@ export function Dados() {
     ano: number,
     empresa: string
   ): BalancoValidacao => {
-    // Identificar contas principais (1. Ativo, 2. Passivo, 3. Receitas, 4. Custos e Despesas)
-    const ativo = calcularValorGrupo('1', planoContas, parametrizacoes, contasBalancete)
-    const passivo = calcularValorGrupo('2', planoContas, parametrizacoes, contasBalancete)
-    const receitas = calcularValorGrupo('3', planoContas, parametrizacoes, contasBalancete)
-    const custoseDespesas = calcularValorGrupo('4', planoContas, parametrizacoes, contasBalancete)
+    // Buscar diretamente os valores parametrizados das contas principais (nível 1)
+    const contaAtivo = planoContas.find(c => c.codigo === '1')
+    const contaPassivo = planoContas.find(c => c.codigo === '2')
+    const contaReceitas = planoContas.find(c => c.codigo === '3')
+    const contaCustos = planoContas.find(c => c.codigo === '4')
+
+    const ativo = contaAtivo ? calcularValorParametrizado(contaAtivo, parametrizacoes, contasBalancete) : 0
+    const passivo = contaPassivo ? calcularValorParametrizado(contaPassivo, parametrizacoes, contasBalancete) : 0
+    const receitas = contaReceitas ? calcularValorParametrizado(contaReceitas, parametrizacoes, contasBalancete) : 0
+    const custoseDespesas = contaCustos ? calcularValorParametrizado(contaCustos, parametrizacoes, contasBalancete) : 0
 
     const diferencaPatrimonial = ativo - passivo
     const diferencaResultado = receitas - custoseDespesas
