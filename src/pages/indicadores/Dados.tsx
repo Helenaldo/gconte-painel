@@ -288,7 +288,11 @@ export function Dados() {
     
     // Verificar contas de receita por código específico
     if (conta.codigo?.startsWith('3.1')) {
-      return 'credora' // Receitas são sempre credoras
+      // Exceção: Deduções da Receita é conta redutora (devedora)
+      if (conta.codigo === '3.1.2') {
+        return 'devedora'
+      }
+      return 'credora' // Outras receitas são credoras
     }
     
     if (conta.tipo === 'ativo') {
