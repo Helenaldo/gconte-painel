@@ -410,19 +410,8 @@ export function Dados() {
       const valorParametrizado = calcularValorParametrizado(filha, parametrizacoesData, balanceteDoMes)
       const parametrizacoes = parametrizacoesData.filter(p => p.plano_conta_id === filha.id)
       
-      // Determinar a natureza correta baseada no tipo e características especiais da conta
-      let natureza = 'devedora' // padrão
-      
-      if (filha.tipo === 'ativo') {
-        // Contas de ativo são devedoras, exceto contas redutoras
-        natureza = (filha.nome?.includes('( - )') || filha.nome?.includes('Deprecia') || filha.nome?.includes('Amortiza')) ? 'credora' : 'devedora'
-      } else if (filha.tipo === 'passivo') {
-        natureza = 'credora'
-      } else if (filha.tipo === 'receita') {
-        natureza = 'credora'
-      } else if (filha.tipo === 'despesa' || filha.tipo === 'custo') {
-        natureza = 'devedora'
-      }
+      // Usar a função determinarNatureza para consistência
+      const natureza = determinarNatureza(filha)
       
       return {
         ...filha,
