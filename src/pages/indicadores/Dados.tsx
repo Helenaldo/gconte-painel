@@ -275,7 +275,12 @@ export function Dados() {
     return validacoes
   }
 
-  const determinarNatureza = (conta: any) => {
+  const determinarNatureza = (conta: any, saldo: number = 0) => {
+    // Regra especial para Lucro ou Prejuízos Acumulados
+    if (conta.codigo === '2.3.3') {
+      return saldo >= 0 ? 'devedora' : 'credora' // Saldo positivo = devedora, saldo negativo = credora
+    }
+    
     // Verificar primeiro por código específico para Patrimônio Líquido
     if (conta.codigo?.startsWith('2.3')) {
       return 'credora' // Capital Social, Reservas, etc. são sempre credoras
@@ -301,8 +306,8 @@ export function Dados() {
       return total + (contaBalancete?.saldo_atual || 0)
     }, 0)
     
-    // Aplicar sinal baseado na natureza correta da conta
-    const natureza = determinarNatureza(conta)
+    // Aplicar sinal baseado na natureza correta da conta, passando o valor bruto para análise
+    const natureza = determinarNatureza(conta, valorBruto)
     return natureza === 'credora' ? -valorBruto : valorBruto
   }
 
@@ -410,8 +415,15 @@ export function Dados() {
       const valorParametrizado = calcularValorParametrizado(filha, parametrizacoesData, balanceteDoMes)
       const parametrizacoes = parametrizacoesData.filter(p => p.plano_conta_id === filha.id)
       
-      // Usar a função determinarNatureza para consistência
-      const natureza = determinarNatureza(filha)
+      // Calcular o saldo bruto da conta filha para determinar a natureza correta
+      const contasParam = parametrizacoes
+      const valorBruto = contasParam.reduce((total, param) => {
+        const contaBalancete = balanceteDoMes.find(cb => cb.codigo === param.conta_balancete_codigo)
+        return total + (contaBalancete?.saldo_atual || 0)
+      }, 0)
+      
+      // Usar a função determinarNatureza passando o saldo bruto para contas especiais
+      const natureza = determinarNatureza(filha, valorBruto)
       
       return {
         ...filha,
