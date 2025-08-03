@@ -328,10 +328,13 @@ export function Dados() {
     const contaCustos = planoContas.find(c => c.codigo === '4')
 
     const ativo = contaAtivo ? calcularValorParametrizado(contaAtivo, parametrizacoes, contasBalancete) : 0
-    const passivo = contaPassivo ? calcularValorParametrizado(contaPassivo, parametrizacoes, contasBalancete) : 0
+    const passivoCalculado = contaPassivo ? calcularValorParametrizado(contaPassivo, parametrizacoes, contasBalancete) : 0
     const receitas = contaReceitas ? calcularValorParametrizado(contaReceitas, parametrizacoes, contasBalancete) : 0
     const custoseDespesas = contaCustos ? calcularValorParametrizado(contaCustos, parametrizacoes, contasBalancete) : 0
 
+    // Para a Equação Patrimonial, ignorar o sinal negativo do Passivo
+    const passivo = Math.abs(passivoCalculado)
+    
     const diferencaPatrimonial = ativo - passivo
     const diferencaResultado = receitas - custoseDespesas
     const isConsistente = Math.abs(diferencaPatrimonial - diferencaResultado) < 0.01
