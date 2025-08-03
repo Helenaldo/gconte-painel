@@ -110,13 +110,13 @@ export function Dados() {
 
     setLoading(true)
     try {
-      // Buscar balancetes da empresa/ano selecionados
+      // Buscar balancetes da empresa/ano selecionados (incluindo os que estão parametrizando)
       const { data: balancetes, error: balancetesError } = await supabase
         .from('balancetes')
         .select('*')
         .eq('cnpj', empresaSelecionada)
         .eq('ano', parseInt(anoSelecionado))
-        .eq('status', 'parametrizado')
+        .in('status', ['parametrizado', 'parametrizando'])
         .order('mes')
 
       if (balancetesError) throw balancetesError
