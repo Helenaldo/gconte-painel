@@ -332,6 +332,22 @@ export function Dados() {
     }, 0)
   }
 
+  // Função específica para cálculo de valores na validação do balanço
+  const calcularValorParametrizadoBalanco = (conta: any, parametrizacoes: any[], contasBalancete: any[]) => {
+    const contasParam = parametrizacoes.filter(p => p.plano_conta_id === conta.id)
+    const valorBruto = contasParam.reduce((total, param) => {
+      const contaBalancete = contasBalancete.find(cb => cb.codigo === param.conta_balancete_codigo)
+      return total + (contaBalancete?.saldo_atual || 0)
+    }, 0)
+    
+    // Para validação do balanço: todas as contas aparecem com valor absoluto (positivo)
+    // exceto custos e despesas que mantêm o sinal original se positivo
+    if (conta.codigo === '4') { // Custos e despesas
+      return Math.abs(valorBruto)
+    }
+    return Math.abs(valorBruto) // Ativo, Passivo e Receitas sempre positivos na validação do balanço
+  }
+
   const calcularValidacaoBalanco = (
     planoContas: any[],
     parametrizacoes: any[],
@@ -346,17 +362,11 @@ export function Dados() {
     const contaReceitas = planoContas.find(c => c.codigo === '3')
     const contaCustos = planoContas.find(c => c.codigo === '4')
 
-    const ativo = contaAtivo ? calcularValorParametrizado(contaAtivo, parametrizacoes, contasBalancete) : 0
-    const passivoCalculado = contaPassivo ? calcularValorParametrizado(contaPassivo, parametrizacoes, contasBalancete) : 0
-    const receitasCalculadas = contaReceitas ? calcularValorParametrizado(contaReceitas, parametrizacoes, contasBalancete) : 0
-    const custoseDespesas = contaCustos ? calcularValorParametrizado(contaCustos, parametrizacoes, contasBalancete) : 0
+    const ativo = contaAtivo ? calcularValorParametrizadoBalanco(contaAtivo, parametrizacoes, contasBalancete) : 0
+    const passivo = contaPassivo ? calcularValorParametrizadoBalanco(contaPassivo, parametrizacoes, contasBalancete) : 0
+    const receitas = contaReceitas ? calcularValorParametrizadoBalanco(contaReceitas, parametrizacoes, contasBalancete) : 0
+    const custoseDespesas = contaCustos ? calcularValorParametrizadoBalanco(contaCustos, parametrizacoes, contasBalancete) : 0
 
-    // Para a Equação Patrimonial, ignorar o sinal negativo do Passivo
-    const passivo = Math.abs(passivoCalculado)
-    
-    // Para a Equação de Resultado, as receitas devem ser positivas (converter sinal negativo para positivo)
-    const receitas = Math.abs(receitasCalculadas)
-    
     const diferencaPatrimonial = ativo - passivo
     const diferencaResultado = receitas - custoseDespesas
     const isConsistente = Math.abs(diferencaPatrimonial - diferencaResultado) < 0.01
