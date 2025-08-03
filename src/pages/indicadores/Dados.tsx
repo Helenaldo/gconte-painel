@@ -275,6 +275,20 @@ export function Dados() {
     return validacoes
   }
 
+  const determinarNatureza = (conta: any) => {
+    if (conta.tipo === 'ativo') {
+      // Contas de ativo são devedoras, exceto contas redutoras
+      return (conta.nome?.includes('( - )') || conta.nome?.includes('Deprecia') || conta.nome?.includes('Amortiza')) ? 'credora' : 'devedora'
+    } else if (conta.tipo === 'passivo') {
+      return 'credora'
+    } else if (conta.tipo === 'receita') {
+      return 'credora'
+    } else if (conta.tipo === 'despesa' || conta.tipo === 'custo') {
+      return 'devedora'
+    }
+    return 'devedora' // padrão
+  }
+
   const calcularValorParametrizado = (conta: any, parametrizacoes: any[], contasBalancete: any[]) => {
     const contasParam = parametrizacoes.filter(p => p.plano_conta_id === conta.id)
     const valorBruto = contasParam.reduce((total, param) => {
@@ -282,8 +296,9 @@ export function Dados() {
       return total + (contaBalancete?.saldo_atual || 0)
     }, 0)
     
-    // Aplicar sinal baseado na natureza da conta
-    return conta.natureza === 'credora' ? -valorBruto : valorBruto
+    // Aplicar sinal baseado na natureza correta da conta
+    const natureza = determinarNatureza(conta)
+    return natureza === 'credora' ? -valorBruto : valorBruto
   }
 
   const calcularSomaFilhas = (contaMae: any, planoContas: any[], parametrizacoes: any[], contasBalancete: any[]) => {
@@ -387,8 +402,23 @@ export function Dados() {
       const valorParametrizado = calcularValorParametrizado(filha, parametrizacoesData, balanceteDoMes)
       const parametrizacoes = parametrizacoesData.filter(p => p.plano_conta_id === filha.id)
       
+      // Determinar a natureza correta baseada no tipo e características especiais da conta
+      let natureza = 'devedora' // padrão
+      
+      if (filha.tipo === 'ativo') {
+        // Contas de ativo são devedoras, exceto contas redutoras
+        natureza = (filha.nome?.includes('( - )') || filha.nome?.includes('Deprecia') || filha.nome?.includes('Amortiza')) ? 'credora' : 'devedora'
+      } else if (filha.tipo === 'passivo') {
+        natureza = 'credora'
+      } else if (filha.tipo === 'receita') {
+        natureza = 'credora'
+      } else if (filha.tipo === 'despesa' || filha.tipo === 'custo') {
+        natureza = 'devedora'
+      }
+      
       return {
         ...filha,
+        natureza, // usar a natureza correta determinada acima
         valorParametrizado,
         parametrizacoes: parametrizacoes.map(param => {
           const contaBalancete = balanceteDoMes.find(cb => cb.codigo === param.conta_balancete_codigo)
