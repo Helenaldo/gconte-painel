@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { CalendarIcon, Filter, RotateCcw, FileText, AlertTriangle, CheckCircle } from "lucide-react"
+import { CalendarIcon, Filter, RotateCcw, FileText, AlertTriangle, CheckCircle, ChevronRight, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -48,6 +48,10 @@ export function Dados() {
   const [contasValidacao, setContasValidacao] = useState<ContaValidacao[]>([])
   const [balancoValidacao, setBalancoValidacao] = useState<BalancoValidacao[]>([])
   const [anos, setAnos] = useState<string[]>([])
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
+  const [planoContasData, setPlanoContasData] = useState<any[]>([])
+  const [parametrizacoesData, setParametrizacoesData] = useState<any[]>([])
+  const [contasBalanceteData, setContasBalanceteData] = useState<any[]>([])
 
   useEffect(() => {
     loadEmpresas()
@@ -150,6 +154,9 @@ export function Dados() {
       const validacoesContas: ContaValidacao[] = []
       const validacoesBalanco: BalancoValidacao[] = []
 
+      // Buscar todas as contas do balancete de todos os meses para usar nos detalhes
+      const todasContasBalancete = []
+      
       // Para cada mês do ano
       for (const balancete of balancetes) {
         // Buscar contas do balancete
@@ -159,6 +166,14 @@ export function Dados() {
           .eq('balancete_id', balancete.id)
 
         if (contasError) throw contasError
+
+        // Adicionar informação do mês/ano às contas do balancete
+        const contasComMes = contasBalancete.map(cb => ({
+          ...cb,
+          mes: balancete.mes,
+          ano: balancete.ano
+        }))
+        todasContasBalancete.push(...contasComMes)
 
         // Calcular validações hierárquicas
         const contasHierarquicas = calcularHierarquiaContas(
@@ -182,9 +197,13 @@ export function Dados() {
         )
         validacoesBalanco.push(validacaoBalanco)
       }
+      
+      setContasBalanceteData(todasContasBalancete)
 
       setContasValidacao(validacoesContas)
       setBalancoValidacao(validacoesBalanco)
+      setPlanoContasData(planoContas)
+      setParametrizacoesData(parametrizacoes)
 
       toast({
         title: "Validações calculadas",
@@ -342,6 +361,225 @@ export function Dados() {
     })
   }
 
+  const toggleExpandRow = (rowId: string) => {
+    const newExpanded = new Set(expandedRows)
+    if (newExpanded.has(rowId)) {
+      newExpanded.delete(rowId)
+    } else {
+      newExpanded.add(rowId)
+    }
+    setExpandedRows(newExpanded)
+  }
+
+  const getContasFilhasDetalhadas = (conta: ContaValidacao, mes: number) => {
+    // Buscar os dados do balancete específico para este mês
+    const contasFilhas = planoContasData.filter(c => 
+      c.codigo.startsWith(conta.codigo + '.') && 
+      c.codigo.split('.').length === conta.codigo.split('.').length + 1
+    )
+
+    // Buscar balancete do mês específico
+    const balanceteDoMes = contasBalanceteData.filter(cb => 
+      cb.mes === mes && cb.ano === conta.ano
+    )
+
+    return contasFilhas.map(filha => {
+      const valorParametrizado = calcularValorParametrizado(filha, parametrizacoesData, balanceteDoMes)
+      const parametrizacoes = parametrizacoesData.filter(p => p.plano_conta_id === filha.id)
+      
+      return {
+        ...filha,
+        valorParametrizado,
+        parametrizacoes: parametrizacoes.map(param => {
+          const contaBalancete = balanceteDoMes.find(cb => cb.codigo === param.conta_balancete_codigo)
+          return {
+            ...param,
+            saldoAtual: contaBalancete?.saldo_atual || 0,
+            nomeContaBalancete: contaBalancete?.nome || param.conta_balancete_nome
+          }
+        })
+      }
+    })
+  }
+
+  const renderDetalhesCalculo = (conta: ContaValidacao) => {
+    const contasFilhas = getContasFilhasDetalhadas(conta, conta.mes)
+    
+    return (
+      <div className="bg-muted/50 p-4 rounded-lg space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Informações da Conta Mãe */}
+          <div className="space-y-3">
+            <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+              Conta Mãe
+            </h4>
+            <div className="bg-background rounded-md p-3 space-y-2">
+              <div className="flex justify-between">
+                <span className="text-sm font-medium">Código:</span>
+                <span className="text-sm">{conta.codigo}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm font-medium">Nome:</span>
+                <span className="text-sm">{conta.nome}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm font-medium">Valor Registrado:</span>
+                <span className="text-sm font-bold text-blue-600">{formatarMoeda(conta.valorParametrizado)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Resumo do Cálculo */}
+          <div className="space-y-3">
+            <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+              Resumo do Cálculo
+            </h4>
+            <div className="bg-background rounded-md p-3 space-y-2">
+              <div className="flex justify-between">
+                <span className="text-sm font-medium">Soma das Filhas:</span>
+                <span className="text-sm font-bold text-green-600">{formatarMoeda(conta.valorCalculado)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm font-medium">Diferença:</span>
+                <span className={`text-sm font-bold ${conta.diferenca > 0.01 ? 'text-red-600' : 'text-green-600'}`}>
+                  {formatarMoeda(conta.diferenca)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm font-medium">Status:</span>
+                <Badge variant={conta.status === 'consistente' ? 'default' : 'destructive'} className="text-xs">
+                  {conta.status === 'consistente' ? 'Consistente' : 'Inconsistente'}
+                </Badge>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Lista das Contas Filhas */}
+        <div className="space-y-3">
+          <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+            Contas Filhas Utilizadas no Cálculo
+          </h4>
+          <div className="space-y-2">
+            {contasFilhas.map((filha, index) => (
+              <div 
+                key={index} 
+                className="bg-background rounded-md p-3 border-l-4 border-l-blue-200"
+              >
+                <div className="flex justify-between items-start mb-2">
+                  <div className="flex-1">
+                    <div className="font-medium text-sm">{filha.codigo} - {filha.nome}</div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Badge variant="outline" className="text-xs">
+                        {filha.natureza === 'devedora' ? 'Devedora (+)' : 'Credora (-)'}
+                      </Badge>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <Badge variant="secondary" className="text-xs">
+                              {filha.parametrizacoes?.length || 0} parametrizações
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <div className="space-y-1">
+                              {filha.parametrizacoes?.map((param, idx) => (
+                                <div key={idx} className="text-xs">
+                                  {param.conta_balancete_codigo}: {formatarMoeda(param.saldoAtual)}
+                                </div>
+                              ))}
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className={`font-bold ${filha.valorParametrizado >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {formatarMoeda(filha.valorParametrizado)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const renderDetalhesBalanco = (validacao: BalancoValidacao) => {
+    const diferencaTotal = Math.abs(validacao.diferencaPatrimonial - validacao.diferencaResultado)
+    
+    return (
+      <div className="bg-muted/50 p-4 rounded-lg space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Lado Esquerdo: Patrimônio */}
+          <div className="space-y-3">
+            <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+              Equação Patrimonial
+            </h4>
+            <div className="bg-background rounded-md p-3 space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">1. Ativo:</span>
+                <span className="text-sm font-bold text-blue-600">{formatarMoeda(validacao.ativo)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">2. Passivo:</span>
+                <span className="text-sm font-bold text-red-600">{formatarMoeda(validacao.passivo)}</span>
+              </div>
+              <div className="border-t pt-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-bold">(Ativo - Passivo):</span>
+                  <span className="text-sm font-bold text-purple-600">{formatarMoeda(validacao.diferencaPatrimonial)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Lado Direito: Resultado */}
+          <div className="space-y-3">
+            <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+              Equação de Resultado
+            </h4>
+            <div className="bg-background rounded-md p-3 space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">3. Receitas:</span>
+                <span className="text-sm font-bold text-green-600">{formatarMoeda(validacao.receitas)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">4. Custos e Despesas:</span>
+                <span className="text-sm font-bold text-red-600">{formatarMoeda(validacao.custoseDespesas)}</span>
+              </div>
+              <div className="border-t pt-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-bold">(Receitas - Custos):</span>
+                  <span className="text-sm font-bold text-purple-600">{formatarMoeda(validacao.diferencaResultado)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Resultado Final */}
+        <div className="bg-background rounded-md p-4 border-2 border-dashed border-muted-foreground/20">
+          <div className="text-center space-y-2">
+            <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+              Validação da Equação Fundamental
+            </h4>
+            <div className="text-lg font-mono">
+              <span className="text-purple-600">{formatarMoeda(validacao.diferencaPatrimonial)}</span>
+              <span className="mx-2">=</span>
+              <span className="text-purple-600">{formatarMoeda(validacao.diferencaResultado)}</span>
+            </div>
+            <div className={`text-sm font-medium ${diferencaTotal < 0.01 ? 'text-green-600' : 'text-red-600'}`}>
+              Diferença: {formatarMoeda(diferencaTotal)}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const contasInconsistentes = contasValidacao.filter(c => c.status === 'inconsistente').length
   const balancosInconsistentes = balancoValidacao.filter(b => !b.isConsistente).length
 
@@ -492,6 +730,7 @@ export function Dados() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-12"></TableHead>
                     <TableHead>Mês</TableHead>
                     <TableHead>Ativo</TableHead>
                     <TableHead>Passivo</TableHead>
@@ -503,39 +742,70 @@ export function Dados() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {balancoValidacao.map((validacao, index) => (
-                    <TableRow key={index} className={!validacao.isConsistente ? 'bg-destructive/10' : ''}>
-                      <TableCell className="font-medium">
-                        {validacao.mes.toString().padStart(2, '0')}/{validacao.ano}
-                      </TableCell>
-                      <TableCell>{formatarMoeda(validacao.ativo)}</TableCell>
-                      <TableCell>{formatarMoeda(validacao.passivo)}</TableCell>
-                      <TableCell>{formatarMoeda(validacao.receitas)}</TableCell>
-                      <TableCell>{formatarMoeda(validacao.custoseDespesas)}</TableCell>
-                      <TableCell>{formatarMoeda(validacao.diferencaPatrimonial)}</TableCell>
-                      <TableCell>{formatarMoeda(validacao.diferencaResultado)}</TableCell>
-                      <TableCell>
-                        {validacao.isConsistente ? (
-                          <Badge variant="default" className="bg-green-600">
-                            Consistente
-                          </Badge>
-                        ) : (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger>
-                                <Badge variant="destructive">
-                                  Inconsistente
-                                </Badge>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Diferença: {formatarMoeda(Math.abs(validacao.diferencaPatrimonial - validacao.diferencaResultado))}</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
+                  {balancoValidacao.map((validacao, index) => {
+                    const rowId = `balanco-${index}`
+                    const isExpanded = expandedRows.has(rowId)
+                    
+                    return (
+                      <>
+                        <TableRow key={index} className={!validacao.isConsistente ? 'bg-destructive/10' : ''}>
+                          <TableCell>
+                            {!validacao.isConsistente && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => toggleExpandRow(rowId)}
+                                className="h-6 w-6 p-0"
+                              >
+                                {isExpanded ? (
+                                  <ChevronDown className="h-4 w-4" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4" />
+                                )}
+                              </Button>
+                            )}
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {validacao.mes.toString().padStart(2, '0')}/{validacao.ano}
+                          </TableCell>
+                          <TableCell>{formatarMoeda(validacao.ativo)}</TableCell>
+                          <TableCell>{formatarMoeda(validacao.passivo)}</TableCell>
+                          <TableCell>{formatarMoeda(validacao.receitas)}</TableCell>
+                          <TableCell>{formatarMoeda(validacao.custoseDespesas)}</TableCell>
+                          <TableCell>{formatarMoeda(validacao.diferencaPatrimonial)}</TableCell>
+                          <TableCell>{formatarMoeda(validacao.diferencaResultado)}</TableCell>
+                          <TableCell>
+                            {validacao.isConsistente ? (
+                              <Badge variant="default" className="bg-green-600">
+                                Consistente
+                              </Badge>
+                            ) : (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger>
+                                    <Badge variant="destructive">
+                                      Inconsistente
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Diferença: {formatarMoeda(Math.abs(validacao.diferencaPatrimonial - validacao.diferencaResultado))}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                        
+                        {!validacao.isConsistente && isExpanded && (
+                          <TableRow>
+                            <TableCell colSpan={9} className="p-0">
+                              {renderDetalhesBalanco(validacao)}
+                            </TableCell>
+                          </TableRow>
                         )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                      </>
+                    )
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -555,6 +825,7 @@ export function Dados() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-12"></TableHead>
                     <TableHead>Mês</TableHead>
                     <TableHead>Conta</TableHead>
                     <TableHead>Nível</TableHead>
@@ -568,40 +839,69 @@ export function Dados() {
                   {contasValidacao
                     .filter(c => c.status === 'inconsistente')
                     .slice(0, 20)
-                    .map((conta, index) => (
-                      <TableRow key={index} className="bg-destructive/10">
-                        <TableCell className="font-medium">
-                          {conta.mes.toString().padStart(2, '0')}/{conta.ano}
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <div className="font-medium">{conta.codigo} - {conta.nome}</div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">Nível {conta.nivel}</Badge>
-                        </TableCell>
-                        <TableCell>{formatarMoeda(conta.valorParametrizado)}</TableCell>
-                        <TableCell>{formatarMoeda(conta.valorCalculado)}</TableCell>
-                        <TableCell className="text-destructive font-medium">
-                          {formatarMoeda(conta.diferenca)}
-                        </TableCell>
-                        <TableCell>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger>
-                                <Badge variant="destructive">
-                                  Inconsistente
-                                </Badge>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Diferença entre valor da conta mãe e a soma de suas contas filhas: {formatarMoeda(conta.diferenca)}</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    .map((conta, index) => {
+                      const rowId = `conta-${conta.id}-${conta.mes}-${conta.ano}`
+                      const isExpanded = expandedRows.has(rowId)
+                      
+                      return (
+                        <>
+                          <TableRow key={index} className="bg-destructive/10">
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => toggleExpandRow(rowId)}
+                                className="h-6 w-6 p-0"
+                              >
+                                {isExpanded ? (
+                                  <ChevronDown className="h-4 w-4" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              {conta.mes.toString().padStart(2, '0')}/{conta.ano}
+                            </TableCell>
+                            <TableCell>
+                              <div>
+                                <div className="font-medium">{conta.codigo} - {conta.nome}</div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">Nível {conta.nivel}</Badge>
+                            </TableCell>
+                            <TableCell>{formatarMoeda(conta.valorParametrizado)}</TableCell>
+                            <TableCell>{formatarMoeda(conta.valorCalculado)}</TableCell>
+                            <TableCell className="text-destructive font-medium">
+                              {formatarMoeda(conta.diferenca)}
+                            </TableCell>
+                            <TableCell>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger>
+                                    <Badge variant="destructive">
+                                      Inconsistente
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Diferença entre valor da conta mãe e a soma de suas contas filhas: {formatarMoeda(conta.diferenca)}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </TableCell>
+                          </TableRow>
+                          
+                          {isExpanded && (
+                            <TableRow>
+                              <TableCell colSpan={8} className="p-0">
+                                {renderDetalhesCalculo(conta)}
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </>
+                      )
+                    })}
                 </TableBody>
               </Table>
             </div>
