@@ -223,24 +223,33 @@ export function Dados() {
     // Calcular valores para cada nível (começando do nível 4 para cima)
     for (let nivel = 4; nivel >= 1; nivel--) {
       for (const conta of contasPorNivel[nivel] || []) {
-        const valorParametrizado = calcularValorParametrizado(conta, parametrizacoes, contasBalancete)
-        const valorCalculado = nivel === 4 ? valorParametrizado : calcularSomaFilhas(conta, planoContas, parametrizacoes, contasBalancete)
-        const diferenca = Math.abs(valorParametrizado - valorCalculado)
+        // Verificar se a conta tem filhas
+        const contasFilhas = planoContas.filter(c => 
+          c.codigo.startsWith(conta.codigo + '.') && 
+          c.codigo.split('.').length === conta.codigo.split('.').length + 1
+        )
         
-        validacoes.push({
-          id: conta.id,
-          codigo: conta.codigo,
-          nome: conta.nome,
-          nivel,
-          valorParametrizado,
-          valorCalculado,
-          diferenca,
-          status: diferenca < 0.01 ? 'consistente' : 'inconsistente',
-          filhas: [],
-          mes,
-          ano,
-          empresa
-        })
+        // Apenas validar contas que têm filhas (contas mães)
+        if (contasFilhas.length > 0) {
+          const valorParametrizado = calcularValorParametrizado(conta, parametrizacoes, contasBalancete)
+          const valorCalculado = calcularSomaFilhas(conta, planoContas, parametrizacoes, contasBalancete)
+          const diferenca = Math.abs(valorParametrizado - valorCalculado)
+          
+          validacoes.push({
+            id: conta.id,
+            codigo: conta.codigo,
+            nome: conta.nome,
+            nivel,
+            valorParametrizado,
+            valorCalculado,
+            diferenca,
+            status: diferenca < 0.01 ? 'consistente' : 'inconsistente',
+            filhas: [],
+            mes,
+            ano,
+            empresa
+          })
+        }
       }
     }
 
