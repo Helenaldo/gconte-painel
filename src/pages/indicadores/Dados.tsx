@@ -869,98 +869,122 @@ export function Dados() {
             <CardDescription>Verificação da consistência entre contas mãe e suas filhas</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12"></TableHead>
-                    <TableHead>Mês</TableHead>
-                    <TableHead>Conta</TableHead>
-                    <TableHead>Nível</TableHead>
-                    <TableHead>Valor Parametrizado</TableHead>
-                    <TableHead>Valor Calculado</TableHead>
-                    <TableHead>Diferença</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {contasValidacao
-                    .filter(c => c.status === 'inconsistente')
-                    .slice(0, 20)
-                    .map((conta, index) => {
-                      const rowId = `conta-${conta.id}-${conta.mes}-${conta.ano}`
-                      const isExpanded = expandedRows.has(rowId)
-                      
-                      return (
-                        <>
-                          <TableRow key={index} className="bg-destructive/10">
-                            <TableCell>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => toggleExpandRow(rowId)}
-                                className="h-6 w-6 p-0"
-                              >
-                                {isExpanded ? (
-                                  <ChevronDown className="h-4 w-4" />
-                                ) : (
-                                  <ChevronRight className="h-4 w-4" />
-                                )}
-                              </Button>
-                            </TableCell>
-                            <TableCell className="font-medium">
-                              {conta.mes.toString().padStart(2, '0')}/{conta.ano}
-                            </TableCell>
-                            <TableCell>
-                              <div>
-                                <div className="font-medium">{conta.codigo} - {conta.nome}</div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline">Nível {conta.nivel}</Badge>
-                            </TableCell>
-                            <TableCell>{formatarMoeda(conta.valorParametrizado)}</TableCell>
-                            <TableCell>{formatarMoeda(conta.valorCalculado)}</TableCell>
-                            <TableCell className="text-destructive font-medium">
-                              {formatarMoeda(conta.diferenca)}
-                            </TableCell>
-                            <TableCell>
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger>
-                                    <Badge variant="destructive">
-                                      Inconsistente
-                                    </Badge>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Diferença entre valor da conta mãe e a soma de suas contas filhas: {formatarMoeda(conta.diferenca)}</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            </TableCell>
-                          </TableRow>
+            {contasInconsistentes === 0 ? (
+              // Mensagem de sucesso quando não há inconsistências
+              <div className="text-center py-12">
+                <div className="mx-auto w-16 h-16 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center mb-6">
+                  <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
+                </div>
+                <h3 className="text-2xl font-bold text-green-700 dark:text-green-400 mb-2">
+                  Parametrização Consistente! 🎉
+                </h3>
+                <p className="text-lg text-green-600 dark:text-green-300 mb-4">
+                  Todas as contas estão corretamente parametrizadas
+                </p>
+                <div className="bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 rounded-lg p-6 max-w-md mx-auto">
+                  <p className="text-sm text-green-700 dark:text-green-300 leading-relaxed">
+                    A validação hierárquica confirma que não há inconsistências entre as contas mãe e suas filhas. 
+                    Os indicadores e dashboards podem ser analisados com confiança.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              // Tabela de inconsistências (código existente)
+              <>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-12"></TableHead>
+                        <TableHead>Mês</TableHead>
+                        <TableHead>Conta</TableHead>
+                        <TableHead>Nível</TableHead>
+                        <TableHead>Valor Parametrizado</TableHead>
+                        <TableHead>Valor Calculado</TableHead>
+                        <TableHead>Diferença</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {contasValidacao
+                        .filter(c => c.status === 'inconsistente')
+                        .slice(0, 20)
+                        .map((conta, index) => {
+                          const rowId = `conta-${conta.id}-${conta.mes}-${conta.ano}`
+                          const isExpanded = expandedRows.has(rowId)
                           
-                          {isExpanded && (
-                            <TableRow>
-                              <TableCell colSpan={8} className="p-0">
-                                {renderDetalhesCalculo(conta)}
-                              </TableCell>
-                            </TableRow>
-                          )}
-                        </>
-                      )
-                    })}
-                </TableBody>
-              </Table>
-            </div>
-            
-            {contasValidacao.filter(c => c.status === 'inconsistente').length > 20 && (
-              <Alert className="mt-4">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>
-                  Mostrando apenas as primeiras 20 inconsistências. Total de contas inconsistentes: {contasInconsistentes}
-                </AlertDescription>
-              </Alert>
+                          return (
+                            <>
+                              <TableRow key={index} className="bg-destructive/10">
+                                <TableCell>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => toggleExpandRow(rowId)}
+                                    className="h-6 w-6 p-0"
+                                  >
+                                    {isExpanded ? (
+                                      <ChevronDown className="h-4 w-4" />
+                                    ) : (
+                                      <ChevronRight className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                </TableCell>
+                                <TableCell className="font-medium">
+                                  {conta.mes.toString().padStart(2, '0')}/{conta.ano}
+                                </TableCell>
+                                <TableCell>
+                                  <div>
+                                    <div className="font-medium">{conta.codigo} - {conta.nome}</div>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant="outline">Nível {conta.nivel}</Badge>
+                                </TableCell>
+                                <TableCell>{formatarMoeda(conta.valorParametrizado)}</TableCell>
+                                <TableCell>{formatarMoeda(conta.valorCalculado)}</TableCell>
+                                <TableCell className="text-destructive font-medium">
+                                  {formatarMoeda(conta.diferenca)}
+                                </TableCell>
+                                <TableCell>
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger>
+                                        <Badge variant="destructive">
+                                          Inconsistente
+                                        </Badge>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Diferença entre valor da conta mãe e a soma de suas contas filhas: {formatarMoeda(conta.diferenca)}</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </TableCell>
+                              </TableRow>
+                              
+                              {isExpanded && (
+                                <TableRow>
+                                  <TableCell colSpan={8} className="p-0">
+                                    {renderDetalhesCalculo(conta)}
+                                  </TableCell>
+                                </TableRow>
+                              )}
+                            </>
+                          )
+                        })}
+                    </TableBody>
+                  </Table>
+                </div>
+                
+                {contasValidacao.filter(c => c.status === 'inconsistente').length > 20 && (
+                  <Alert className="mt-4">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      Mostrando apenas as primeiras 20 inconsistências. Total de contas inconsistentes: {contasInconsistentes}
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
