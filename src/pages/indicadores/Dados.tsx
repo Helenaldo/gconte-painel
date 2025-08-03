@@ -348,11 +348,14 @@ export function Dados() {
 
     const ativo = contaAtivo ? calcularValorParametrizado(contaAtivo, parametrizacoes, contasBalancete) : 0
     const passivoCalculado = contaPassivo ? calcularValorParametrizado(contaPassivo, parametrizacoes, contasBalancete) : 0
-    const receitas = contaReceitas ? calcularValorParametrizado(contaReceitas, parametrizacoes, contasBalancete) : 0
+    const receitasCalculadas = contaReceitas ? calcularValorParametrizado(contaReceitas, parametrizacoes, contasBalancete) : 0
     const custoseDespesas = contaCustos ? calcularValorParametrizado(contaCustos, parametrizacoes, contasBalancete) : 0
 
     // Para a Equação Patrimonial, ignorar o sinal negativo do Passivo
     const passivo = Math.abs(passivoCalculado)
+    
+    // Para a Equação de Resultado, as receitas devem ser positivas (converter sinal negativo para positivo)
+    const receitas = Math.abs(receitasCalculadas)
     
     const diferencaPatrimonial = ativo - passivo
     const diferencaResultado = receitas - custoseDespesas
