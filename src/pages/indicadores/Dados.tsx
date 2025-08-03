@@ -276,6 +276,11 @@ export function Dados() {
   }
 
   const determinarNatureza = (conta: any) => {
+    // Verificar primeiro por código específico para Patrimônio Líquido
+    if (conta.codigo?.startsWith('2.3')) {
+      return 'credora' // Capital Social, Reservas, etc. são sempre credoras
+    }
+    
     if (conta.tipo === 'ativo') {
       // Contas de ativo são devedoras, exceto contas redutoras
       return (conta.nome?.includes('( - )') || conta.nome?.includes('Deprecia') || conta.nome?.includes('Amortiza')) ? 'credora' : 'devedora'
