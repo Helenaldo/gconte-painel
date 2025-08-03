@@ -295,6 +295,11 @@ export function Dados() {
       return 'credora' // Outras receitas são credoras
     }
     
+    // Verificar todas as contas de receita (código 3)
+    if (conta.codigo?.startsWith('3')) {
+      return 'credora' // Receitas são credoras
+    }
+    
     if (conta.tipo === 'ativo') {
       // Contas de ativo são devedoras, exceto contas redutoras
       return (conta.nome?.includes('( - )') || conta.nome?.includes('Deprecia') || conta.nome?.includes('Amortiza')) ? 'credora' : 'devedora'
