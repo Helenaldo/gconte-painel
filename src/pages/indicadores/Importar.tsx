@@ -308,41 +308,24 @@ export function Importar() {
           .insert(contasData)
 
         if (contasError) throw contasError
-      }
 
-      // Verificar e aplicar parametrizações existentes para esta empresa
-      const { data: parametrizacoesExistentes } = await supabase
-        .from('parametrizacoes')
-        .select('conta_balancete_codigo')
-        .eq('empresa_cnpj', cnpj)
+        // Forçar atualização do status do balancete após inserir as contas
+        // As triggers do banco irão automaticamente atualizar o status baseado
+        // nas parametrizações existentes para esta empresa
+        const { data: parametrizacoesExistentes } = await supabase
+          .from('parametrizacoes')
+          .select('conta_balancete_codigo')
+          .eq('empresa_cnpj', cnpj)
+          .limit(1)
 
-      let contasParametrizadas = 0
-      let statusFinal = 'pendente'
-
-      if (parametrizacoesExistentes && parametrizacoesExistentes.length > 0) {
-        // Contar quantas contas deste balancete já estão parametrizadas
-        const codigosParametrizados = parametrizacoesExistentes.map(p => p.conta_balancete_codigo)
-        const contasDoBalanceteParametrizadas = contas.filter(conta => 
-          codigosParametrizados.includes(conta.codigo)
-        )
-        contasParametrizadas = contasDoBalanceteParametrizadas.length
-
-        // Determinar status baseado na porcentagem de parametrização
-        const porcentagemParametrizada = (contasParametrizadas / contas.length) * 100
-        if (porcentagemParametrizada >= 100) {
-          statusFinal = 'parametrizado'
-        } else if (porcentagemParametrizada > 0) {
-          statusFinal = 'parametrizando'
+        // Se existem parametrizações, forçar uma atualização dos balancetes da empresa
+        if (parametrizacoesExistentes && parametrizacoesExistentes.length > 0) {
+          // Executar um update simples que irá acionar as triggers
+          await supabase
+            .from('balancetes')
+            .update({ updated_at: new Date().toISOString() })
+            .eq('cnpj', cnpj)
         }
-
-        // Atualizar o balancete com as informações corretas
-        await supabase
-          .from('balancetes')
-          .update({
-            contas_parametrizadas: contasParametrizadas,
-            status: statusFinal
-          })
-          .eq('id', balanceteData.id)
       }
 
       // Recarregar lista
