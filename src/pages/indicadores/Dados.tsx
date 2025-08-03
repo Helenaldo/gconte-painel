@@ -286,6 +286,11 @@ export function Dados() {
       return 'credora' // Capital Social, Reservas, etc. são sempre credoras
     }
     
+    // Verificar contas de receita por código específico
+    if (conta.codigo?.startsWith('3.1')) {
+      return 'credora' // Receitas são sempre credoras
+    }
+    
     if (conta.tipo === 'ativo') {
       // Contas de ativo são devedoras, exceto contas redutoras
       return (conta.nome?.includes('( - )') || conta.nome?.includes('Deprecia') || conta.nome?.includes('Amortiza')) ? 'credora' : 'devedora'
