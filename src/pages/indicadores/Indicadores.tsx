@@ -32,7 +32,7 @@ export function Indicadores() {
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-none">
       {/* Cabeçalho */}
       <div className="flex flex-col space-y-4">
         <div>
@@ -51,7 +51,7 @@ export function Indicadores() {
       </div>
 
       {/* Tabela de Indicadores */}
-      <Card className="w-[95%] mx-auto">
+      <Card className="w-[95vw] max-w-[95vw] mx-auto">
         <CardHeader>
           <CardTitle>Tabela de Indicadores</CardTitle>
         </CardHeader>
