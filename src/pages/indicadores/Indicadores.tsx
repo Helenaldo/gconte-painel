@@ -61,14 +61,28 @@ export function Indicadores() {
 
   const carregarEmpresas = async () => {
     try {
-      const { data, error } = await supabase
+      // Buscar todas as empresas
+      const { data: empresasData, error: empresasError } = await supabase
         .from('clients')
         .select('cnpj, nome_empresarial')
         .order('nome_empresarial')
 
-      if (error) throw error
+      if (empresasError) throw empresasError
 
-      setEmpresas(data || [])
+      // Filtrar apenas empresas que têm balancetes
+      const empresasComBalancetes: Empresa[] = []
+      for (const empresa of empresasData || []) {
+        const { data: balancetes } = await supabase
+          .from('balancetes')
+          .select('id')
+          .eq('cnpj', empresa.cnpj)
+          .limit(1)
+
+        if (balancetes && balancetes.length > 0) {
+          empresasComBalancetes.push(empresa)
+        }
+      }
+      setEmpresas(empresasComBalancetes)
     } catch (error) {
       console.error('Erro ao carregar empresas:', error)
       toast({
@@ -85,7 +99,7 @@ export function Indicadores() {
         .from('balancetes')
         .select('ano')
         .eq('cnpj', empresaSelecionada)
-        .eq('status', 'parametrizado')
+        .in('status', ['parametrizado', 'parametrizando'])
         .order('ano', { ascending: false })
 
       if (error) throw error
@@ -130,7 +144,7 @@ export function Indicadores() {
     setLoading(true)
 
     try {
-      // Buscar balancetes parametrizados da empresa no ano selecionado
+      // Buscar balancetes da empresa no ano selecionado (incluindo parametrizando)
       const { data: balancetes, error: balancetesError } = await supabase
         .from('balancetes')
         .select(`
@@ -141,7 +155,7 @@ export function Indicadores() {
         `)
         .eq('cnpj', empresaSelecionada)
         .eq('ano', parseInt(anoSelecionado))
-        .eq('status', 'parametrizado')
+        .in('status', ['parametrizado', 'parametrizando'])
         .order('mes')
 
       if (balancetesError) throw balancetesError
@@ -149,7 +163,7 @@ export function Indicadores() {
       if (!balancetes || balancetes.length === 0) {
         toast({
           title: "Nenhum dado encontrado",
-          description: "Nenhum balancete parametrizado encontrado para os filtros selecionados",
+          description: "Nenhum balancete encontrado para os filtros selecionados",
           variant: "destructive"
         })
         setIndicadores({})
@@ -421,7 +435,7 @@ export function Indicadores() {
       {mesesExibidos.length === 0 && (
         <div className="text-sm text-muted-foreground text-center max-w-4xl mx-auto">
           <p>
-            Selecione uma empresa e ano para visualizar os indicadores calculados automaticamente com base nos balancetes parametrizados.
+            Selecione uma empresa e ano para visualizar os indicadores calculados automaticamente com base nos balancetes importados.
           </p>
         </div>
       )}
