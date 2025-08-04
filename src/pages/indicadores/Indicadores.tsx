@@ -51,7 +51,7 @@ export function Indicadores() {
       </div>
 
       {/* Tabela de Indicadores */}
-      <Card className="w-full max-w-7xl mx-auto">
+      <Card className="w-[95%] mx-auto">
         <CardHeader>
           <CardTitle>Tabela de Indicadores</CardTitle>
         </CardHeader>
