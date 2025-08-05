@@ -32,12 +32,27 @@ export function Importar() {
   const [balancetes, setBalancetes] = useState<BalanceteImportado[]>([])
   const [filtroEmpresa, setFiltroEmpresa] = useState("")
   const [filtroAno, setFiltroAno] = useState("todos")
+  const [totalPlanoContas, setTotalPlanoContas] = useState(0)
   const { toast } = useToast()
 
-  // Carregar balancetes do banco
+  // Carregar balancetes do banco e total do plano de contas
   useEffect(() => {
     loadBalancetes()
+    loadTotalPlanoContas()
   }, [])
+
+  const loadTotalPlanoContas = async () => {
+    try {
+      const { count, error } = await supabase
+        .from('plano_contas')
+        .select('*', { count: 'exact', head: true })
+
+      if (error) throw error
+      setTotalPlanoContas(count || 0)
+    } catch (error) {
+      console.error('Erro ao carregar total do plano de contas:', error)
+    }
+  }
 
   const loadBalancetes = async () => {
     try {
@@ -352,7 +367,7 @@ export function Importar() {
       case 'parametrizado':
         return <Badge className="bg-green-100 text-green-800 border-green-200">100% Parametrizado</Badge>
       case 'parametrizando':
-        return <Badge className="bg-orange-100 text-orange-800 border-orange-200">{contasParametrizadas}/{totalContas}</Badge>
+        return <Badge className="bg-orange-100 text-orange-800 border-orange-200">Parametrizando ({contasParametrizadas} / {totalPlanoContas})</Badge>
       case 'pendente':
         return <Badge className="bg-red-100 text-red-800 border-red-200">Pendente</Badge>
       default:
