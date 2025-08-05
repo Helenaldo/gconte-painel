@@ -310,135 +310,143 @@ export function Indicadores() {
   }
 
   return (
-    <div className="space-y-6 w-full max-w-none">
-      {/* Cabeçalho */}
-      <div className="flex flex-col space-y-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Indicadores Contábeis e Financeiros</h1>
-          <p className="text-muted-foreground">
-            Análise comparativa dos principais indicadores empresariais
-          </p>
-        </div>
-        
-        {/* Filtros */}
-        <Card className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-            <div className="space-y-2">
-              <Label htmlFor="empresa">Empresa</Label>
-              <Select value={empresaSelecionada} onValueChange={setEmpresaSelecionada}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione uma empresa" />
-                </SelectTrigger>
-                <SelectContent>
-                  {empresas.map((empresa) => (
-                    <SelectItem key={empresa.cnpj} value={empresa.cnpj}>
-                      {empresa.nome_empresarial}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="ano">Ano</Label>
-              <Select value={anoSelecionado} onValueChange={setAnoSelecionado}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o ano" />
-                </SelectTrigger>
-                <SelectContent>
-                  {anosDisponiveis.map((ano) => (
-                    <SelectItem key={ano} value={ano.toString()}>
-                      {ano}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <Button 
-              onClick={calcularIndicadores} 
-              disabled={loading || !empresaSelecionada || !anoSelecionado}
-              className="w-full"
-            >
-              {loading ? (
-                <>
-                  <Search className="w-4 h-4 mr-2 animate-spin" />
-                  Calculando...
-                </>
-              ) : (
-                <>
-                  <Calculator className="w-4 h-4 mr-2" />
-                  Filtrar Indicadores
-                </>
-              )}
-            </Button>
+    <div className="w-full min-h-screen flex justify-center px-4 sm:px-6 lg:px-8">
+      <div className="w-full max-w-[95%] xl:max-w-[1360px] space-y-8 py-6">
+        {/* Cabeçalho */}
+        <div className="space-y-6">
+          <div className="text-center sm:text-left">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Indicadores Contábeis e Financeiros</h1>
+            <p className="text-muted-foreground mt-2">
+              Análise comparativa dos principais indicadores empresariais
+            </p>
           </div>
-        </Card>
-      </div>
+          
+          {/* Filtros */}
+          <Card className="w-full">
+            <CardContent className="p-4 sm:p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
+                <div className="space-y-2">
+                  <Label htmlFor="empresa">Empresa</Label>
+                  <Select value={empresaSelecionada} onValueChange={setEmpresaSelecionada}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Selecione uma empresa" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {empresas.map((empresa) => (
+                        <SelectItem key={empresa.cnpj} value={empresa.cnpj}>
+                          {empresa.nome_empresarial}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-      {/* Tabela de Indicadores */}
-      <Card className="w-[95vw] max-w-[95vw] mx-auto">
-        <CardHeader>
-          <CardTitle>Tabela de Indicadores</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="relative">
-            {/* Container com scroll horizontal */}
-            <div className="overflow-x-auto">
-              <Table className="relative">
-                <TableHeader className="sticky top-0 bg-background z-10">
-                  <TableRow>
-                    {/* Primeira coluna fixa - Indicadores */}
-                    <TableHead className="sticky left-0 bg-background z-20 min-w-[280px] border-r font-semibold">
-                      Indicador
-                    </TableHead>
-                    {/* Colunas dos meses */}
-                    {mesesExibidos.map((mes) => (
-                      <TableHead 
-                        key={mes} 
-                        className="text-center min-w-[120px] font-semibold"
-                      >
-                        {mes}
+                <div className="space-y-2">
+                  <Label htmlFor="ano">Ano</Label>
+                  <Select value={anoSelecionado} onValueChange={setAnoSelecionado}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Selecione o ano" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {anosDisponiveis.map((ano) => (
+                        <SelectItem key={ano} value={ano.toString()}>
+                          {ano}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="sm:col-span-2 lg:col-span-1">
+                  <Button 
+                    onClick={calcularIndicadores} 
+                    disabled={loading || !empresaSelecionada || !anoSelecionado}
+                    className="w-full h-10"
+                  >
+                    {loading ? (
+                      <>
+                        <Search className="w-4 h-4 mr-2 animate-spin" />
+                        Calculando...
+                      </>
+                    ) : (
+                      <>
+                        <Calculator className="w-4 h-4 mr-2" />
+                        Filtrar Indicadores
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Tabela de Indicadores */}
+        <Card className="w-full">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-xl">Tabela de Indicadores</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="relative border rounded-lg overflow-hidden">
+              {/* Container com scroll horizontal */}
+              <div className="overflow-x-auto">
+                <Table className="relative">
+                  <TableHeader className="sticky top-0 bg-background z-10 border-b">
+                    <TableRow>
+                      {/* Primeira coluna fixa - Indicadores */}
+                      <TableHead className="sticky left-0 bg-background z-20 min-w-[280px] border-r font-semibold text-left px-4">
+                        Indicador
                       </TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {nomeIndicadores.map((indicador, index) => (
-                    <TableRow 
-                      key={indicador}
-                      className={index % 2 === 0 ? "bg-background" : "bg-muted/30"}
-                    >
-                      {/* Primeira coluna fixa - Nome do indicador */}
-                      <TableCell className="sticky left-0 bg-inherit z-10 border-r font-medium">
-                        {indicador}
-                      </TableCell>
-                      {/* Células dos meses com valores calculados */}
+                      {/* Colunas dos meses */}
                       {mesesExibidos.map((mes) => (
-                        <TableCell 
+                        <TableHead 
                           key={mes} 
-                          className="text-center"
+                          className="text-center min-w-[120px] font-semibold px-3"
                         >
-                          {formatarValor(indicadores[indicador]?.[mes] || null, indicador)}
-                        </TableCell>
+                          {mes}
+                        </TableHead>
                       ))}
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {nomeIndicadores.map((indicador, index) => (
+                      <TableRow 
+                        key={indicador}
+                        className={index % 2 === 0 ? "bg-background hover:bg-muted/50" : "bg-muted/30 hover:bg-muted/60"}
+                      >
+                        {/* Primeira coluna fixa - Nome do indicador */}
+                        <TableCell className="sticky left-0 bg-inherit z-10 border-r font-medium px-4 py-3">
+                          {indicador}
+                        </TableCell>
+                        {/* Células dos meses com valores calculados */}
+                        {mesesExibidos.map((mes) => (
+                          <TableCell 
+                            key={mes} 
+                            className="text-center px-3 py-3"
+                          >
+                            {formatarValor(indicadores[indicador]?.[mes] || null, indicador)}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Nota explicativa */}
+        {mesesExibidos.length === 0 && (
+          <div className="text-center py-8">
+            <div className="text-sm text-muted-foreground max-w-2xl mx-auto">
+              <p>
+                Selecione uma empresa e ano para visualizar os indicadores calculados automaticamente com base nos balancetes importados.
+              </p>
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Nota explicativa */}
-      {mesesExibidos.length === 0 && (
-        <div className="text-sm text-muted-foreground text-center max-w-4xl mx-auto">
-          <p>
-            Selecione uma empresa e ano para visualizar os indicadores calculados automaticamente com base nos balancetes importados.
-          </p>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
