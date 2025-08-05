@@ -4,9 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { supabase } from "@/integrations/supabase/client"
 import { useToast } from "@/hooks/use-toast"
-import { Search, Calculator } from "lucide-react"
+import { Search, Calculator, ChevronDown, ChevronRight } from "lucide-react"
 
 interface Empresa {
   cnpj: string
@@ -32,6 +34,9 @@ export function Indicadores() {
   const [indicadores, setIndicadores] = useState<{ [nome: string]: IndicadorData }>({})
   const [anosDisponiveis, setAnosDisponiveis] = useState<number[]>([])
   const [mesesExibidos, setMesesExibidos] = useState<string[]>([])
+  const [indicadorExpandido, setIndicadorExpandido] = useState<string | null>(null)
+  const [mesSelecionado, setMesSelecionado] = useState<string>("")
+  const [dadosDetalhados, setDadosDetalhados] = useState<{ [mes: number]: { [grupo: string]: number } }>({})
 
   // Lista de indicadores contábeis e financeiros
   const nomeIndicadores = [
@@ -281,6 +286,13 @@ export function Indicadores() {
       })
 
       setIndicadores(resultadosIndicadores)
+      setDadosDetalhados(dadosPorMes)
+      
+      // Definir mês mais recente como padrão
+      if (mesesOrdenados.length > 0) {
+        const mesRecente = nomesMeses[mesesOrdenados[mesesOrdenados.length - 1] - 1]
+        setMesSelecionado(mesRecente)
+      }
 
     } catch (error) {
       console.error('Erro ao calcular indicadores:', error)
@@ -306,6 +318,169 @@ export function Indicadores() {
       }).format(valor)
     } else {
       return valor.toFixed(2)
+    }
+  }
+
+  const obterFormula = (indicador: string): string => {
+    const formulas: { [key: string]: string } = {
+      "Liquidez Corrente": "Ativo Circulante ÷ Passivo Circulante",
+      "Liquidez Seca": "(Ativo Circulante – Estoques) ÷ Passivo Circulante",
+      "Liquidez Geral": "(Ativo Circulante + Realizável a Longo Prazo) ÷ (Passivo Circulante + Exigível a Longo Prazo)",
+      "Participação de Capitais de Terceiros (PCT)": "Passivo Total ÷ Patrimônio Líquido",
+      "Composição do Endividamento (CE)": "Passivo Circulante ÷ Passivo Total",
+      "Imobilização do Patrimônio Líquido (IPL)": "Imobilizado ÷ Patrimônio Líquido",
+      "Margem Bruta (%)": "(Lucro Bruto ÷ Receita Líquida) × 100",
+      "Margem Líquida (%)": "(Lucro Líquido ÷ Receita Líquida) × 100",
+      "Giro do Ativo": "Receita Líquida ÷ Ativo Total",
+      "Capital Circulante Líquido (CCL)": "Ativo Circulante – Passivo Circulante"
+    }
+    return formulas[indicador] || ""
+  }
+
+  const obterDetalhesCalculo = (indicador: string, mes: string) => {
+    const nomesMeses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+    const mesIndex = nomesMeses.findIndex(m => m === mes)
+    const mesNumero = mesIndex + 1
+    
+    const dados = dadosDetalhados[mesNumero]
+    if (!dados) {
+      return { componentes: [], resultado: null, erro: "Não há dados parametrizados para este mês" }
+    }
+
+    const formatarMoeda = (valor: number) => {
+      return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+      }).format(valor)
+    }
+
+    const ativoCirculante = dados['ativo_circulante'] || 0
+    const ativoNaoCirculante = dados['ativo_nao_circulante'] || 0
+    const ativoTotal = ativoCirculante + ativoNaoCirculante
+    const passivoCirculante = dados['passivo_circulante'] || 0
+    const passivoNaoCirculante = dados['passivo_nao_circulante'] || 0
+    const passivoTotal = passivoCirculante + passivoNaoCirculante
+    const patrimonioLiquido = dados['patrimonio_liquido'] || 0
+    const estoques = dados['estoques'] || 0
+    const realizavelLongoPrazo = dados['realizavel_longo_prazo'] || 0
+    const imobilizado = dados['imobilizado'] || 0
+    const receitas = dados['receitas'] || 0
+    const custos = dados['custos'] || 0
+    const despesas = dados['despesas'] || 0
+
+    switch (indicador) {
+      case "Liquidez Corrente":
+        return {
+          componentes: [
+            `Ativo Circulante: ${formatarMoeda(ativoCirculante)}`,
+            `Passivo Circulante: ${formatarMoeda(passivoCirculante)}`
+          ],
+          resultado: passivoCirculante > 0 ? ativoCirculante / passivoCirculante : null
+        }
+      
+      case "Liquidez Seca":
+        return {
+          componentes: [
+            `Ativo Circulante: ${formatarMoeda(ativoCirculante)}`,
+            `Estoques: ${formatarMoeda(estoques)}`,
+            `Passivo Circulante: ${formatarMoeda(passivoCirculante)}`
+          ],
+          resultado: passivoCirculante > 0 ? (ativoCirculante - estoques) / passivoCirculante : null
+        }
+      
+      case "Liquidez Geral":
+        return {
+          componentes: [
+            `Ativo Circulante: ${formatarMoeda(ativoCirculante)}`,
+            `Realizável a Longo Prazo: ${formatarMoeda(realizavelLongoPrazo)}`,
+            `Passivo Circulante: ${formatarMoeda(passivoCirculante)}`,
+            `Exigível a Longo Prazo: ${formatarMoeda(passivoNaoCirculante)}`
+          ],
+          resultado: (passivoCirculante + passivoNaoCirculante) > 0 ? (ativoCirculante + realizavelLongoPrazo) / (passivoCirculante + passivoNaoCirculante) : null
+        }
+      
+      case "Participação de Capitais de Terceiros (PCT)":
+        return {
+          componentes: [
+            `Passivo Total: ${formatarMoeda(passivoTotal)}`,
+            `Patrimônio Líquido: ${formatarMoeda(patrimonioLiquido)}`
+          ],
+          resultado: patrimonioLiquido > 0 ? passivoTotal / patrimonioLiquido : null
+        }
+      
+      case "Composição do Endividamento (CE)":
+        return {
+          componentes: [
+            `Passivo Circulante: ${formatarMoeda(passivoCirculante)}`,
+            `Passivo Total: ${formatarMoeda(passivoTotal)}`
+          ],
+          resultado: passivoTotal > 0 ? passivoCirculante / passivoTotal : null
+        }
+      
+      case "Imobilização do Patrimônio Líquido (IPL)":
+        return {
+          componentes: [
+            `Imobilizado: ${formatarMoeda(imobilizado)}`,
+            `Patrimônio Líquido: ${formatarMoeda(patrimonioLiquido)}`
+          ],
+          resultado: patrimonioLiquido > 0 ? imobilizado / patrimonioLiquido : null
+        }
+      
+      case "Margem Bruta (%)":
+        const lucoBruto = receitas - custos
+        return {
+          componentes: [
+            `Receitas: ${formatarMoeda(receitas)}`,
+            `Custos: ${formatarMoeda(custos)}`,
+            `Lucro Bruto: ${formatarMoeda(lucoBruto)}`
+          ],
+          resultado: receitas > 0 ? (lucoBruto / receitas) * 100 : null
+        }
+      
+      case "Margem Líquida (%)":
+        const lucroLiquido = receitas - custos - despesas
+        return {
+          componentes: [
+            `Receitas: ${formatarMoeda(receitas)}`,
+            `Custos: ${formatarMoeda(custos)}`,
+            `Despesas: ${formatarMoeda(despesas)}`,
+            `Lucro Líquido: ${formatarMoeda(lucroLiquido)}`
+          ],
+          resultado: receitas > 0 ? (lucroLiquido / receitas) * 100 : null
+        }
+      
+      case "Giro do Ativo":
+        return {
+          componentes: [
+            `Receitas: ${formatarMoeda(receitas)}`,
+            `Ativo Total: ${formatarMoeda(ativoTotal)}`
+          ],
+          resultado: ativoTotal > 0 && receitas > 0 ? receitas / ativoTotal : null
+        }
+      
+      case "Capital Circulante Líquido (CCL)":
+        return {
+          componentes: [
+            `Ativo Circulante: ${formatarMoeda(ativoCirculante)}`,
+            `Passivo Circulante: ${formatarMoeda(passivoCirculante)}`
+          ],
+          resultado: ativoCirculante - passivoCirculante
+        }
+      
+      default:
+        return { componentes: [], resultado: null }
+    }
+  }
+
+  const toggleIndicador = (indicador: string) => {
+    if (indicadorExpandido === indicador) {
+      setIndicadorExpandido(null)
+    } else {
+      setIndicadorExpandido(indicador)
+      // Definir mês mais recente como padrão se ainda não foi selecionado
+      if (!mesSelecionado && mesesExibidos.length > 0) {
+        setMesSelecionado(mesesExibidos[mesesExibidos.length - 1])
+      }
     }
   }
 
@@ -408,28 +583,121 @@ export function Indicadores() {
                       ))}
                     </TableRow>
                   </TableHeader>
-                  <TableBody>
-                    {nomeIndicadores.map((indicador, index) => (
-                      <TableRow 
-                        key={indicador}
-                        className={index % 2 === 0 ? "bg-background hover:bg-muted/50" : "bg-muted/30 hover:bg-muted/60"}
-                      >
-                        {/* Primeira coluna fixa - Nome do indicador */}
-                        <TableCell className="sticky left-0 bg-inherit z-10 border-r font-medium px-4 py-3">
-                          {indicador}
-                        </TableCell>
-                        {/* Células dos meses com valores calculados */}
-                        {mesesExibidos.map((mes) => (
-                          <TableCell 
-                            key={mes} 
-                            className="text-center px-3 py-3"
-                          >
-                            {formatarValor(indicadores[indicador]?.[mes] || null, indicador)}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableBody>
+                   <TableBody>
+                     {nomeIndicadores.map((indicador, index) => (
+                       <>
+                         <TableRow 
+                           key={indicador}
+                           className={index % 2 === 0 ? "bg-background hover:bg-muted/50" : "bg-muted/30 hover:bg-muted/60"}
+                         >
+                           {/* Primeira coluna fixa - Nome do indicador com ícone expansível */}
+                           <TableCell className="sticky left-0 bg-inherit z-10 border-r font-medium px-4 py-3">
+                             <div className="flex items-center gap-2">
+                               <button
+                                 onClick={() => toggleIndicador(indicador)}
+                                 className="text-muted-foreground hover:text-foreground transition-colors"
+                               >
+                                 {indicadorExpandido === indicador ? (
+                                   <ChevronDown className="h-4 w-4" />
+                                 ) : (
+                                   <ChevronRight className="h-4 w-4" />
+                                 )}
+                               </button>
+                               <span>{indicador}</span>
+                             </div>
+                           </TableCell>
+                           {/* Células dos meses com valores calculados */}
+                           {mesesExibidos.map((mes) => (
+                             <TableCell 
+                               key={mes} 
+                               className="text-center px-3 py-3"
+                             >
+                               {formatarValor(indicadores[indicador]?.[mes] || null, indicador)}
+                             </TableCell>
+                           ))}
+                         </TableRow>
+                         
+                         {/* Linha expandida com detalhes do cálculo */}
+                         {indicadorExpandido === indicador && (
+                           <TableRow>
+                             <TableCell 
+                               colSpan={mesesExibidos.length + 1} 
+                               className="sticky left-0 bg-muted/20 border-b border-border px-4 py-6"
+                             >
+                               <div className="space-y-4">
+                                 {/* Seleção de mês */}
+                                 <div>
+                                   <Label className="text-sm font-medium mb-3 block">
+                                     Selecione o mês para ver os detalhes do cálculo:
+                                   </Label>
+                                   <RadioGroup 
+                                     value={mesSelecionado} 
+                                     onValueChange={setMesSelecionado}
+                                     className="flex flex-wrap gap-4"
+                                   >
+                                     {mesesExibidos.map((mes) => (
+                                       <div key={mes} className="flex items-center space-x-2">
+                                         <RadioGroupItem value={mes} id={`mes-${mes}`} />
+                                         <Label htmlFor={`mes-${mes}`} className="text-sm font-normal">
+                                           {mes}
+                                         </Label>
+                                       </div>
+                                     ))}
+                                   </RadioGroup>
+                                 </div>
+
+                                 {/* Detalhes do cálculo */}
+                                 {mesSelecionado && (
+                                   <div className="border-t pt-4 space-y-3">
+                                     <div>
+                                       <h4 className="font-medium text-sm mb-2">Fórmula:</h4>
+                                       <p className="text-sm text-muted-foreground bg-background/50 p-3 rounded border">
+                                         {obterFormula(indicador)}
+                                       </p>
+                                     </div>
+                                     
+                                     {(() => {
+                                       const detalhes = obterDetalhesCalculo(indicador, mesSelecionado)
+                                       
+                                       if (detalhes.erro) {
+                                         return (
+                                           <div className="text-sm text-muted-foreground bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded border border-yellow-200 dark:border-yellow-800">
+                                             {detalhes.erro}
+                                           </div>
+                                         )
+                                       }
+                                       
+                                       return (
+                                         <>
+                                           <div>
+                                             <h4 className="font-medium text-sm mb-2">Valores utilizados:</h4>
+                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                               {detalhes.componentes.map((componente, idx) => (
+                                                 <div key={idx} className="text-sm bg-background/50 p-2 rounded border">
+                                                   {componente}
+                                                 </div>
+                                               ))}
+                                             </div>
+                                           </div>
+                                           
+                                           <div>
+                                             <h4 className="font-medium text-sm mb-2">Resultado:</h4>
+                                             <div className="text-sm font-semibold bg-primary/10 text-primary p-3 rounded border">
+                                               {formatarValor(detalhes.resultado, indicador)}
+                                             </div>
+                                           </div>
+                                         </>
+                                       )
+                                     })()}
+                                   </div>
+                                 )}
+                               </div>
+                             </TableCell>
+                           </TableRow>
+                         )}
+                       </>
+                     ))}
+                   </TableBody>
                 </Table>
               </div>
             </div>
