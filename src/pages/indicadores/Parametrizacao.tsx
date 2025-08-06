@@ -44,6 +44,7 @@ export function Parametrizacao() {
   const [planoContas, setPlanoContas] = useState<PlanoContaItem[]>([])
   const [contasBalancete, setContasBalancete] = useState<ContaBalancete[]>([])
   const [parametrizacoes, setParametrizacoes] = useState<Parametrizacao[]>([])
+  const [totalPlanoContas, setTotalPlanoContas] = useState(0)
   
   const [contaSelecionada, setContaSelecionada] = useState<string>("")
   const [contasSelecionadas, setContasSelecionadas] = useState<string[]>([])
@@ -77,6 +78,7 @@ export function Parametrizacao() {
 
       if (planoError) throw planoError
       setPlanoContas(planoData)
+      setTotalPlanoContas(planoData.length)
 
       // Carregar contas do balancete
       const { data: contasData, error: contasError } = await supabase
@@ -241,9 +243,11 @@ export function Parametrizacao() {
     }, 0)
   }
 
-  const contasParametrizadas = contasBalancete.filter(c => c.parametrizada).length
-  const totalContas = contasBalancete.length
-  const progressoParametrizacao = totalContas > 0 ? (contasParametrizadas / totalContas) * 100 : 0
+  // Calcular quantas contas do plano padrão foram parametrizadas
+  const contasPlanoParametrizadas = planoContas.filter(plano => 
+    parametrizacoes.some(p => p.plano_conta_id === plano.id)
+  ).length
+  const progressoParametrizacao = totalPlanoContas > 0 ? (contasPlanoParametrizadas / totalPlanoContas) * 100 : 0
 
   const planoContasFiltradas = planoContas.filter(conta =>
     conta.nome.toLowerCase().includes(filtroPlano.toLowerCase()) ||
@@ -293,7 +297,7 @@ export function Parametrizacao() {
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span>Progresso da Parametrização</span>
-              <span>{contasParametrizadas}/{totalContas} contas</span>
+              <span>{contasPlanoParametrizadas}/{totalPlanoContas} contas do Plano de Contas Padrão</span>
             </div>
             <Progress value={progressoParametrizacao} className="h-2" />
           </div>
