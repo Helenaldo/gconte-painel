@@ -197,8 +197,8 @@ export function Indicadores() {
         }
       })
 
-      // Processar dados por mês
-      const dadosPorMes: { [mes: number]: { [grupo: string]: number } } = {}
+      // Processar dados por mês usando APENAS contas parametrizadas do Plano de Contas Padrão
+      const dadosPorMes: { [mes: number]: { [codigoPlano: string]: number } } = {}
       const mesesComDados: number[] = []
 
       balancetes.forEach(balancete => {
@@ -209,12 +209,13 @@ export function Indicadores() {
 
         balancete.contas_balancete?.forEach(conta => {
           const planoContas = mapaParametrizacoes.get(conta.codigo)
+          // CRÍTICO: Só processar contas que estão parametrizadas no Plano de Contas Padrão
           if (planoContas) {
-            const grupo = planoContas.grupo
-            if (!dadosPorMes[balancete.mes][grupo]) {
-              dadosPorMes[balancete.mes][grupo] = 0
+            const codigoPlano = planoContas.codigo
+            if (!dadosPorMes[balancete.mes][codigoPlano]) {
+              dadosPorMes[balancete.mes][codigoPlano] = 0
             }
-            dadosPorMes[balancete.mes][grupo] += parseFloat(conta.saldo_atual.toString()) || 0
+            dadosPorMes[balancete.mes][codigoPlano] += parseFloat(conta.saldo_atual.toString()) || 0
           }
         })
       })
@@ -235,54 +236,100 @@ export function Indicadores() {
         const mesNome = nomesMeses[mes - 1]
         const dados = dadosPorMes[mes]
 
-        // Obter valores dos grupos
-        const ativoCirculante = dados['ativo_circulante'] || 0
-        const ativoNaoCirculante = dados['ativo_nao_circulante'] || 0
+        // Função para somar contas do Plano de Contas Padrão por grupo/código
+        const somarContasPorPrefixo = (prefixo: string): number => {
+          return Object.entries(dados).reduce((total, [codigo, valor]) => {
+            return codigo.startsWith(prefixo) ? total + valor : total
+          }, 0)
+        }
+
+        // Obter valores usando APENAS contas parametrizadas do Plano de Contas Padrão
+        const ativoCirculante = somarContasPorPrefixo('1.1')  // 1.1 - Ativo Circulante
+        const ativoNaoCirculante = somarContasPorPrefixo('1.2')  // 1.2 - Ativo Não Circulante
         const ativoTotal = ativoCirculante + ativoNaoCirculante
-        const passivoCirculante = dados['passivo_circulante'] || 0
-        const passivoNaoCirculante = dados['passivo_nao_circulante'] || 0
+        const passivoCirculante = somarContasPorPrefixo('2.1')  // 2.1 - Passivo Circulante
+        const passivoNaoCirculante = somarContasPorPrefixo('2.2')  // 2.2 - Passivo Não Circulante
         const passivoTotal = passivoCirculante + passivoNaoCirculante
-        const patrimonioLiquido = dados['patrimonio_liquido'] || 0
-        const estoques = dados['estoques'] || 0
-        const realizavelLongoPrazo = dados['realizavel_longo_prazo'] || 0
-        const imobilizado = dados['imobilizado'] || 0
-        const receitas = dados['receitas'] || 0
-        const custos = dados['custos'] || 0
-        const despesas = dados['despesas'] || 0
+        const patrimonioLiquido = somarContasPorPrefixo('2.3')  // 2.3 - Patrimônio Líquido
+        const estoques = somarContasPorPrefixo('1.1.3')  // 1.1.3 - Estoques
+        const realizavelLongoPrazo = somarContasPorPrefixo('1.2.1')  // 1.2.1 - Realizável a Longo Prazo
+        const imobilizado = somarContasPorPrefixo('1.2.2')  // 1.2.2 - Imobilizado
+        const receitas = somarContasPorPrefixo('3.1')  // 3.1 - Receitas
+        const custos = somarContasPorPrefixo('3.2')  // 3.2 - Custos
+        const despesas = somarContasPorPrefixo('4.')  // 4. - Despesas
 
-        // Calcular indicadores
-        if (passivoCirculante > 0) {
+        // Calcular indicadores APENAS se todas as contas necessárias estão parametrizadas
+        // Liquidez Corrente: precisa de Ativo Circulante e Passivo Circulante
+        if (ativoCirculante > 0 && passivoCirculante > 0) {
           resultadosIndicadores["Liquidez Corrente"][mesNome] = ativoCirculante / passivoCirculante
+        } else {
+          resultadosIndicadores["Liquidez Corrente"][mesNome] = null
+        }
+
+        // Liquidez Seca: precisa de Ativo Circulante, Estoques e Passivo Circulante
+        if (ativoCirculante > 0 && passivoCirculante > 0) {
           resultadosIndicadores["Liquidez Seca"][mesNome] = (ativoCirculante - estoques) / passivoCirculante
+        } else {
+          resultadosIndicadores["Liquidez Seca"][mesNome] = null
         }
 
-        if (passivoCirculante + passivoNaoCirculante > 0) {
+        // Liquidez Geral: precisa de Ativo Circulante, Realizável LP, Passivo Circulante e Não Circulante
+        if ((ativoCirculante + realizavelLongoPrazo) > 0 && (passivoCirculante + passivoNaoCirculante) > 0) {
           resultadosIndicadores["Liquidez Geral"][mesNome] = (ativoCirculante + realizavelLongoPrazo) / (passivoCirculante + passivoNaoCirculante)
+        } else {
+          resultadosIndicadores["Liquidez Geral"][mesNome] = null
         }
 
-        if (patrimonioLiquido > 0) {
+        // PCT: precisa de Passivo Total e Patrimônio Líquido
+        if (passivoTotal > 0 && patrimonioLiquido > 0) {
           resultadosIndicadores["Participação de Capitais de Terceiros (PCT)"][mesNome] = passivoTotal / patrimonioLiquido
+        } else {
+          resultadosIndicadores["Participação de Capitais de Terceiros (PCT)"][mesNome] = null
+        }
+
+        // IPL: precisa de Imobilizado e Patrimônio Líquido
+        if (imobilizado > 0 && patrimonioLiquido > 0) {
           resultadosIndicadores["Imobilização do Patrimônio Líquido (IPL)"][mesNome] = imobilizado / patrimonioLiquido
+        } else {
+          resultadosIndicadores["Imobilização do Patrimônio Líquido (IPL)"][mesNome] = null
         }
 
-        if (passivoTotal > 0) {
+        // CE: precisa de Passivo Circulante e Passivo Total
+        if (passivoCirculante > 0 && passivoTotal > 0) {
           resultadosIndicadores["Composição do Endividamento (CE)"][mesNome] = passivoCirculante / passivoTotal
+        } else {
+          resultadosIndicadores["Composição do Endividamento (CE)"][mesNome] = null
         }
 
+        // Margem Bruta: precisa de Receitas e Custos
         if (receitas > 0) {
           const lucoBruto = receitas - custos
           resultadosIndicadores["Margem Bruta (%)"][mesNome] = (lucoBruto / receitas) * 100
-          
+        } else {
+          resultadosIndicadores["Margem Bruta (%)"][mesNome] = null
+        }
+
+        // Margem Líquida: precisa de Receitas, Custos e Despesas
+        if (receitas > 0) {
           const lucroLiquido = receitas - custos - despesas
           resultadosIndicadores["Margem Líquida (%)"][mesNome] = (lucroLiquido / receitas) * 100
+        } else {
+          resultadosIndicadores["Margem Líquida (%)"][mesNome] = null
         }
 
+        // Giro do Ativo: precisa de Receitas e Ativo Total
         if (ativoTotal > 0 && receitas > 0) {
           resultadosIndicadores["Giro do Ativo"][mesNome] = receitas / ativoTotal
+        } else {
+          resultadosIndicadores["Giro do Ativo"][mesNome] = null
         }
 
-        // Capital Circulante Líquido
-        resultadosIndicadores["Capital Circulante Líquido (CCL)"][mesNome] = ativoCirculante - passivoCirculante
+        // Capital Circulante Líquido: precisa de Ativo Circulante e Passivo Circulante
+        if (ativoCirculante > 0 || passivoCirculante > 0) {
+          resultadosIndicadores["Capital Circulante Líquido (CCL)"][mesNome] = ativoCirculante - passivoCirculante
+        } else {
+          resultadosIndicadores["Capital Circulante Líquido (CCL)"][mesNome] = null
+        }
       })
 
       setIndicadores(resultadosIndicadores)
@@ -354,19 +401,27 @@ export function Indicadores() {
       }).format(valor)
     }
 
-    const ativoCirculante = dados['ativo_circulante'] || 0
-    const ativoNaoCirculante = dados['ativo_nao_circulante'] || 0
+    // Função para somar contas do Plano de Contas Padrão por prefixo
+    const somarContasPorPrefixo = (prefixo: string): number => {
+      return Object.entries(dados).reduce((total, [codigo, valor]) => {
+        return codigo.startsWith(prefixo) ? total + valor : total
+      }, 0)
+    }
+
+    // Calcular valores usando APENAS contas parametrizadas do Plano de Contas Padrão
+    const ativoCirculante = somarContasPorPrefixo('1.1')  // 1.1 - Ativo Circulante
+    const ativoNaoCirculante = somarContasPorPrefixo('1.2')  // 1.2 - Ativo Não Circulante
     const ativoTotal = ativoCirculante + ativoNaoCirculante
-    const passivoCirculante = dados['passivo_circulante'] || 0
-    const passivoNaoCirculante = dados['passivo_nao_circulante'] || 0
+    const passivoCirculante = somarContasPorPrefixo('2.1')  // 2.1 - Passivo Circulante
+    const passivoNaoCirculante = somarContasPorPrefixo('2.2')  // 2.2 - Passivo Não Circulante
     const passivoTotal = passivoCirculante + passivoNaoCirculante
-    const patrimonioLiquido = dados['patrimonio_liquido'] || 0
-    const estoques = dados['estoques'] || 0
-    const realizavelLongoPrazo = dados['realizavel_longo_prazo'] || 0
-    const imobilizado = dados['imobilizado'] || 0
-    const receitas = dados['receitas'] || 0
-    const custos = dados['custos'] || 0
-    const despesas = dados['despesas'] || 0
+    const patrimonioLiquido = somarContasPorPrefixo('2.3')  // 2.3 - Patrimônio Líquido
+    const estoques = somarContasPorPrefixo('1.1.3')  // 1.1.3 - Estoques
+    const realizavelLongoPrazo = somarContasPorPrefixo('1.2.1')  // 1.2.1 - Realizável a Longo Prazo
+    const imobilizado = somarContasPorPrefixo('1.2.2')  // 1.2.2 - Imobilizado
+    const receitas = somarContasPorPrefixo('3.1')  // 3.1 - Receitas
+    const custos = somarContasPorPrefixo('3.2')  // 3.2 - Custos
+    const despesas = somarContasPorPrefixo('4.')  // 4. - Despesas
 
     switch (indicador) {
       case "Liquidez Corrente":
