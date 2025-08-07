@@ -258,74 +258,83 @@ export function Indicadores() {
         const custos = somarContasPorPrefixo('3.2')  // 3.2 - Custos
         const despesas = somarContasPorPrefixo('4.')  // 4. - Despesas
 
+        // Função para verificar se existem contas parametrizadas para um grupo
+        const temContasParametrizadas = (prefixo: string): boolean => {
+          return Object.keys(dados).some(codigo => codigo.startsWith(prefixo))
+        }
+
         // Calcular indicadores APENAS se todas as contas necessárias estão parametrizadas
-        // Liquidez Corrente: precisa de Ativo Circulante e Passivo Circulante
-        if (ativoCirculante > 0 && passivoCirculante > 0) {
+        // Liquidez Corrente: precisa de Ativo Circulante e Passivo Circulante parametrizados
+        if (temContasParametrizadas('1.1') && temContasParametrizadas('2.1') && passivoCirculante !== 0) {
           resultadosIndicadores["Liquidez Corrente"][mesNome] = ativoCirculante / passivoCirculante
         } else {
           resultadosIndicadores["Liquidez Corrente"][mesNome] = null
         }
 
-        // Liquidez Seca: precisa de Ativo Circulante, Estoques e Passivo Circulante
-        if (ativoCirculante > 0 && passivoCirculante > 0) {
+        // Liquidez Seca: precisa de Ativo Circulante e Passivo Circulante parametrizados
+        if (temContasParametrizadas('1.1') && temContasParametrizadas('2.1') && passivoCirculante !== 0) {
           resultadosIndicadores["Liquidez Seca"][mesNome] = (ativoCirculante - estoques) / passivoCirculante
         } else {
           resultadosIndicadores["Liquidez Seca"][mesNome] = null
         }
 
         // Liquidez Geral: precisa de Ativo Circulante, Realizável LP, Passivo Circulante e Não Circulante
-        if ((ativoCirculante + realizavelLongoPrazo) > 0 && (passivoCirculante + passivoNaoCirculante) > 0) {
+        if (temContasParametrizadas('1.1') && temContasParametrizadas('1.2.1') && 
+            temContasParametrizadas('2.1') && temContasParametrizadas('2.2') && 
+            (passivoCirculante + passivoNaoCirculante) !== 0) {
           resultadosIndicadores["Liquidez Geral"][mesNome] = (ativoCirculante + realizavelLongoPrazo) / (passivoCirculante + passivoNaoCirculante)
         } else {
           resultadosIndicadores["Liquidez Geral"][mesNome] = null
         }
 
-        // PCT: precisa de Passivo Total e Patrimônio Líquido
-        if (passivoTotal > 0 && patrimonioLiquido > 0) {
+        // PCT: precisa de Passivo (2.1 e 2.2) e Patrimônio Líquido (2.3) parametrizados
+        if (temContasParametrizadas('2.1') && temContasParametrizadas('2.2') && 
+            temContasParametrizadas('2.3') && patrimonioLiquido !== 0) {
           resultadosIndicadores["Participação de Capitais de Terceiros (PCT)"][mesNome] = passivoTotal / patrimonioLiquido
         } else {
           resultadosIndicadores["Participação de Capitais de Terceiros (PCT)"][mesNome] = null
         }
 
-        // IPL: precisa de Imobilizado e Patrimônio Líquido
-        if (imobilizado > 0 && patrimonioLiquido > 0) {
+        // IPL: precisa de Imobilizado (1.2.2) e Patrimônio Líquido (2.3) parametrizados
+        if (temContasParametrizadas('1.2.2') && temContasParametrizadas('2.3') && patrimonioLiquido !== 0) {
           resultadosIndicadores["Imobilização do Patrimônio Líquido (IPL)"][mesNome] = imobilizado / patrimonioLiquido
         } else {
           resultadosIndicadores["Imobilização do Patrimônio Líquido (IPL)"][mesNome] = null
         }
 
-        // CE: precisa de Passivo Circulante e Passivo Total
-        if (passivoCirculante > 0 && passivoTotal > 0) {
+        // CE: precisa de Passivo Circulante (2.1) e Passivo Total (2.1 + 2.2) parametrizados
+        if (temContasParametrizadas('2.1') && temContasParametrizadas('2.2') && passivoTotal !== 0) {
           resultadosIndicadores["Composição do Endividamento (CE)"][mesNome] = passivoCirculante / passivoTotal
         } else {
           resultadosIndicadores["Composição do Endividamento (CE)"][mesNome] = null
         }
 
-        // Margem Bruta: precisa de Receitas e Custos
-        if (receitas > 0) {
+        // Margem Bruta: precisa de Receitas (3.1) parametrizadas
+        if (temContasParametrizadas('3.1') && receitas !== 0) {
           const lucoBruto = receitas - custos
           resultadosIndicadores["Margem Bruta (%)"][mesNome] = (lucoBruto / receitas) * 100
         } else {
           resultadosIndicadores["Margem Bruta (%)"][mesNome] = null
         }
 
-        // Margem Líquida: precisa de Receitas, Custos e Despesas
-        if (receitas > 0) {
+        // Margem Líquida: precisa de Receitas (3.1) parametrizadas
+        if (temContasParametrizadas('3.1') && receitas !== 0) {
           const lucroLiquido = receitas - custos - despesas
           resultadosIndicadores["Margem Líquida (%)"][mesNome] = (lucroLiquido / receitas) * 100
         } else {
           resultadosIndicadores["Margem Líquida (%)"][mesNome] = null
         }
 
-        // Giro do Ativo: precisa de Receitas e Ativo Total
-        if (ativoTotal > 0 && receitas > 0) {
+        // Giro do Ativo: precisa de Receitas (3.1) e Ativo Total (1.1 + 1.2) parametrizados
+        if (temContasParametrizadas('3.1') && temContasParametrizadas('1.1') && 
+            temContasParametrizadas('1.2') && ativoTotal !== 0 && receitas !== 0) {
           resultadosIndicadores["Giro do Ativo"][mesNome] = receitas / ativoTotal
         } else {
           resultadosIndicadores["Giro do Ativo"][mesNome] = null
         }
 
-        // Capital Circulante Líquido: precisa de Ativo Circulante e Passivo Circulante
-        if (ativoCirculante > 0 || passivoCirculante > 0) {
+        // Capital Circulante Líquido: precisa de Ativo Circulante (1.1) e Passivo Circulante (2.1) parametrizados
+        if (temContasParametrizadas('1.1') && temContasParametrizadas('2.1')) {
           resultadosIndicadores["Capital Circulante Líquido (CCL)"][mesNome] = ativoCirculante - passivoCirculante
         } else {
           resultadosIndicadores["Capital Circulante Líquido (CCL)"][mesNome] = null
