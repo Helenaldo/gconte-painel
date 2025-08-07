@@ -236,11 +236,27 @@ export function Indicadores() {
         const mesNome = nomesMeses[mes - 1]
         const dados = dadosPorMes[mes]
 
-        // Função para somar contas do Plano de Contas Padrão por grupo/código
-        const somarContasPorPrefixo = (prefixo: string): number => {
-          return Object.entries(dados).reduce((total, [codigo, valor]) => {
-            return codigo.startsWith(prefixo) ? total + valor : total
-          }, 0)
+        // Função para obter valor de conta do Plano de Contas Padrão - usar conta específica ou somar filhas
+        const obterValorConta = (codigo: string): number => {
+          // Se a conta específica existe, usar seu valor (já consolidado)
+          if (dados[codigo] !== undefined) {
+            return dados[codigo]
+          }
+          
+          // Se não existe, somar apenas contas filhas diretas (próximo nível)
+          let total = 0
+          const proximoNivel = codigo + '.'
+          for (const [codigoConta, valor] of Object.entries(dados)) {
+            // Verificar se é uma conta filha direta (não incluir netos)
+            if (codigoConta.startsWith(proximoNivel)) {
+              const parteFilha = codigoConta.substring(proximoNivel.length)
+              // Se não tem mais pontos, é filha direta
+              if (!parteFilha.includes('.')) {
+                total += valor
+              }
+            }
+          }
+          return total
         }
 
         // Debug: Log das contas disponíveis para este mês
@@ -248,23 +264,23 @@ export function Indicadores() {
         console.log('Contas parametrizadas disponíveis:', Object.keys(dados))
         console.log('Valores das contas:', dados)
 
-        // Obter valores usando APENAS contas parametrizadas do Plano de Contas Padrão
-        const ativoCirculante = somarContasPorPrefixo('1.1')  // 1.1 - Ativo Circulante
-        const ativoNaoCirculante = somarContasPorPrefixo('1.2')  // 1.2 - Ativo Não Circulante
+        // Obter valores usando APENAS contas parametrizadas do Plano de Contas Padrão (sem dupla contagem)
+        const ativoCirculante = obterValorConta('1.1')  // 1.1 - Ativo Circulante
+        const ativoNaoCirculante = obterValorConta('1.2')  // 1.2 - Ativo Não Circulante
         const ativoTotal = ativoCirculante + ativoNaoCirculante
-        const passivoCirculante = somarContasPorPrefixo('2.1')  // 2.1 - Passivo Circulante
-        const passivoNaoCirculante = somarContasPorPrefixo('2.2')  // 2.2 - Passivo Não Circulante
+        const passivoCirculante = obterValorConta('2.1')  // 2.1 - Passivo Circulante
+        const passivoNaoCirculante = obterValorConta('2.2')  // 2.2 - Passivo Não Circulante
         const passivoTotal = passivoCirculante + passivoNaoCirculante
-        const patrimonioLiquido = somarContasPorPrefixo('2.3')  // 2.3 - Patrimônio Líquido
-        const estoques = somarContasPorPrefixo('1.1.3')  // 1.1.3 - Estoques
-        const realizavelLongoPrazo = somarContasPorPrefixo('1.2.1')  // 1.2.1 - Realizável a Longo Prazo
-        const imobilizado = somarContasPorPrefixo('1.2.2')  // 1.2.2 - Imobilizado
-        const receitas = somarContasPorPrefixo('3.1')  // 3.1 - Receitas
-        const custos = somarContasPorPrefixo('3.2')  // 3.2 - Custos
-        const despesas = somarContasPorPrefixo('4.')  // 4. - Despesas
+        const patrimonioLiquido = obterValorConta('2.3')  // 2.3 - Patrimônio Líquido
+        const estoques = obterValorConta('1.1.3')  // 1.1.3 - Estoques
+        const realizavelLongoPrazo = obterValorConta('1.2.1')  // 1.2.1 - Realizável a Longo Prazo
+        const imobilizado = obterValorConta('1.2.2')  // 1.2.2 - Imobilizado
+        const receitas = obterValorConta('3.1')  // 3.1 - Receitas
+        const custos = obterValorConta('3.2')  // 3.2 - Custos
+        const despesas = obterValorConta('4.')  // 4. - Despesas
 
-        // Debug: Log dos valores calculados
-        console.log('VALORES CALCULADOS:')
+        // Debug: Log dos valores calculados CORRIGIDOS
+        console.log('VALORES CALCULADOS CORRIGIDOS:')
         console.log('Ativo Circulante (1.1):', ativoCirculante)
         console.log('Ativo Não Circulante (1.2):', ativoNaoCirculante)
         console.log('Ativo Total:', ativoTotal)
@@ -425,27 +441,43 @@ export function Indicadores() {
       }).format(valor)
     }
 
-    // Função para somar contas do Plano de Contas Padrão por prefixo
-    const somarContasPorPrefixo = (prefixo: string): number => {
-      return Object.entries(dados).reduce((total, [codigo, valor]) => {
-        return codigo.startsWith(prefixo) ? total + valor : total
-      }, 0)
+    // Função para obter valor de conta do Plano de Contas Padrão - usar conta específica ou somar filhas
+    const obterValorConta = (codigo: string): number => {
+      // Se a conta específica existe, usar seu valor (já consolidado)
+      if (dados[codigo] !== undefined) {
+        return dados[codigo]
+      }
+      
+      // Se não existe, somar apenas contas filhas diretas (próximo nível)
+      let total = 0
+      const proximoNivel = codigo + '.'
+      for (const [codigoConta, valor] of Object.entries(dados)) {
+        // Verificar se é uma conta filha direta (não incluir netos)
+        if (codigoConta.startsWith(proximoNivel)) {
+          const parteFilha = codigoConta.substring(proximoNivel.length)
+          // Se não tem mais pontos, é filha direta
+          if (!parteFilha.includes('.')) {
+            total += valor
+          }
+        }
+      }
+      return total
     }
 
-    // Calcular valores usando APENAS contas parametrizadas do Plano de Contas Padrão
-    const ativoCirculante = somarContasPorPrefixo('1.1')  // 1.1 - Ativo Circulante
-    const ativoNaoCirculante = somarContasPorPrefixo('1.2')  // 1.2 - Ativo Não Circulante
+    // Calcular valores usando APENAS contas parametrizadas do Plano de Contas Padrão (sem dupla contagem)
+    const ativoCirculante = obterValorConta('1.1')  // 1.1 - Ativo Circulante
+    const ativoNaoCirculante = obterValorConta('1.2')  // 1.2 - Ativo Não Circulante
     const ativoTotal = ativoCirculante + ativoNaoCirculante
-    const passivoCirculante = somarContasPorPrefixo('2.1')  // 2.1 - Passivo Circulante
-    const passivoNaoCirculante = somarContasPorPrefixo('2.2')  // 2.2 - Passivo Não Circulante
+    const passivoCirculante = obterValorConta('2.1')  // 2.1 - Passivo Circulante
+    const passivoNaoCirculante = obterValorConta('2.2')  // 2.2 - Passivo Não Circulante
     const passivoTotal = passivoCirculante + passivoNaoCirculante
-    const patrimonioLiquido = somarContasPorPrefixo('2.3')  // 2.3 - Patrimônio Líquido
-    const estoques = somarContasPorPrefixo('1.1.3')  // 1.1.3 - Estoques
-    const realizavelLongoPrazo = somarContasPorPrefixo('1.2.1')  // 1.2.1 - Realizável a Longo Prazo
-    const imobilizado = somarContasPorPrefixo('1.2.2')  // 1.2.2 - Imobilizado
-    const receitas = somarContasPorPrefixo('3.1')  // 3.1 - Receitas
-    const custos = somarContasPorPrefixo('3.2')  // 3.2 - Custos
-    const despesas = somarContasPorPrefixo('4.')  // 4. - Despesas
+    const patrimonioLiquido = obterValorConta('2.3')  // 2.3 - Patrimônio Líquido
+    const estoques = obterValorConta('1.1.3')  // 1.1.3 - Estoques
+    const realizavelLongoPrazo = obterValorConta('1.2.1')  // 1.2.1 - Realizável a Longo Prazo
+    const imobilizado = obterValorConta('1.2.2')  // 1.2.2 - Imobilizado
+    const receitas = obterValorConta('3.1')  // 3.1 - Receitas
+    const custos = obterValorConta('3.2')  // 3.2 - Custos
+    const despesas = obterValorConta('4.')  // 4. - Despesas
 
     switch (indicador) {
       case "Liquidez Corrente":
