@@ -243,6 +243,11 @@ export function Indicadores() {
           }, 0)
         }
 
+        // Debug: Log das contas disponíveis para este mês
+        console.log(`=== MÊS ${mes} ===`)
+        console.log('Contas parametrizadas disponíveis:', Object.keys(dados))
+        console.log('Valores das contas:', dados)
+
         // Obter valores usando APENAS contas parametrizadas do Plano de Contas Padrão
         const ativoCirculante = somarContasPorPrefixo('1.1')  // 1.1 - Ativo Circulante
         const ativoNaoCirculante = somarContasPorPrefixo('1.2')  // 1.2 - Ativo Não Circulante
@@ -257,6 +262,16 @@ export function Indicadores() {
         const receitas = somarContasPorPrefixo('3.1')  // 3.1 - Receitas
         const custos = somarContasPorPrefixo('3.2')  // 3.2 - Custos
         const despesas = somarContasPorPrefixo('4.')  // 4. - Despesas
+
+        // Debug: Log dos valores calculados
+        console.log('VALORES CALCULADOS:')
+        console.log('Ativo Circulante (1.1):', ativoCirculante)
+        console.log('Ativo Não Circulante (1.2):', ativoNaoCirculante)
+        console.log('Ativo Total:', ativoTotal)
+        console.log('Passivo Circulante (2.1):', passivoCirculante)
+        console.log('Passivo Não Circulante (2.2):', passivoNaoCirculante)
+        console.log('Passivo Total:', passivoTotal)
+        console.log('Patrimônio Líquido (2.3):', patrimonioLiquido)
 
         // Função para verificar se existem contas parametrizadas para um grupo
         const temContasParametrizadas = (prefixo: string): boolean => {
