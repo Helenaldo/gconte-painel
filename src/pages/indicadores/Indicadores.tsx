@@ -288,6 +288,8 @@ export function Indicadores() {
         console.log('Passivo Não Circulante (2.2):', passivoNaoCirculante)
         console.log('Passivo Total:', passivoTotal)
         console.log('Patrimônio Líquido (2.3):', patrimonioLiquido)
+        console.log('Estoques (1.1.3):', estoques)
+        console.log('Realizável a Longo Prazo (1.2.1):', realizavelLongoPrazo)
 
         // Função para verificar se existem contas parametrizadas para um grupo
         const temContasParametrizadas = (prefixo: string): boolean => {
@@ -309,9 +311,8 @@ export function Indicadores() {
           resultadosIndicadores["Liquidez Seca"][mesNome] = null
         }
 
-        // Liquidez Geral: precisa de Ativo Circulante, Realizável LP, Passivo Circulante e Não Circulante
-        if (temContasParametrizadas('1.1') && temContasParametrizadas('1.2.1') && 
-            temContasParametrizadas('2.1') && temContasParametrizadas('2.2') && 
+        // Liquidez Geral: precisa de Ativo Circulante, Passivo Circulante e Não Circulante
+        if (temContasParametrizadas('1.1') && temContasParametrizadas('2.1') && temContasParametrizadas('2.2') && 
             (passivoCirculante + passivoNaoCirculante) !== 0) {
           resultadosIndicadores["Liquidez Geral"][mesNome] = (ativoCirculante + realizavelLongoPrazo) / (passivoCirculante + passivoNaoCirculante)
         } else {
@@ -321,7 +322,7 @@ export function Indicadores() {
         // PCT: precisa de Passivo (2.1 e 2.2) e Patrimônio Líquido (2.3) parametrizados
         if (temContasParametrizadas('2.1') && temContasParametrizadas('2.2') && 
             temContasParametrizadas('2.3') && patrimonioLiquido !== 0) {
-          resultadosIndicadores["Participação de Capitais de Terceiros (PCT)"][mesNome] = passivoTotal / patrimonioLiquido
+          resultadosIndicadores["Participação de Capitais de Terceiros (PCT)"][mesNome] = (passivoCirculante + passivoNaoCirculante) / patrimonioLiquido
         } else {
           resultadosIndicadores["Participação de Capitais de Terceiros (PCT)"][mesNome] = null
         }
@@ -413,7 +414,7 @@ export function Indicadores() {
       "Liquidez Corrente": "Ativo Circulante ÷ Passivo Circulante",
       "Liquidez Seca": "(Ativo Circulante – Estoques) ÷ Passivo Circulante",
       "Liquidez Geral": "(Ativo Circulante + Realizável a Longo Prazo) ÷ (Passivo Circulante + Exigível a Longo Prazo)",
-      "Participação de Capitais de Terceiros (PCT)": "Passivo Total ÷ Patrimônio Líquido",
+      "Participação de Capitais de Terceiros (PCT)": "(Passivo Circulante + Passivo Não Circulante) ÷ Patrimônio Líquido",
       "Composição do Endividamento (CE)": "Passivo Circulante ÷ Passivo Total",
       "Imobilização do Patrimônio Líquido (IPL)": "Imobilizado ÷ Patrimônio Líquido",
       "Margem Bruta (%)": "(Lucro Bruto ÷ Receita Líquida) × 100",
@@ -513,10 +514,11 @@ export function Indicadores() {
       case "Participação de Capitais de Terceiros (PCT)":
         return {
           componentes: [
-            `Passivo Total: ${formatarMoeda(passivoTotal)}`,
+            `Passivo Circulante: ${formatarMoeda(passivoCirculante)}`,
+            `Passivo Não Circulante: ${formatarMoeda(passivoNaoCirculante)}`,
             `Patrimônio Líquido: ${formatarMoeda(patrimonioLiquido)}`
           ],
-          resultado: patrimonioLiquido > 0 ? passivoTotal / patrimonioLiquido : null
+          resultado: patrimonioLiquido > 0 ? (passivoCirculante + passivoNaoCirculante) / patrimonioLiquido : null
         }
       
       case "Composição do Endividamento (CE)":
@@ -714,7 +716,12 @@ export function Indicadores() {
                                    <ChevronRight className="h-4 w-4" />
                                  )}
                                </button>
-                               <span>{indicador}</span>
+                                <div className="flex flex-col">
+                                  <span>{indicador}</span>
+                                  {indicador === "Participação de Capitais de Terceiros (PCT)" && (
+                                    <span className="text-xs text-muted-foreground">Grau de Endividamento</span>
+                                  )}
+                                </div>
                              </div>
                            </TableCell>
                            {/* Células dos meses com valores calculados */}
