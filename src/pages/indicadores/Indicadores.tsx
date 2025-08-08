@@ -348,9 +348,9 @@ export function Indicadores() {
           resultadosIndicadores["Imobilização do Patrimônio Líquido (IPL)"][mesNome] = null
         }
 
-        // CE: precisa de Passivo Circulante (2.1) e Passivo Total (2.1 + 2.2) parametrizados
-        if (temContasParametrizadas('2.1') && temContasParametrizadas('2.2') && passivoTotal !== 0) {
-          resultadosIndicadores["Composição do Endividamento (CE)"][mesNome] = passivoCirculante / passivoTotal
+        // CE: precisa de Passivo Circulante (2.1) e Passivo Não Circulante (2.2) parametrizados
+        if (temContasParametrizadas('2.1') && temContasParametrizadas('2.2') && (passivoCirculante + passivoNaoCirculante) !== 0) {
+          resultadosIndicadores["Composição do Endividamento (CE)"][mesNome] = passivoCirculante / (passivoCirculante + passivoNaoCirculante)
         } else {
           resultadosIndicadores["Composição do Endividamento (CE)"][mesNome] = null
         }
@@ -429,7 +429,7 @@ export function Indicadores() {
       "Liquidez Seca": "(Ativo Circulante – Estoques) ÷ Passivo Circulante",
       "Liquidez Geral": "(Ativo Circulante + Realizável a Longo Prazo) ÷ (Passivo Circulante + Exigível a Longo Prazo)",
       "Participação de Capitais de Terceiros (PCT)": "(Passivo Circulante + Passivo Não Circulante) ÷ Patrimônio Líquido",
-      "Composição do Endividamento (CE)": "Passivo Circulante ÷ Passivo Total",
+      "Composição do Endividamento (CE)": "Passivo Circulante ÷ (Passivo Circulante + Passivo Não Circulante)",
       "Imobilização do Patrimônio Líquido (IPL)": "Imobilizado ÷ Patrimônio Líquido",
       "Margem Bruta (%)": "(Lucro Bruto ÷ Receita Líquida) × 100",
       "Margem Líquida (%)": "(Lucro Líquido ÷ Receita Líquida) × 100",
