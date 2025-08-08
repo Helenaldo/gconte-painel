@@ -272,7 +272,7 @@ export function Indicadores() {
         const passivoNaoCirculante = obterValorConta('2.2')  // 2.2 - Passivo Não Circulante
         const passivoTotal = passivoCirculante + passivoNaoCirculante
         const patrimonioLiquido = obterValorConta('2.3')  // 2.3 - Patrimônio Líquido
-        const estoques = obterValorConta('1.1.3')  // 1.1.3 - Estoques
+        const estoques = obterValorConta('1.1.4')  // 1.1.4 - Estoques
         const realizavelLongoPrazo = obterValorConta('1.2.1')  // 1.2.1 - Realizável a Longo Prazo
         const imobilizado = obterValorConta('1.2.2')  // 1.2.2 - Imobilizado
         const receitas = obterValorConta('3.1')  // 3.1 - Receitas
@@ -291,13 +291,13 @@ export function Indicadores() {
         
         // Debug específico para estoques
         console.log('=== DEBUG ESTOQUES ===')
-        console.log('Conta 1.1.3 existe diretamente?', dados['1.1.3'] !== undefined)
-        if (dados['1.1.3'] !== undefined) {
-          console.log('Valor direto de 1.1.3:', dados['1.1.3'])
+        console.log('Conta 1.1.4 existe diretamente?', dados['1.1.4'] !== undefined)
+        if (dados['1.1.4'] !== undefined) {
+          console.log('Valor direto de 1.1.4:', dados['1.1.4'])
         }
-        console.log('Contas filhas de 1.1.3:')
-        Object.keys(dados).filter(codigo => codigo.startsWith('1.1.3.')).forEach(codigo => {
-          const parteFilha = codigo.substring('1.1.3.'.length)
+        console.log('Contas filhas de 1.1.4:')
+        Object.keys(dados).filter(codigo => codigo.startsWith('1.1.4.')).forEach(codigo => {
+          const parteFilha = codigo.substring('1.1.4.'.length)
           const ehFilhaDireta = !parteFilha.includes('.')
           console.log(`  ${codigo}: ${dados[codigo]} (filha direta: ${ehFilhaDireta})`)
         })
@@ -487,7 +487,7 @@ export function Indicadores() {
     const passivoNaoCirculante = obterValorConta('2.2')  // 2.2 - Passivo Não Circulante
     const passivoTotal = passivoCirculante + passivoNaoCirculante
     const patrimonioLiquido = obterValorConta('2.3')  // 2.3 - Patrimônio Líquido
-    const estoques = obterValorConta('1.1.3')  // 1.1.3 - Estoques
+    const estoques = obterValorConta('1.1.4')  // 1.1.4 - Estoques
     const realizavelLongoPrazo = obterValorConta('1.2.1')  // 1.2.1 - Realizável a Longo Prazo
     const imobilizado = obterValorConta('1.2.2')  // 1.2.2 - Imobilizado
     const receitas = obterValorConta('3.1')  // 3.1 - Receitas
