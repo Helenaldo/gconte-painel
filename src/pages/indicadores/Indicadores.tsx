@@ -288,7 +288,21 @@ export function Indicadores() {
         console.log('Passivo Não Circulante (2.2):', passivoNaoCirculante)
         console.log('Passivo Total:', passivoTotal)
         console.log('Patrimônio Líquido (2.3):', patrimonioLiquido)
-        console.log('Estoques (1.1.3):', estoques)
+        
+        // Debug específico para estoques
+        console.log('=== DEBUG ESTOQUES ===')
+        console.log('Conta 1.1.3 existe diretamente?', dados['1.1.3'] !== undefined)
+        if (dados['1.1.3'] !== undefined) {
+          console.log('Valor direto de 1.1.3:', dados['1.1.3'])
+        }
+        console.log('Contas filhas de 1.1.3:')
+        Object.keys(dados).filter(codigo => codigo.startsWith('1.1.3.')).forEach(codigo => {
+          const parteFilha = codigo.substring('1.1.3.'.length)
+          const ehFilhaDireta = !parteFilha.includes('.')
+          console.log(`  ${codigo}: ${dados[codigo]} (filha direta: ${ehFilhaDireta})`)
+        })
+        console.log('Valor calculado de estoques:', estoques)
+        
         console.log('Realizável a Longo Prazo (1.2.1):', realizavelLongoPrazo)
 
         // Função para verificar se existem contas parametrizadas para um grupo
