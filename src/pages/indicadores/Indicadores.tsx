@@ -66,26 +66,69 @@ export function Indicadores() {
     "Giro do Ativo": "Mede a eficiência na utilização dos ativos para gerar receitas. Quanto maior, melhor a empresa transforma recursos investidos em vendas.",
     "Capital Circulante Líquido (CCL)": "Representa a diferença entre o ativo circulante e o passivo circulante, mostrando o volume de recursos disponíveis para financiar as operações no curto prazo"
   }
+  // Fonte por coluna para variáveis de cada indicador
   type FonteColuna = 'saldo_atual' | 'saldo_anterior' | 'movimento'
 
-  const indicadorFonteConfig: Record<string, FonteColuna> = {
-    "Liquidez Corrente": 'saldo_atual',
-    "Liquidez Seca": 'saldo_atual',
-    "Liquidez Geral": 'saldo_atual',
-    "Participação de Capitais de Terceiros (PCT)": 'saldo_atual',
-    "Composição do Endividamento (CE)": 'saldo_atual',
-    "Imobilização do Patrimônio Líquido (IPL)": 'saldo_atual',
-    "Margem Bruta (%)": 'saldo_atual',
-    "Margem Líquida (%)": 'saldo_atual',
-    "Giro do Ativo": 'saldo_atual',
-    "Capital Circulante Líquido (CCL)": 'saldo_atual'
-  }
-
+  // Meta para visual (badge) conforme a fonte escolhida
   const fonteMeta: Record<FonteColuna, { label: string; variant: 'success' | 'info' | 'warning' }> = {
     saldo_atual: { label: 'Saldo Atual', variant: 'success' },
     saldo_anterior: { label: 'Saldo Anterior', variant: 'info' },
     movimento: { label: 'Movimento', variant: 'warning' }
   }
+
+  // Configuração interna por indicador e por variável (padrão: saldo_atual)
+  const indicadorVariavelFonteConfig: Record<string, Record<string, FonteColuna>> = {
+    'Liquidez Corrente': {
+      'Ativo Circulante': 'saldo_atual',
+      'Passivo Circulante': 'saldo_atual',
+    },
+    'Liquidez Seca': {
+      'Ativo Circulante': 'saldo_atual',
+      'Estoques': 'saldo_atual',
+      'Passivo Circulante': 'saldo_atual',
+    },
+    'Liquidez Geral': {
+      'Ativo Circulante': 'saldo_atual',
+      'Realizável a Longo Prazo': 'saldo_atual',
+      'Passivo Circulante': 'saldo_atual',
+      'Exigível a Longo Prazo': 'saldo_atual',
+    },
+    'Participação de Capitais de Terceiros (PCT)': {
+      'Passivo Circulante': 'saldo_atual',
+      'Passivo Não Circulante': 'saldo_atual',
+      'Patrimônio Líquido': 'saldo_atual',
+    },
+    'Composição do Endividamento (CE)': {
+      'Passivo Circulante': 'saldo_atual',
+      'Passivo Não Circulante': 'saldo_atual',
+    },
+    'Imobilização do Patrimônio Líquido (IPL)': {
+      'Imobilizado': 'saldo_atual',
+      'Depreciação Acumulada': 'saldo_atual',
+      'Patrimônio Líquido': 'saldo_atual',
+    },
+    'Margem Bruta (%)': {
+      'Receitas': 'saldo_atual',
+      'Custos': 'saldo_atual',
+    },
+    'Margem Líquida (%)': {
+      'Receitas': 'saldo_atual',
+      'Custos': 'saldo_atual',
+      'Despesas': 'saldo_atual',
+    },
+    'Giro do Ativo': {
+      'Receitas': 'saldo_atual',
+      'Ativo Circulante': 'saldo_atual',
+      'Ativo Não Circulante': 'saldo_atual',
+    },
+    'Capital Circulante Líquido (CCL)': {
+      'Ativo Circulante': 'saldo_atual',
+      'Passivo Circulante': 'saldo_atual',
+    },
+  }
+
+  const getVarFonte = (indicador: string, variavel: string): FonteColuna =>
+    indicadorVariavelFonteConfig[indicador]?.[variavel] ?? 'saldo_atual'
 
   // Carregar empresas disponíveis
   useEffect(() => {
@@ -358,10 +401,9 @@ export function Indicadores() {
         // Calcular indicadores APENAS se todas as contas necessárias estão parametrizadas
         // Liquidez Corrente: precisa de Ativo Circulante e Passivo Circulante parametrizados
         {
-          const fonte = indicadorFonteConfig["Liquidez Corrente"]
           if (temContasParametrizadas('1.1') && temContasParametrizadas('2.1')) {
-            const ac = obterValorContaPorFonte('1.1', fonte)
-            const pc = obterValorContaPorFonte('2.1', fonte)
+            const ac = obterValorContaPorFonte('1.1', getVarFonte("Liquidez Corrente", 'Ativo Circulante'))
+            const pc = obterValorContaPorFonte('2.1', getVarFonte("Liquidez Corrente", 'Passivo Circulante'))
             resultadosIndicadores["Liquidez Corrente"][mesNome] = pc !== 0 ? ac / pc : null
           } else {
             resultadosIndicadores["Liquidez Corrente"][mesNome] = null
@@ -370,11 +412,10 @@ export function Indicadores() {
 
         // Liquidez Seca: precisa de Ativo Circulante e Passivo Circulante parametrizados
         {
-          const fonte = indicadorFonteConfig["Liquidez Seca"]
           if (temContasParametrizadas('1.1') && temContasParametrizadas('2.1')) {
-            const ac = obterValorContaPorFonte('1.1', fonte)
-            const est = obterValorContaPorFonte('1.1.4', fonte)
-            const pc = obterValorContaPorFonte('2.1', fonte)
+            const ac = obterValorContaPorFonte('1.1', getVarFonte("Liquidez Seca", 'Ativo Circulante'))
+            const est = obterValorContaPorFonte('1.1.4', getVarFonte("Liquidez Seca", 'Estoques'))
+            const pc = obterValorContaPorFonte('2.1', getVarFonte("Liquidez Seca", 'Passivo Circulante'))
             resultadosIndicadores["Liquidez Seca"][mesNome] = pc !== 0 ? (ac - est) / pc : null
           } else {
             resultadosIndicadores["Liquidez Seca"][mesNome] = null
@@ -383,12 +424,11 @@ export function Indicadores() {
 
         // Liquidez Geral: precisa de Ativo Circulante, Passivo Circulante e Não Circulante
         {
-          const fonte = indicadorFonteConfig["Liquidez Geral"]
           if (temContasParametrizadas('1.1') && temContasParametrizadas('2.1') && temContasParametrizadas('2.2')) {
-            const ac = obterValorContaPorFonte('1.1', fonte)
-            const rlp = obterValorContaPorFonte('1.2.1', fonte)
-            const pc = obterValorContaPorFonte('2.1', fonte)
-            const pnc = obterValorContaPorFonte('2.2', fonte)
+            const ac = obterValorContaPorFonte('1.1', getVarFonte("Liquidez Geral", 'Ativo Circulante'))
+            const rlp = obterValorContaPorFonte('1.2.1', getVarFonte("Liquidez Geral", 'Realizável a Longo Prazo'))
+            const pc = obterValorContaPorFonte('2.1', getVarFonte("Liquidez Geral", 'Passivo Circulante'))
+            const pnc = obterValorContaPorFonte('2.2', getVarFonte("Liquidez Geral", 'Exigível a Longo Prazo'))
             const denom = pc + pnc
             resultadosIndicadores["Liquidez Geral"][mesNome] = denom !== 0 ? (ac + rlp) / denom : null
           } else {
@@ -398,11 +438,10 @@ export function Indicadores() {
 
         // PCT: precisa de Passivo (2.1 e 2.2) e Patrimônio Líquido (2.3) parametrizados
         {
-          const fonte = indicadorFonteConfig["Participação de Capitais de Terceiros (PCT)"]
           if (temContasParametrizadas('2.1') && temContasParametrizadas('2.2') && temContasParametrizadas('2.3')) {
-            const pc = obterValorContaPorFonte('2.1', fonte)
-            const pnc = obterValorContaPorFonte('2.2', fonte)
-            const pl = obterValorContaPorFonte('2.3', fonte)
+            const pc = obterValorContaPorFonte('2.1', getVarFonte("Participação de Capitais de Terceiros (PCT)", 'Passivo Circulante'))
+            const pnc = obterValorContaPorFonte('2.2', getVarFonte("Participação de Capitais de Terceiros (PCT)", 'Passivo Não Circulante'))
+            const pl = obterValorContaPorFonte('2.3', getVarFonte("Participação de Capitais de Terceiros (PCT)", 'Patrimônio Líquido'))
             resultadosIndicadores["Participação de Capitais de Terceiros (PCT)"][mesNome] = pl !== 0 ? (pc + pnc) / pl : null
           } else {
             resultadosIndicadores["Participação de Capitais de Terceiros (PCT)"][mesNome] = null
@@ -411,11 +450,10 @@ export function Indicadores() {
 
         // IPL: precisa de Imobilizado (1.2.3), Depreciação Acumulada (1.2.4) e Patrimônio Líquido (2.3) parametrizados
         {
-          const fonte = indicadorFonteConfig["Imobilização do Patrimônio Líquido (IPL)"]
           if (temContasParametrizadas('1.2.3') && temContasParametrizadas('1.2.4') && temContasParametrizadas('2.3')) {
-            const imob = obterValorContaPorFonte('1.2.3', fonte)
-            const deprec = obterValorContaPorFonte('1.2.4', fonte)
-            const pl = obterValorContaPorFonte('2.3', fonte)
+            const imob = obterValorContaPorFonte('1.2.3', getVarFonte("Imobilização do Patrimônio Líquido (IPL)", 'Imobilizado'))
+            const deprec = obterValorContaPorFonte('1.2.4', getVarFonte("Imobilização do Patrimônio Líquido (IPL)", 'Depreciação Acumulada'))
+            const pl = obterValorContaPorFonte('2.3', getVarFonte("Imobilização do Patrimônio Líquido (IPL)", 'Patrimônio Líquido'))
             resultadosIndicadores["Imobilização do Patrimônio Líquido (IPL)"][mesNome] = pl !== 0 ? (imob - Math.abs(deprec)) / pl : null
           } else {
             resultadosIndicadores["Imobilização do Patrimônio Líquido (IPL)"][mesNome] = null
@@ -424,10 +462,9 @@ export function Indicadores() {
 
         // CE: precisa de Passivo Circulante (2.1) e Passivo Não Circulante (2.2) parametrizados
         {
-          const fonte = indicadorFonteConfig["Composição do Endividamento (CE)"]
           if (temContasParametrizadas('2.1') && temContasParametrizadas('2.2')) {
-            const pc = obterValorContaPorFonte('2.1', fonte)
-            const pnc = obterValorContaPorFonte('2.2', fonte)
+            const pc = obterValorContaPorFonte('2.1', getVarFonte("Composição do Endividamento (CE)", 'Passivo Circulante'))
+            const pnc = obterValorContaPorFonte('2.2', getVarFonte("Composição do Endividamento (CE)", 'Passivo Não Circulante'))
             const denom = pc + pnc
             resultadosIndicadores["Composição do Endividamento (CE)"][mesNome] = denom !== 0 ? pc / denom : null
           } else {
@@ -437,10 +474,9 @@ export function Indicadores() {
 
         // Margem Bruta: precisa de Receitas (3.1) e Custos (4.1) parametrizados
         {
-          const fonte = indicadorFonteConfig["Margem Bruta (%)"]
           if (temContasParametrizadas('3.1') && temContasParametrizadas('4.1')) {
-            const rec = obterValorContaPorFonte('3.1', fonte)
-            const custos41 = obterValorContaPorFonte('4.1', fonte)
+            const rec = obterValorContaPorFonte('3.1', getVarFonte("Margem Bruta (%)", 'Receitas'))
+            const custos41 = obterValorContaPorFonte('4.1', getVarFonte("Margem Bruta (%)", 'Custos'))
             const lucroBruto = rec - custos41
             resultadosIndicadores["Margem Bruta (%)"][mesNome] = rec !== 0 ? (lucroBruto / rec) * 100 : null
           } else {
@@ -450,11 +486,10 @@ export function Indicadores() {
 
         // Margem Líquida: precisa de Receitas (3.1), Custos (4.1) e Despesas Operacionais (4.2) parametrizados
         {
-          const fonte = indicadorFonteConfig["Margem Líquida (%)"]
           if (temContasParametrizadas('3.1') && temContasParametrizadas('4.1') && temContasParametrizadas('4.2')) {
-            const rec = obterValorContaPorFonte('3.1', fonte)
-            const custos41 = obterValorContaPorFonte('4.1', fonte)
-            const despesas42 = obterValorContaPorFonte('4.2', fonte)
+            const rec = obterValorContaPorFonte('3.1', getVarFonte("Margem Líquida (%)", 'Receitas'))
+            const custos41 = obterValorContaPorFonte('4.1', getVarFonte("Margem Líquida (%)", 'Custos'))
+            const despesas42 = obterValorContaPorFonte('4.2', getVarFonte("Margem Líquida (%)", 'Despesas'))
             const lucroLiquido = rec - custos41 - despesas42
             resultadosIndicadores["Margem Líquida (%)"][mesNome] = rec !== 0 ? (lucroLiquido / rec) * 100 : null
           } else {
@@ -464,11 +499,10 @@ export function Indicadores() {
 
         // Giro do Ativo: precisa de Receitas (3.1) e Ativo Total (1.1 + 1.2) parametrizados
         {
-          const fonte = indicadorFonteConfig["Giro do Ativo"]
           if (temContasParametrizadas('3.1') && temContasParametrizadas('1.1') && temContasParametrizadas('1.2')) {
-            const rec = obterValorContaPorFonte('3.1', fonte)
-            const ac = obterValorContaPorFonte('1.1', fonte)
-            const anc = obterValorContaPorFonte('1.2', fonte)
+            const rec = obterValorContaPorFonte('3.1', getVarFonte("Giro do Ativo", 'Receitas'))
+            const ac = obterValorContaPorFonte('1.1', getVarFonte("Giro do Ativo", 'Ativo Circulante'))
+            const anc = obterValorContaPorFonte('1.2', getVarFonte("Giro do Ativo", 'Ativo Não Circulante'))
             const at = ac + anc
             resultadosIndicadores["Giro do Ativo"][mesNome] = at !== 0 && rec !== 0 ? rec / at : null
           } else {
@@ -477,10 +511,9 @@ export function Indicadores() {
         }
 
         {
-          const fonte = indicadorFonteConfig["Capital Circulante Líquido (CCL)"]
           if (temContasParametrizadas('1.1') && temContasParametrizadas('2.1')) {
-            const ac = obterValorContaPorFonte('1.1', fonte)
-            const pc = obterValorContaPorFonte('2.1', fonte)
+            const ac = obterValorContaPorFonte('1.1', getVarFonte("Capital Circulante Líquido (CCL)", 'Ativo Circulante'))
+            const pc = obterValorContaPorFonte('2.1', getVarFonte("Capital Circulante Líquido (CCL)", 'Passivo Circulante'))
             resultadosIndicadores["Capital Circulante Líquido (CCL)"][mesNome] = ac - pc
           } else {
             resultadosIndicadores["Capital Circulante Líquido (CCL)"][mesNome] = null
@@ -559,146 +592,136 @@ export function Indicadores() {
 
     // Função para obter valor de conta do Plano de Contas Padrão - usar conta específica ou somar filhas
     const obterValorConta = (codigo: string): number => {
-      // Se a conta específica existe, usar seu valor (já consolidado)
       if (dados[codigo] !== undefined) {
         return dados[codigo]
       }
-      
-      // Se não existe, somar apenas contas filhas diretas (próximo nível)
       let total = 0
       const proximoNivel = codigo + '.'
       for (const [codigoConta, valor] of Object.entries(dados)) {
-        // Verificar se é uma conta filha direta (não incluir netos)
         if (codigoConta.startsWith(proximoNivel)) {
           const parteFilha = codigoConta.substring(proximoNivel.length)
-          // Se não tem mais pontos, é filha direta
           if (!parteFilha.includes('.')) {
-            total += valor
+            total += valor as number
           }
         }
       }
       return total
     }
 
-    // Calcular valores usando APENAS contas parametrizadas do Plano de Contas Padrão (sem dupla contagem)
-    const ativoCirculante = obterValorConta('1.1')  // 1.1 - Ativo Circulante
-    const ativoNaoCirculante = obterValorConta('1.2')  // 1.2 - Ativo Não Circulante
-    const ativoTotal = ativoCirculante + ativoNaoCirculante
-    const passivoCirculante = obterValorConta('2.1')  // 2.1 - Passivo Circulante
-    const passivoNaoCirculante = obterValorConta('2.2')  // 2.2 - Passivo Não Circulante
-    const passivoTotal = passivoCirculante + passivoNaoCirculante
-    const patrimonioLiquido = obterValorConta('2.3')  // 2.3 - Patrimônio Líquido
-    const estoques = obterValorConta('1.1.4')  // 1.1.4 - Estoques
-    const realizavelLongoPrazo = obterValorConta('1.2.1')  // 1.2.1 - Realizável a Longo Prazo
-    const imobilizado = obterValorConta('1.2.3')  // 1.2.3 - Imobilizado
-    const depreciacaoAcumulada = obterValorConta('1.2.4')  // 1.2.4 - ( - ) Depreciação Acumulada
-    const receitas = obterValorConta('3.1')  // 3.1 - Receitas
-    const custos = obterValorConta('3.2')  // 3.2 - Custos (não utilizado na Margem Bruta)
-    const despesas = obterValorConta('4.')  // 4. - Despesas (geral - não utilizado na Margem Líquida)
-    const custosPlano41 = obterValorConta('4.1')  // 4.1 - CUSTOS (Plano Padrão)
-    const despesasPlano42 = obterValorConta('4.2')  // 4.2 - DESPESAS OPERACIONAIS (Plano Padrão)
+    const obterValorContaPorFonte = (codigo: string, fonte: FonteColuna): number => {
+      // No momento, apenas Saldo Atual está implementado.
+      return obterValorConta(codigo)
+    }
+
+    const comp = (label: string, codigo: string) => {
+      const fonte = getVarFonte(indicador, label)
+      const valor = obterValorContaPorFonte(codigo, fonte)
+      return { label, valor, fonte }
+    }
 
     switch (indicador) {
-      case "Liquidez Corrente":
+      case "Liquidez Corrente": {
+        const ac = comp('Ativo Circulante', '1.1')
+        const pc = comp('Passivo Circulante', '2.1')
         return {
-          componentes: [
-            `Ativo Circulante: ${formatarMoeda(ativoCirculante)}`,
-            `Passivo Circulante: ${formatarMoeda(passivoCirculante)}`
-          ],
-          resultado: passivoCirculante > 0 ? ativoCirculante / passivoCirculante : null
+          componentes: [ac, pc],
+          resultado: pc.valor > 0 ? ac.valor / pc.valor : null
         }
-      
-      case "Liquidez Seca":
+      }
+
+      case "Liquidez Seca": {
+        const ac = comp('Ativo Circulante', '1.1')
+        const est = comp('Estoques', '1.1.4')
+        const pc = comp('Passivo Circulante', '2.1')
         return {
-          componentes: [
-            `Ativo Circulante: ${formatarMoeda(ativoCirculante)}`,
-            `Estoques: ${formatarMoeda(estoques)}`,
-            `Passivo Circulante: ${formatarMoeda(passivoCirculante)}`
-          ],
-          resultado: passivoCirculante > 0 ? (ativoCirculante - estoques) / passivoCirculante : null
+          componentes: [ac, est, pc],
+          resultado: pc.valor > 0 ? (ac.valor - est.valor) / pc.valor : null
         }
-      
-      case "Liquidez Geral":
+      }
+
+      case "Liquidez Geral": {
+        const ac = comp('Ativo Circulante', '1.1')
+        const rlp = comp('Realizável a Longo Prazo', '1.2.1')
+        const pc = comp('Passivo Circulante', '2.1')
+        const pnc = comp('Exigível a Longo Prazo', '2.2')
+        const denom = pc.valor + pnc.valor
         return {
-          componentes: [
-            `Ativo Circulante: ${formatarMoeda(ativoCirculante)}`,
-            `Realizável a Longo Prazo: ${formatarMoeda(realizavelLongoPrazo)}`,
-            `Passivo Circulante: ${formatarMoeda(passivoCirculante)}`,
-            `Exigível a Longo Prazo: ${formatarMoeda(passivoNaoCirculante)}`
-          ],
-          resultado: (passivoCirculante + passivoNaoCirculante) > 0 ? (ativoCirculante + realizavelLongoPrazo) / (passivoCirculante + passivoNaoCirculante) : null
+          componentes: [ac, rlp, pc, pnc],
+          resultado: denom !== 0 ? (ac.valor + rlp.valor) / denom : null
         }
-      
-      case "Participação de Capitais de Terceiros (PCT)":
+      }
+
+      case "Participação de Capitais de Terceiros (PCT)": {
+        const pc = comp('Passivo Circulante', '2.1')
+        const pnc = comp('Passivo Não Circulante', '2.2')
+        const pl = comp('Patrimônio Líquido', '2.3')
         return {
-          componentes: [
-            `Passivo Circulante: ${formatarMoeda(passivoCirculante)}`,
-            `Passivo Não Circulante: ${formatarMoeda(passivoNaoCirculante)}`,
-            `Patrimônio Líquido: ${formatarMoeda(patrimonioLiquido)}`
-          ],
-          resultado: patrimonioLiquido > 0 ? (passivoCirculante + passivoNaoCirculante) / patrimonioLiquido : null
+          componentes: [pc, pnc, pl],
+          resultado: pl.valor !== 0 ? (pc.valor + pnc.valor) / pl.valor : null
         }
-      
-      case "Composição do Endividamento (CE)":
+      }
+
+      case "Composição do Endividamento (CE)": {
+        const pc = comp('Passivo Circulante', '2.1')
+        const pnc = comp('Passivo Não Circulante', '2.2')
+        const passivoTotal = pc.valor + pnc.valor
         return {
-          componentes: [
-            `Passivo Circulante: ${formatarMoeda(passivoCirculante)}`,
-            `Passivo Total: ${formatarMoeda(passivoTotal)}`
-          ],
-          resultado: passivoTotal > 0 ? passivoCirculante / passivoTotal : null
+          componentes: [pc, { label: 'Passivo Total', valor: passivoTotal }],
+          resultado: passivoTotal > 0 ? pc.valor / passivoTotal : null
         }
-      
-      case "Imobilização do Patrimônio Líquido (IPL)":
+      }
+
+      case "Imobilização do Patrimônio Líquido (IPL)": {
+        const imob = comp('Imobilizado', '1.2.3')
+        const deprec = comp('Depreciação Acumulada', '1.2.4')
+        const pl = comp('Patrimônio Líquido', '2.3')
         return {
-          componentes: [
-            `Imobilizado: ${formatarMoeda(imobilizado)}`,
-            `Depreciação Acumulada (sem sinal): ${formatarMoeda(Math.abs(depreciacaoAcumulada))}`,
-            `Patrimônio Líquido: ${formatarMoeda(patrimonioLiquido)}`
-          ],
-          resultado: patrimonioLiquido > 0 ? (imobilizado - Math.abs(depreciacaoAcumulada)) / patrimonioLiquido : null
+          componentes: [imob, { label: 'Depreciação Acumulada (sem sinal)', valor: Math.abs(deprec.valor), fonte: deprec.fonte }, pl],
+          resultado: pl.valor !== 0 ? (imob.valor - Math.abs(deprec.valor)) / pl.valor : null
         }
-      
-      case "Margem Bruta (%)":
-        const lucroBruto = receitas - custosPlano41
+      }
+
+      case "Margem Bruta (%)": {
+        const rec = comp('Receitas', '3.1')
+        const custos41 = comp('Custos', '4.1')
+        const lucroBruto = rec.valor - custos41.valor
         return {
-          componentes: [
-            `Receitas: ${formatarMoeda(receitas)}`,
-            `Custos: ${formatarMoeda(custosPlano41)}`,
-            `Lucro Bruto: ${formatarMoeda(lucroBruto)}`
-          ],
-          resultado: receitas > 0 ? (lucroBruto / receitas) * 100 : null
+          componentes: [rec, custos41, { label: 'Lucro Bruto', valor: lucroBruto }],
+          resultado: rec.valor > 0 ? (lucroBruto / rec.valor) * 100 : null
         }
-      
-      case "Margem Líquida (%)":
-        const lucroLiquido = receitas - custosPlano41 - despesasPlano42
+      }
+
+      case "Margem Líquida (%)": {
+        const rec = comp('Receitas', '3.1')
+        const custos41 = comp('Custos', '4.1')
+        const despesas42 = comp('Despesas', '4.2')
+        const lucroLiquido = rec.valor - custos41.valor - despesas42.valor
         return {
-          componentes: [
-            `Receitas: ${formatarMoeda(receitas)}`,
-            `Custos: ${formatarMoeda(custosPlano41)}`,
-            `Despesas: ${formatarMoeda(despesasPlano42)}`,
-            `Lucro Líquido: ${formatarMoeda(lucroLiquido)}`
-          ],
-          resultado: receitas > 0 ? (lucroLiquido / receitas) * 100 : null
+          componentes: [rec, custos41, despesas42, { label: 'Lucro Líquido', valor: lucroLiquido }],
+          resultado: rec.valor > 0 ? (lucroLiquido / rec.valor) * 100 : null
         }
-      
-      case "Giro do Ativo":
+      }
+
+      case "Giro do Ativo": {
+        const rec = comp('Receitas', '3.1')
+        const ac = comp('Ativo Circulante', '1.1')
+        const anc = comp('Ativo Não Circulante', '1.2')
+        const at = ac.valor + anc.valor
         return {
-          componentes: [
-            `Receitas: ${formatarMoeda(receitas)}`,
-            `Ativo Total: ${formatarMoeda(ativoTotal)}`
-          ],
-          resultado: ativoTotal > 0 && receitas > 0 ? receitas / ativoTotal : null
+          componentes: [rec, { label: 'Ativo Total', valor: at }],
+          resultado: at !== 0 && rec.valor !== 0 ? rec.valor / at : null
         }
-      
-      case "Capital Circulante Líquido (CCL)":
+      }
+
+      case "Capital Circulante Líquido (CCL)": {
+        const ac = comp('Ativo Circulante', '1.1')
+        const pc = comp('Passivo Circulante', '2.1')
         return {
-          componentes: [
-            `Ativo Circulante: ${formatarMoeda(ativoCirculante)}`,
-            `Passivo Circulante: ${formatarMoeda(passivoCirculante)}`
-          ],
-          resultado: ativoCirculante - passivoCirculante
+          componentes: [ac, pc],
+          resultado: ac.valor - pc.valor
         }
-      
+      }
+
       default:
         return { componentes: [], resultado: null }
     }
@@ -872,24 +895,21 @@ export function Indicadores() {
                                    <ChevronRight className="h-4 w-4" />
                                  )}
                                </button>
-               <div className="flex items-center gap-2">
-                 <div className="flex flex-col">
-                   <span className="flex items-center gap-2">
-                     {indicador}
-                     <Badge variant={fonteMeta[indicadorFonteConfig[indicador]].variant} className="shrink-0">
-                       {fonteMeta[indicadorFonteConfig[indicador]].label}
-                     </Badge>
-                   </span>
-                   {indicador === "Participação de Capitais de Terceiros (PCT)" && (
-                     <span className="text-xs text-muted-foreground">Grau de Endividamento</span>
-                   )}
-                 </div>
-                 <InfoIndicatorPopover 
-                   indicatorKey={indicador}
-                   title={indicador}
-                   description={descricaoIndicadores[indicador]}
-                 />
-               </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex flex-col">
+                    <span className="flex items-center gap-2">
+                      {indicador}
+                    </span>
+                    {indicador === "Participação de Capitais de Terceiros (PCT)" && (
+                      <span className="text-xs text-muted-foreground">Grau de Endividamento</span>
+                    )}
+                  </div>
+                  <InfoIndicatorPopover 
+                    indicatorKey={indicador}
+                    title={indicador}
+                    description={descricaoIndicadores[indicador]}
+                  />
+                </div>
                              </div>
                            </TableCell>
                            {/* Células dos meses com valores calculados */}
@@ -958,11 +978,18 @@ export function Indicadores() {
                                            <div>
                                              <h4 className="font-medium text-sm mb-2">Valores utilizados:</h4>
                                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                               {detalhes.componentes.map((componente, idx) => (
-                                                 <div key={idx} className="text-sm bg-background/50 p-2 rounded border">
-                                                   {componente}
-                                                 </div>
-                                               ))}
+                                             {detalhes.componentes.map((componente: any, idx: number) => (
+                                                  <div key={idx} className="flex items-center justify-between text-sm bg-background/50 p-2 rounded border">
+                                                    <span>
+                                                      {componente.label}: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(componente.valor)}
+                                                    </span>
+                                                    {componente.fonte && (
+                                                      <Badge variant={fonteMeta[componente.fonte].variant as any} className="ml-2 shrink-0">
+                                                        {fonteMeta[componente.fonte].label}
+                                                      </Badge>
+                                                    )}
+                                                  </div>
+                                                ))}
                                              </div>
                                            </div>
                                            
