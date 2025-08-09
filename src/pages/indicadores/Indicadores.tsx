@@ -577,7 +577,7 @@ export function Indicadores() {
         return {
           componentes: [
             `Receitas: ${formatarMoeda(receitas)}`,
-            `Custo (4.1 CUSTOS): ${formatarMoeda(custosPlano41)}`,
+            `Custos: ${formatarMoeda(custosPlano41)}`,
             `Lucro Bruto: ${formatarMoeda(lucroBruto)}`
           ],
           resultado: receitas > 0 ? (lucroBruto / receitas) * 100 : null
