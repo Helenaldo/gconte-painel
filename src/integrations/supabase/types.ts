@@ -370,6 +370,54 @@ export type Database = {
           },
         ]
       }
+      parametrizacoes_valores: {
+        Row: {
+          competencia: string
+          created_at: string
+          empresa_id: string
+          id: string
+          plano_padrao_conta_id: string
+          saldo_anterior: number
+          saldo_atual: number
+          updated_at: string
+        }
+        Insert: {
+          competencia: string
+          created_at?: string
+          empresa_id: string
+          id?: string
+          plano_padrao_conta_id: string
+          saldo_anterior?: number
+          saldo_atual?: number
+          updated_at?: string
+        }
+        Update: {
+          competencia?: string
+          created_at?: string
+          empresa_id?: string
+          id?: string
+          plano_padrao_conta_id?: string
+          saldo_anterior?: number
+          saldo_atual?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parametrizacoes_valores_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parametrizacoes_valores_plano_padrao_conta_id_fkey"
+            columns: ["plano_padrao_conta_id"]
+            isOneToOne: false
+            referencedRelation: "plano_contas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plano_contas: {
         Row: {
           codigo: string
