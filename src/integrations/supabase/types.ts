@@ -162,6 +162,7 @@ export type Database = {
           id: string
           natureza: string
           nome: string
+          saldo_anterior: number
           saldo_atual: number
           updated_at: string | null
         }
@@ -172,6 +173,7 @@ export type Database = {
           id?: string
           natureza: string
           nome: string
+          saldo_anterior?: number
           saldo_atual: number
           updated_at?: string | null
         }
@@ -182,6 +184,7 @@ export type Database = {
           id?: string
           natureza?: string
           nome?: string
+          saldo_anterior?: number
           saldo_atual?: number
           updated_at?: string | null
         }
