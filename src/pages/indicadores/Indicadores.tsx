@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -64,6 +65,26 @@ export function Indicadores() {
     "Margem Líquida (%)": "Indica o percentual do lucro líquido obtido sobre a receita líquida, refletindo a lucratividade final após todos os custos, despesas e tributos.",
     "Giro do Ativo": "Mede a eficiência na utilização dos ativos para gerar receitas. Quanto maior, melhor a empresa transforma recursos investidos em vendas.",
     "Capital Circulante Líquido (CCL)": "Representa a diferença entre o ativo circulante e o passivo circulante, mostrando o volume de recursos disponíveis para financiar as operações no curto prazo"
+  }
+  type FonteColuna = 'saldo_atual' | 'saldo_anterior' | 'movimento'
+
+  const indicadorFonteConfig: Record<string, FonteColuna> = {
+    "Liquidez Corrente": 'saldo_atual',
+    "Liquidez Seca": 'saldo_atual',
+    "Liquidez Geral": 'saldo_atual',
+    "Participação de Capitais de Terceiros (PCT)": 'saldo_atual',
+    "Composição do Endividamento (CE)": 'saldo_atual',
+    "Imobilização do Patrimônio Líquido (IPL)": 'saldo_atual',
+    "Margem Bruta (%)": 'saldo_atual',
+    "Margem Líquida (%)": 'saldo_atual',
+    "Giro do Ativo": 'saldo_atual',
+    "Capital Circulante Líquido (CCL)": 'saldo_atual'
+  }
+
+  const fonteMeta: Record<FonteColuna, { label: string; variant: 'success' | 'info' | 'warning' }> = {
+    saldo_atual: { label: 'Saldo Atual', variant: 'success' },
+    saldo_anterior: { label: 'Saldo Anterior', variant: 'info' },
+    movimento: { label: 'Movimento', variant: 'warning' }
   }
 
   // Carregar empresas disponíveis
@@ -273,6 +294,13 @@ export function Indicadores() {
           return total
         }
 
+        // Fonte explícita por indicador (padrão: Saldo Atual)
+        const obterValorContaPorFonte = (codigo: string, fonte: FonteColuna): number => {
+          // No momento, apenas Saldo Atual está implementado.
+          // Futuro: suportar 'saldo_anterior' e 'movimento' (saldo_atual - saldo_anterior)
+          return obterValorConta(codigo)
+        }
+
         // Debug: Log das contas disponíveis para este mês
         console.log(`=== MÊS ${mes} ===`)
         console.log('Contas parametrizadas disponíveis:', Object.keys(dados))
@@ -329,78 +357,134 @@ export function Indicadores() {
 
         // Calcular indicadores APENAS se todas as contas necessárias estão parametrizadas
         // Liquidez Corrente: precisa de Ativo Circulante e Passivo Circulante parametrizados
-        if (temContasParametrizadas('1.1') && temContasParametrizadas('2.1') && passivoCirculante !== 0) {
-          resultadosIndicadores["Liquidez Corrente"][mesNome] = ativoCirculante / passivoCirculante
-        } else {
-          resultadosIndicadores["Liquidez Corrente"][mesNome] = null
+        {
+          const fonte = indicadorFonteConfig["Liquidez Corrente"]
+          if (temContasParametrizadas('1.1') && temContasParametrizadas('2.1')) {
+            const ac = obterValorContaPorFonte('1.1', fonte)
+            const pc = obterValorContaPorFonte('2.1', fonte)
+            resultadosIndicadores["Liquidez Corrente"][mesNome] = pc !== 0 ? ac / pc : null
+          } else {
+            resultadosIndicadores["Liquidez Corrente"][mesNome] = null
+          }
         }
 
         // Liquidez Seca: precisa de Ativo Circulante e Passivo Circulante parametrizados
-        if (temContasParametrizadas('1.1') && temContasParametrizadas('2.1') && passivoCirculante !== 0) {
-          resultadosIndicadores["Liquidez Seca"][mesNome] = (ativoCirculante - estoques) / passivoCirculante
-        } else {
-          resultadosIndicadores["Liquidez Seca"][mesNome] = null
+        {
+          const fonte = indicadorFonteConfig["Liquidez Seca"]
+          if (temContasParametrizadas('1.1') && temContasParametrizadas('2.1')) {
+            const ac = obterValorContaPorFonte('1.1', fonte)
+            const est = obterValorContaPorFonte('1.1.4', fonte)
+            const pc = obterValorContaPorFonte('2.1', fonte)
+            resultadosIndicadores["Liquidez Seca"][mesNome] = pc !== 0 ? (ac - est) / pc : null
+          } else {
+            resultadosIndicadores["Liquidez Seca"][mesNome] = null
+          }
         }
 
         // Liquidez Geral: precisa de Ativo Circulante, Passivo Circulante e Não Circulante
-        if (temContasParametrizadas('1.1') && temContasParametrizadas('2.1') && temContasParametrizadas('2.2') && 
-            (passivoCirculante + passivoNaoCirculante) !== 0) {
-          resultadosIndicadores["Liquidez Geral"][mesNome] = (ativoCirculante + realizavelLongoPrazo) / (passivoCirculante + passivoNaoCirculante)
-        } else {
-          resultadosIndicadores["Liquidez Geral"][mesNome] = null
+        {
+          const fonte = indicadorFonteConfig["Liquidez Geral"]
+          if (temContasParametrizadas('1.1') && temContasParametrizadas('2.1') && temContasParametrizadas('2.2')) {
+            const ac = obterValorContaPorFonte('1.1', fonte)
+            const rlp = obterValorContaPorFonte('1.2.1', fonte)
+            const pc = obterValorContaPorFonte('2.1', fonte)
+            const pnc = obterValorContaPorFonte('2.2', fonte)
+            const denom = pc + pnc
+            resultadosIndicadores["Liquidez Geral"][mesNome] = denom !== 0 ? (ac + rlp) / denom : null
+          } else {
+            resultadosIndicadores["Liquidez Geral"][mesNome] = null
+          }
         }
 
         // PCT: precisa de Passivo (2.1 e 2.2) e Patrimônio Líquido (2.3) parametrizados
-        if (temContasParametrizadas('2.1') && temContasParametrizadas('2.2') && 
-            temContasParametrizadas('2.3') && patrimonioLiquido !== 0) {
-          resultadosIndicadores["Participação de Capitais de Terceiros (PCT)"][mesNome] = (passivoCirculante + passivoNaoCirculante) / patrimonioLiquido
-        } else {
-          resultadosIndicadores["Participação de Capitais de Terceiros (PCT)"][mesNome] = null
+        {
+          const fonte = indicadorFonteConfig["Participação de Capitais de Terceiros (PCT)"]
+          if (temContasParametrizadas('2.1') && temContasParametrizadas('2.2') && temContasParametrizadas('2.3')) {
+            const pc = obterValorContaPorFonte('2.1', fonte)
+            const pnc = obterValorContaPorFonte('2.2', fonte)
+            const pl = obterValorContaPorFonte('2.3', fonte)
+            resultadosIndicadores["Participação de Capitais de Terceiros (PCT)"][mesNome] = pl !== 0 ? (pc + pnc) / pl : null
+          } else {
+            resultadosIndicadores["Participação de Capitais de Terceiros (PCT)"][mesNome] = null
+          }
         }
 
         // IPL: precisa de Imobilizado (1.2.3), Depreciação Acumulada (1.2.4) e Patrimônio Líquido (2.3) parametrizados
-        if (temContasParametrizadas('1.2.3') && temContasParametrizadas('1.2.4') && temContasParametrizadas('2.3') && patrimonioLiquido !== 0) {
-          resultadosIndicadores["Imobilização do Patrimônio Líquido (IPL)"][mesNome] = (imobilizado - Math.abs(depreciacaoAcumulada)) / patrimonioLiquido
-        } else {
-          resultadosIndicadores["Imobilização do Patrimônio Líquido (IPL)"][mesNome] = null
+        {
+          const fonte = indicadorFonteConfig["Imobilização do Patrimônio Líquido (IPL)"]
+          if (temContasParametrizadas('1.2.3') && temContasParametrizadas('1.2.4') && temContasParametrizadas('2.3')) {
+            const imob = obterValorContaPorFonte('1.2.3', fonte)
+            const deprec = obterValorContaPorFonte('1.2.4', fonte)
+            const pl = obterValorContaPorFonte('2.3', fonte)
+            resultadosIndicadores["Imobilização do Patrimônio Líquido (IPL)"][mesNome] = pl !== 0 ? (imob - Math.abs(deprec)) / pl : null
+          } else {
+            resultadosIndicadores["Imobilização do Patrimônio Líquido (IPL)"][mesNome] = null
+          }
         }
 
         // CE: precisa de Passivo Circulante (2.1) e Passivo Não Circulante (2.2) parametrizados
-        if (temContasParametrizadas('2.1') && temContasParametrizadas('2.2') && (passivoCirculante + passivoNaoCirculante) !== 0) {
-          resultadosIndicadores["Composição do Endividamento (CE)"][mesNome] = passivoCirculante / (passivoCirculante + passivoNaoCirculante)
-        } else {
-          resultadosIndicadores["Composição do Endividamento (CE)"][mesNome] = null
+        {
+          const fonte = indicadorFonteConfig["Composição do Endividamento (CE)"]
+          if (temContasParametrizadas('2.1') && temContasParametrizadas('2.2')) {
+            const pc = obterValorContaPorFonte('2.1', fonte)
+            const pnc = obterValorContaPorFonte('2.2', fonte)
+            const denom = pc + pnc
+            resultadosIndicadores["Composição do Endividamento (CE)"][mesNome] = denom !== 0 ? pc / denom : null
+          } else {
+            resultadosIndicadores["Composição do Endividamento (CE)"][mesNome] = null
+          }
         }
 
         // Margem Bruta: precisa de Receitas (3.1) e Custos (4.1) parametrizados
-        if (temContasParametrizadas('3.1') && temContasParametrizadas('4.1') && receitas !== 0) {
-          const lucroBruto = receitas - custosPlano41
-          resultadosIndicadores["Margem Bruta (%)"][mesNome] = (lucroBruto / receitas) * 100
-        } else {
-          resultadosIndicadores["Margem Bruta (%)"][mesNome] = null
+        {
+          const fonte = indicadorFonteConfig["Margem Bruta (%)"]
+          if (temContasParametrizadas('3.1') && temContasParametrizadas('4.1')) {
+            const rec = obterValorContaPorFonte('3.1', fonte)
+            const custos41 = obterValorContaPorFonte('4.1', fonte)
+            const lucroBruto = rec - custos41
+            resultadosIndicadores["Margem Bruta (%)"][mesNome] = rec !== 0 ? (lucroBruto / rec) * 100 : null
+          } else {
+            resultadosIndicadores["Margem Bruta (%)"][mesNome] = null
+          }
         }
 
         // Margem Líquida: precisa de Receitas (3.1), Custos (4.1) e Despesas Operacionais (4.2) parametrizados
-        if (temContasParametrizadas('3.1') && temContasParametrizadas('4.1') && temContasParametrizadas('4.2') && receitas !== 0) {
-          const lucroLiquido = receitas - custosPlano41 - despesasPlano42
-          resultadosIndicadores["Margem Líquida (%)"][mesNome] = (lucroLiquido / receitas) * 100
-        } else {
-          resultadosIndicadores["Margem Líquida (%)"][mesNome] = null
+        {
+          const fonte = indicadorFonteConfig["Margem Líquida (%)"]
+          if (temContasParametrizadas('3.1') && temContasParametrizadas('4.1') && temContasParametrizadas('4.2')) {
+            const rec = obterValorContaPorFonte('3.1', fonte)
+            const custos41 = obterValorContaPorFonte('4.1', fonte)
+            const despesas42 = obterValorContaPorFonte('4.2', fonte)
+            const lucroLiquido = rec - custos41 - despesas42
+            resultadosIndicadores["Margem Líquida (%)"][mesNome] = rec !== 0 ? (lucroLiquido / rec) * 100 : null
+          } else {
+            resultadosIndicadores["Margem Líquida (%)"][mesNome] = null
+          }
         }
 
         // Giro do Ativo: precisa de Receitas (3.1) e Ativo Total (1.1 + 1.2) parametrizados
-        if (temContasParametrizadas('3.1') && temContasParametrizadas('1.1') && 
-            temContasParametrizadas('1.2') && ativoTotal !== 0 && receitas !== 0) {
-          resultadosIndicadores["Giro do Ativo"][mesNome] = receitas / ativoTotal
-        } else {
-          resultadosIndicadores["Giro do Ativo"][mesNome] = null
+        {
+          const fonte = indicadorFonteConfig["Giro do Ativo"]
+          if (temContasParametrizadas('3.1') && temContasParametrizadas('1.1') && temContasParametrizadas('1.2')) {
+            const rec = obterValorContaPorFonte('3.1', fonte)
+            const ac = obterValorContaPorFonte('1.1', fonte)
+            const anc = obterValorContaPorFonte('1.2', fonte)
+            const at = ac + anc
+            resultadosIndicadores["Giro do Ativo"][mesNome] = at !== 0 && rec !== 0 ? rec / at : null
+          } else {
+            resultadosIndicadores["Giro do Ativo"][mesNome] = null
+          }
         }
 
-        // Capital Circulante Líquido: precisa de Ativo Circulante (1.1) e Passivo Circulante (2.1) parametrizados
-        if (temContasParametrizadas('1.1') && temContasParametrizadas('2.1')) {
-          resultadosIndicadores["Capital Circulante Líquido (CCL)"][mesNome] = ativoCirculante - passivoCirculante
-        } else {
-          resultadosIndicadores["Capital Circulante Líquido (CCL)"][mesNome] = null
+        {
+          const fonte = indicadorFonteConfig["Capital Circulante Líquido (CCL)"]
+          if (temContasParametrizadas('1.1') && temContasParametrizadas('2.1')) {
+            const ac = obterValorContaPorFonte('1.1', fonte)
+            const pc = obterValorContaPorFonte('2.1', fonte)
+            resultadosIndicadores["Capital Circulante Líquido (CCL)"][mesNome] = ac - pc
+          } else {
+            resultadosIndicadores["Capital Circulante Líquido (CCL)"][mesNome] = null
+          }
         }
       })
 
@@ -788,19 +872,24 @@ export function Indicadores() {
                                    <ChevronRight className="h-4 w-4" />
                                  )}
                                </button>
-                               <div className="flex items-center gap-2">
-                                 <div className="flex flex-col">
-                                   <span>{indicador}</span>
-                                   {indicador === "Participação de Capitais de Terceiros (PCT)" && (
-                                     <span className="text-xs text-muted-foreground">Grau de Endividamento</span>
-                                   )}
-                                 </div>
-                                 <InfoIndicatorPopover 
-                                   indicatorKey={indicador}
-                                   title={indicador}
-                                   description={descricaoIndicadores[indicador]}
-                                 />
-                               </div>
+               <div className="flex items-center gap-2">
+                 <div className="flex flex-col">
+                   <span className="flex items-center gap-2">
+                     {indicador}
+                     <Badge variant={fonteMeta[indicadorFonteConfig[indicador]].variant} className="shrink-0">
+                       {fonteMeta[indicadorFonteConfig[indicador]].label}
+                     </Badge>
+                   </span>
+                   {indicador === "Participação de Capitais de Terceiros (PCT)" && (
+                     <span className="text-xs text-muted-foreground">Grau de Endividamento</span>
+                   )}
+                 </div>
+                 <InfoIndicatorPopover 
+                   indicatorKey={indicador}
+                   title={indicador}
+                   description={descricaoIndicadores[indicador]}
+                 />
+               </div>
                              </div>
                            </TableCell>
                            {/* Células dos meses com valores calculados */}
