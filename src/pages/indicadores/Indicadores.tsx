@@ -291,8 +291,9 @@ export function Indicadores() {
         const imobilizado = obterValorConta('1.2.3')  // 1.2.3 - Imobilizado
         const depreciacaoAcumulada = obterValorConta('1.2.4')  // 1.2.4 - ( - ) Depreciação Acumulada
         const receitas = obterValorConta('3.1')  // 3.1 - Receitas
-        const custos = obterValorConta('3.2')  // 3.2 - Custos
+        const custos = obterValorConta('3.2')  // 3.2 - Custos (não utilizado na Margem Bruta)
         const despesas = obterValorConta('4.')  // 4. - Despesas
+        const custosPlano41 = obterValorConta('4.1')  // 4.1 - CUSTOS (Plano Padrão)
 
         // Debug: Log dos valores calculados CORRIGIDOS
         console.log('VALORES CALCULADOS CORRIGIDOS:')
@@ -370,10 +371,10 @@ export function Indicadores() {
           resultadosIndicadores["Composição do Endividamento (CE)"][mesNome] = null
         }
 
-        // Margem Bruta: precisa de Receitas (3.1) parametrizadas
-        if (temContasParametrizadas('3.1') && receitas !== 0) {
-          const lucoBruto = receitas - custos
-          resultadosIndicadores["Margem Bruta (%)"][mesNome] = (lucoBruto / receitas) * 100
+        // Margem Bruta: precisa de Receitas (3.1) e Custos (4.1) parametrizados
+        if (temContasParametrizadas('3.1') && temContasParametrizadas('4.1') && receitas !== 0) {
+          const lucroBruto = receitas - custosPlano41
+          resultadosIndicadores["Margem Bruta (%)"][mesNome] = (lucroBruto / receitas) * 100
         } else {
           resultadosIndicadores["Margem Bruta (%)"][mesNome] = null
         }
@@ -507,8 +508,9 @@ export function Indicadores() {
     const imobilizado = obterValorConta('1.2.3')  // 1.2.3 - Imobilizado
     const depreciacaoAcumulada = obterValorConta('1.2.4')  // 1.2.4 - ( - ) Depreciação Acumulada
     const receitas = obterValorConta('3.1')  // 3.1 - Receitas
-    const custos = obterValorConta('3.2')  // 3.2 - Custos
+    const custos = obterValorConta('3.2')  // 3.2 - Custos (não utilizado na Margem Bruta)
     const despesas = obterValorConta('4.')  // 4. - Despesas
+    const custosPlano41 = obterValorConta('4.1')  // 4.1 - CUSTOS (Plano Padrão)
 
     switch (indicador) {
       case "Liquidez Corrente":
@@ -571,14 +573,14 @@ export function Indicadores() {
         }
       
       case "Margem Bruta (%)":
-        const lucoBruto = receitas - custos
+        const lucroBruto = receitas - custosPlano41
         return {
           componentes: [
             `Receitas: ${formatarMoeda(receitas)}`,
-            `Custos: ${formatarMoeda(custos)}`,
-            `Lucro Bruto: ${formatarMoeda(lucoBruto)}`
+            `Custo (4.1 CUSTOS): ${formatarMoeda(custosPlano41)}`,
+            `Lucro Bruto: ${formatarMoeda(lucroBruto)}`
           ],
-          resultado: receitas > 0 ? (lucoBruto / receitas) * 100 : null
+          resultado: receitas > 0 ? (lucroBruto / receitas) * 100 : null
         }
       
       case "Margem Líquida (%)":
