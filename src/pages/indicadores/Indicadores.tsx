@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { supabase } from "@/integrations/supabase/client"
 import { useToast } from "@/hooks/use-toast"
-import { Search, Calculator, ChevronDown, ChevronRight } from "lucide-react"
+import { Search, Calculator, ChevronDown, ChevronRight, Info } from "lucide-react"
 
 interface Empresa {
   cnpj: string
@@ -51,6 +52,19 @@ export function Indicadores() {
     "Giro do Ativo",
     "Capital Circulante Líquido (CCL)"
   ]
+
+  const descricaoIndicadores: { [key: string]: string } = {
+    "Liquidez Corrente": "Mede a capacidade de a empresa pagar suas obrigações de curto prazo utilizando todos os ativos de curto prazo disponíveis. Um índice saudável indica maior segurança financeira para honrar compromissos imediatos.",
+    "Liquidez Seca": "Avalia a capacidade de pagamento das dívidas de curto prazo sem depender da venda de estoques, o que fornece uma visão mais conservadora da liquidez.",
+    "Liquidez Geral": "Analisa a capacidade de a empresa quitar todas as suas obrigações, de curto e longo prazo, utilizando seus ativos realizáveis em qualquer prazo.",
+    "Participação de Capitais de Terceiros (PCT)": "Mostra o grau de dependência de capital de terceiros em relação ao patrimônio líquido. Índices altos indicam maior alavancagem financeira e potencial aumento de risco.",
+    "Composição do Endividamento (CE)": "Indica a proporção das dívidas de curto prazo sobre o total do endividamento. Percentuais mais altos sinalizam maior pressão sobre o caixa no curto prazo.",
+    "Imobilização do Patrimônio Líquido (IPL)": "Avalia quanto do patrimônio líquido está aplicado em ativos imobilizados, como máquinas, equipamentos e imóveis, reduzindo a disponibilidade para capital de giro.",
+    "Margem Bruta (%)": "Representa o percentual que sobra da receita líquida após a dedução dos custos diretos de produção ou prestação de serviços. Mede a eficiência produtiva da empresa.",
+    "Margem Líquida (%)": "Indica o percentual do lucro líquido obtido sobre a receita líquida, refletindo a lucratividade final após todos os custos, despesas e tributos.",
+    "Giro do Ativo": "Mede a eficiência na utilização dos ativos para gerar receitas. Quanto maior, melhor a empresa transforma recursos investidos em vendas.",
+    "Capital Circulante Líquido (CCL)": "Representa a diferença entre o ativo circulante e o passivo circulante, mostrando o volume de recursos disponíveis para financiar as operações no curto prazo"
+  }
 
   // Carregar empresas disponíveis
   useEffect(() => {
@@ -614,6 +628,43 @@ export function Indicadores() {
     }
   }
 
+  // Botão de informações do indicador com Popover (hover no desktop, clique no mobile)
+  const InfoIndicatorPopover = ({ indicatorKey, title, description }: { indicatorKey: string; title: string; description?: string }) => {
+    const [open, setOpen] = useState(false)
+    const contentId = `ind-desc-${indicatorKey.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
+    const isDesktopHover = () => typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches
+
+    return (
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            aria-label={`Informações sobre ${title}`}
+            aria-describedby={contentId}
+            onMouseEnter={() => { if (isDesktopHover()) setOpen(true) }}
+            onMouseLeave={() => { if (isDesktopHover()) setOpen(false) }}
+            onClick={() => setOpen((o) => !o)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen((o) => !o) } }}
+            className="inline-flex items-center justify-center h-6 w-6 rounded-full border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          >
+            <Info className="h-3.5 w-3.5" aria-hidden="true" />
+            <span className="sr-only">Abrir detalhes do indicador</span>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent id={contentId} side="top" align="center" sideOffset={8} avoidCollisions className="w-auto max-w-[320px] p-3">
+          <div className="space-y-1">
+            <h3 className="text-sm font-semibold">{title}</h3>
+            {description ? (
+              <p className="text-sm text-muted-foreground">{description}</p>
+            ) : (
+              <p className="text-sm text-muted-foreground">Descrição não disponível.</p>
+            )}
+          </div>
+        </PopoverContent>
+      </Popover>
+    )
+  }
+
   return (
     <div className="w-full min-h-screen flex justify-center px-4 sm:px-6 lg:px-8">
       <div className="w-full max-w-[95%] xl:max-w-[1360px] space-y-8 py-6">
@@ -733,12 +784,19 @@ export function Indicadores() {
                                    <ChevronRight className="h-4 w-4" />
                                  )}
                                </button>
-                                <div className="flex flex-col">
-                                  <span>{indicador}</span>
-                                  {indicador === "Participação de Capitais de Terceiros (PCT)" && (
-                                    <span className="text-xs text-muted-foreground">Grau de Endividamento</span>
-                                  )}
-                                </div>
+                               <div className="flex items-center gap-2">
+                                 <div className="flex flex-col">
+                                   <span>{indicador}</span>
+                                   {indicador === "Participação de Capitais de Terceiros (PCT)" && (
+                                     <span className="text-xs text-muted-foreground">Grau de Endividamento</span>
+                                   )}
+                                 </div>
+                                 <InfoIndicatorPopover 
+                                   indicatorKey={indicador}
+                                   title={indicador}
+                                   description={descricaoIndicadores[indicador]}
+                                 />
+                               </div>
                              </div>
                            </TableCell>
                            {/* Células dos meses com valores calculados */}
