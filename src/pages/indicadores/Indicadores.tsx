@@ -274,7 +274,8 @@ export function Indicadores() {
         const patrimonioLiquido = obterValorConta('2.3')  // 2.3 - Patrimônio Líquido
         const estoques = obterValorConta('1.1.4')  // 1.1.4 - Estoques
         const realizavelLongoPrazo = obterValorConta('1.2.1')  // 1.2.1 - Realizável a Longo Prazo
-        const imobilizado = obterValorConta('1.2.2')  // 1.2.2 - Imobilizado
+        const imobilizado = obterValorConta('1.2.3')  // 1.2.3 - Imobilizado
+        const depreciacaoAcumulada = obterValorConta('1.2.4')  // 1.2.4 - ( - ) Depreciação Acumulada
         const receitas = obterValorConta('3.1')  // 3.1 - Receitas
         const custos = obterValorConta('3.2')  // 3.2 - Custos
         const despesas = obterValorConta('4.')  // 4. - Despesas
@@ -341,9 +342,9 @@ export function Indicadores() {
           resultadosIndicadores["Participação de Capitais de Terceiros (PCT)"][mesNome] = null
         }
 
-        // IPL: precisa de Imobilizado (1.2.2) e Patrimônio Líquido (2.3) parametrizados
-        if (temContasParametrizadas('1.2.2') && temContasParametrizadas('2.3') && patrimonioLiquido !== 0) {
-          resultadosIndicadores["Imobilização do Patrimônio Líquido (IPL)"][mesNome] = imobilizado / patrimonioLiquido
+        // IPL: precisa de Imobilizado (1.2.3), Depreciação Acumulada (1.2.4) e Patrimônio Líquido (2.3) parametrizados
+        if (temContasParametrizadas('1.2.3') && temContasParametrizadas('1.2.4') && temContasParametrizadas('2.3') && patrimonioLiquido !== 0) {
+          resultadosIndicadores["Imobilização do Patrimônio Líquido (IPL)"][mesNome] = (imobilizado - Math.abs(depreciacaoAcumulada)) / patrimonioLiquido
         } else {
           resultadosIndicadores["Imobilização do Patrimônio Líquido (IPL)"][mesNome] = null
         }
@@ -430,7 +431,7 @@ export function Indicadores() {
       "Liquidez Geral": "(Ativo Circulante + Realizável a Longo Prazo) ÷ (Passivo Circulante + Exigível a Longo Prazo)",
       "Participação de Capitais de Terceiros (PCT)": "(Passivo Circulante + Passivo Não Circulante) ÷ Patrimônio Líquido",
       "Composição do Endividamento (CE)": "Passivo Circulante ÷ (Passivo Circulante + Passivo Não Circulante)",
-      "Imobilização do Patrimônio Líquido (IPL)": "Imobilizado ÷ Patrimônio Líquido",
+      "Imobilização do Patrimônio Líquido (IPL)": "(Imobilizado - Depreciação Acumulada) ÷ Patrimônio Líquido",
       "Margem Bruta (%)": "(Lucro Bruto ÷ Receita Líquida) × 100",
       "Margem Líquida (%)": "(Lucro Líquido ÷ Receita Líquida) × 100",
       "Giro do Ativo": "Receita Líquida ÷ Ativo Total",
@@ -489,7 +490,8 @@ export function Indicadores() {
     const patrimonioLiquido = obterValorConta('2.3')  // 2.3 - Patrimônio Líquido
     const estoques = obterValorConta('1.1.4')  // 1.1.4 - Estoques
     const realizavelLongoPrazo = obterValorConta('1.2.1')  // 1.2.1 - Realizável a Longo Prazo
-    const imobilizado = obterValorConta('1.2.2')  // 1.2.2 - Imobilizado
+    const imobilizado = obterValorConta('1.2.3')  // 1.2.3 - Imobilizado
+    const depreciacaoAcumulada = obterValorConta('1.2.4')  // 1.2.4 - ( - ) Depreciação Acumulada
     const receitas = obterValorConta('3.1')  // 3.1 - Receitas
     const custos = obterValorConta('3.2')  // 3.2 - Custos
     const despesas = obterValorConta('4.')  // 4. - Despesas
@@ -548,9 +550,10 @@ export function Indicadores() {
         return {
           componentes: [
             `Imobilizado: ${formatarMoeda(imobilizado)}`,
+            `Depreciação Acumulada (sem sinal): ${formatarMoeda(Math.abs(depreciacaoAcumulada))}`,
             `Patrimônio Líquido: ${formatarMoeda(patrimonioLiquido)}`
           ],
-          resultado: patrimonioLiquido > 0 ? imobilizado / patrimonioLiquido : null
+          resultado: patrimonioLiquido > 0 ? (imobilizado - Math.abs(depreciacaoAcumulada)) / patrimonioLiquido : null
         }
       
       case "Margem Bruta (%)":
