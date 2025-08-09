@@ -292,8 +292,9 @@ export function Indicadores() {
         const depreciacaoAcumulada = obterValorConta('1.2.4')  // 1.2.4 - ( - ) Depreciação Acumulada
         const receitas = obterValorConta('3.1')  // 3.1 - Receitas
         const custos = obterValorConta('3.2')  // 3.2 - Custos (não utilizado na Margem Bruta)
-        const despesas = obterValorConta('4.')  // 4. - Despesas
+        const despesas = obterValorConta('4.')  // 4. - Despesas (geral - não utilizado na Margem Líquida)
         const custosPlano41 = obterValorConta('4.1')  // 4.1 - CUSTOS (Plano Padrão)
+        const despesasPlano42 = obterValorConta('4.2')  // 4.2 - DESPESAS OPERACIONAIS (Plano Padrão)
 
         // Debug: Log dos valores calculados CORRIGIDOS
         console.log('VALORES CALCULADOS CORRIGIDOS:')
@@ -379,9 +380,9 @@ export function Indicadores() {
           resultadosIndicadores["Margem Bruta (%)"][mesNome] = null
         }
 
-        // Margem Líquida: precisa de Receitas (3.1) parametrizadas
-        if (temContasParametrizadas('3.1') && receitas !== 0) {
-          const lucroLiquido = receitas - custos - despesas
+        // Margem Líquida: precisa de Receitas (3.1), Custos (4.1) e Despesas Operacionais (4.2) parametrizados
+        if (temContasParametrizadas('3.1') && temContasParametrizadas('4.1') && temContasParametrizadas('4.2') && receitas !== 0) {
+          const lucroLiquido = receitas - custosPlano41 - despesasPlano42
           resultadosIndicadores["Margem Líquida (%)"][mesNome] = (lucroLiquido / receitas) * 100
         } else {
           resultadosIndicadores["Margem Líquida (%)"][mesNome] = null
@@ -448,7 +449,7 @@ export function Indicadores() {
       "Composição do Endividamento (CE)": "Passivo Circulante ÷ (Passivo Circulante + Passivo Não Circulante)",
       "Imobilização do Patrimônio Líquido (IPL)": "(Imobilizado - Depreciação Acumulada) ÷ Patrimônio Líquido",
       "Margem Bruta (%)": "(Lucro Bruto ÷ Receita Líquida) × 100",
-      "Margem Líquida (%)": "(Lucro Líquido ÷ Receita Líquida) × 100",
+      "Margem Líquida (%)": "((3 RECEITAS - 4.1 CUSTOS - 4.2 DESPESAS OPERACIONAIS) ÷ 3 RECEITAS) × 100",
       "Giro do Ativo": "Receita Líquida ÷ Ativo Total",
       "Capital Circulante Líquido (CCL)": "Ativo Circulante – Passivo Circulante"
     }
@@ -509,8 +510,9 @@ export function Indicadores() {
     const depreciacaoAcumulada = obterValorConta('1.2.4')  // 1.2.4 - ( - ) Depreciação Acumulada
     const receitas = obterValorConta('3.1')  // 3.1 - Receitas
     const custos = obterValorConta('3.2')  // 3.2 - Custos (não utilizado na Margem Bruta)
-    const despesas = obterValorConta('4.')  // 4. - Despesas
+    const despesas = obterValorConta('4.')  // 4. - Despesas (geral - não utilizado na Margem Líquida)
     const custosPlano41 = obterValorConta('4.1')  // 4.1 - CUSTOS (Plano Padrão)
+    const despesasPlano42 = obterValorConta('4.2')  // 4.2 - DESPESAS OPERACIONAIS (Plano Padrão)
 
     switch (indicador) {
       case "Liquidez Corrente":
@@ -584,12 +586,12 @@ export function Indicadores() {
         }
       
       case "Margem Líquida (%)":
-        const lucroLiquido = receitas - custos - despesas
+        const lucroLiquido = receitas - custosPlano41 - despesasPlano42
         return {
           componentes: [
             `Receitas: ${formatarMoeda(receitas)}`,
-            `Custos: ${formatarMoeda(custos)}`,
-            `Despesas: ${formatarMoeda(despesas)}`,
+            `Custos: ${formatarMoeda(custosPlano41)}`,
+            `Despesas: ${formatarMoeda(despesasPlano42)}`,
             `Lucro Líquido: ${formatarMoeda(lucroLiquido)}`
           ],
           resultado: receitas > 0 ? (lucroLiquido / receitas) * 100 : null
