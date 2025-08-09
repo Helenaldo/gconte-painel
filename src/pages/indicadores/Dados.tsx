@@ -436,7 +436,8 @@ export function Dados() {
       pdf.setFontSize(10)
       pdf.text('CÓDIGO', 20, yPosition)
       pdf.text('CONTA', 50, yPosition)
-      pdf.text('VALOR', 160, yPosition)
+      pdf.text('SALDO ANTERIOR', 130, yPosition)
+      pdf.text('SALDO ATUAL', 180, yPosition)
       
       // Linha separadora
       pdf.line(20, yPosition + 3, 190, yPosition + 3)
@@ -449,14 +450,27 @@ export function Dados() {
           return parametrizacoes.length > 0
         })
         .map(conta => {
-          const valorParametrizado = calcularValorParametrizado(conta, parametrizacoesData, balanceteDoMes)
+          const contasParam = parametrizacoesData.filter(p => p.plano_conta_id === conta.id)
+          const valorBrutoAtual = contasParam.reduce((total, param) => {
+            const cb = balanceteDoMes.find(cb => cb.codigo === param.conta_balancete_codigo)
+            return total + (cb?.saldo_atual || 0)
+          }, 0)
+          const valorBrutoAnterior = contasParam.reduce((total, param) => {
+            const cb = balanceteDoMes.find(cb => cb.codigo === param.conta_balancete_codigo)
+            return total + (cb?.saldo_anterior || 0)
+          }, 0)
+          const naturezaAtual = determinarNatureza(conta, valorBrutoAtual)
+          const naturezaAnterior = determinarNatureza(conta, valorBrutoAnterior)
+          const valorAtual = naturezaAtual === 'credora' ? -valorBrutoAtual : valorBrutoAtual
+          const valorAnterior = naturezaAnterior === 'credora' ? -valorBrutoAnterior : valorBrutoAnterior
           return {
             codigo: conta.codigo,
             nome: conta.nome,
-            valor: valorParametrizado
+            valorAnterior,
+            valorAtual
           }
         })
-        .filter(conta => Math.abs(conta.valor) > 0.01) // Apenas contas com saldo
+        .filter(conta => Math.abs(conta.valorAnterior) > 0.01 || Math.abs(conta.valorAtual) > 0.01)
         .sort((a, b) => a.codigo.localeCompare(b.codigo))
       
       // Adicionar contas ao PDF
@@ -473,9 +487,11 @@ export function Dados() {
           conta.nome.substring(0, 50) + '...' : conta.nome
         pdf.text(nomeFormatado, 50, yPosition)
         
-        // Valor formatado
-        const valorFormatado = formatarMoeda(conta.valor)
-        pdf.text(valorFormatado, 160, yPosition)
+        // Valores formatados
+        const valorAnteriorFormatado = formatarMoeda(conta.valorAnterior)
+        const valorAtualFormatado = formatarMoeda(conta.valorAtual)
+        pdf.text(valorAnteriorFormatado, 150, yPosition, { align: 'right' })
+        pdf.text(valorAtualFormatado, 190, yPosition, { align: 'right' })
         
         yPosition += 8
       })
