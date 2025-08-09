@@ -86,7 +86,7 @@ export function Login() {
   // reCAPTCHA
   const recaptchaRef = useRef<ReCAPTCHA | null>(null)
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null)
-  const RECAPTCHA_SITE_KEY = "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI" // Test key by Google (dev only)
+  const RECAPTCHA_SITE_KEY = localStorage.getItem('recaptcha_site_key') || "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI" // Override via localStorage: recaptcha_site_key
 
   if (loading) {
     return (
