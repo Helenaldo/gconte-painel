@@ -933,7 +933,7 @@ export function Indicadores() {
                          <>
                            {/* Cabeçalho da categoria */}
                            <TableRow key={`header-${cat.titulo}`}>
-                             <TableCell colSpan={mesesExibidos.length + 1} className="px-4 py-2 bg-muted/40 text-muted-foreground font-semibold uppercase tracking-wide">
+                             <TableCell colSpan={mesesExibidos.length + 1} className="px-4 py-2 bg-primary/10 text-primary font-semibold uppercase tracking-wide">
                                {cat.titulo}
                              </TableCell>
                            </TableRow>
