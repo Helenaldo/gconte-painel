@@ -54,6 +54,40 @@ export function Indicadores() {
     "Capital Circulante Líquido (CCL)"
   ]
 
+  // Categorias para agrupamento da tabela
+  const categorias: { titulo: string; itens: string[] }[] = [
+    {
+      titulo: 'Indicadores de Liquidez',
+      itens: [
+        'Liquidez Corrente',
+        'Liquidez Seca',
+        'Liquidez Geral',
+        'Capital Circulante Líquido (CCL)'
+      ],
+    },
+    {
+      titulo: 'Indicadores de Estrutura de Capital / Endividamento',
+      itens: [
+        'Participação de Capitais de Terceiros (PCT)',
+        'Composição do Endividamento (CE)',
+        'Imobilização do Patrimônio Líquido (IPL)'
+      ],
+    },
+    {
+      titulo: 'Indicadores de Rentabilidade / Lucratividade',
+      itens: [
+        'Margem Bruta (%)',
+        'Margem Líquida (%)'
+      ],
+    },
+    {
+      titulo: 'Indicadores de Atividade / Eficiência',
+      itens: [
+        'Giro do Ativo'
+      ],
+    },
+  ]
+
   const descricaoIndicadores: { [key: string]: string } = {
     "Liquidez Corrente": "Mede a capacidade de a empresa pagar suas obrigações de curto prazo utilizando todos os ativos de curto prazo disponíveis. Um índice saudável indica maior segurança financeira para honrar compromissos imediatos.",
     "Liquidez Seca": "Avalia a capacidade de pagamento das dívidas de curto prazo sem depender da venda de estoques, o que fornece uma visão mais conservadora da liquidez.",
@@ -889,141 +923,162 @@ export function Indicadores() {
                       ))}
                     </TableRow>
                   </TableHeader>
-                   <TableBody>
-                     {nomeIndicadores.map((indicador, index) => (
-                       <>
-                         <TableRow 
-                           key={indicador}
-                           className={index % 2 === 0 ? "bg-background hover:bg-muted/50" : "bg-muted/30 hover:bg-muted/60"}
-                         >
-                           {/* Primeira coluna fixa - Nome do indicador com ícone expansível */}
-                           <TableCell className="sticky left-0 bg-inherit z-10 border-r font-medium px-4 py-3">
-                             <div className="flex items-center gap-2">
-                               <button
-                                 onClick={() => toggleIndicador(indicador)}
-                                 className="text-muted-foreground hover:text-foreground transition-colors"
-                               >
-                                 {indicadorExpandido === indicador ? (
-                                   <ChevronDown className="h-4 w-4" />
-                                 ) : (
-                                   <ChevronRight className="h-4 w-4" />
-                                 )}
-                               </button>
-                <div className="flex items-center gap-2">
-                  <div className="flex flex-col">
-                    <span className="flex items-center gap-2">
-                      {indicador}
-                    </span>
-                    {indicador === "Participação de Capitais de Terceiros (PCT)" && (
-                      <span className="text-xs text-muted-foreground">Grau de Endividamento</span>
-                    )}
-                  </div>
-                  <InfoIndicatorPopover 
-                    indicatorKey={indicador}
-                    title={indicador}
-                    description={descricaoIndicadores[indicador]}
-                  />
-                </div>
-                             </div>
-                           </TableCell>
-                           {/* Células dos meses com valores calculados */}
-                           {mesesExibidos.map((mes) => (
-                             <TableCell 
-                               key={mes} 
-                               className="text-center px-3 py-3"
-                             >
-                               {formatarValor(indicadores[indicador]?.[mes] || null, indicador)}
-                             </TableCell>
-                           ))}
-                         </TableRow>
-                         
-                         {/* Linha expandida com detalhes do cálculo */}
-                         {indicadorExpandido === indicador && (
-                           <TableRow>
-                             <TableCell 
-                               colSpan={mesesExibidos.length + 1} 
-                               className="sticky left-0 bg-muted/20 border-b border-border px-4 py-6"
-                             >
-                               <div className="space-y-4">
-                                 {/* Seleção de mês */}
-                                 <div>
-                                   <Label className="text-sm font-medium mb-3 block">
-                                     Selecione o mês para ver os detalhes do cálculo:
-                                   </Label>
-                                   <RadioGroup 
-                                     value={mesSelecionado} 
-                                     onValueChange={setMesSelecionado}
-                                     className="flex flex-wrap gap-4"
-                                   >
-                                     {mesesExibidos.map((mes) => (
-                                       <div key={mes} className="flex items-center space-x-2">
-                                         <RadioGroupItem value={mes} id={`mes-${mes}`} />
-                                         <Label htmlFor={`mes-${mes}`} className="text-sm font-normal">
-                                           {mes}
-                                         </Label>
-                                       </div>
-                                     ))}
-                                   </RadioGroup>
-                                 </div>
+                  <TableBody>
+                     {categorias.map((cat) => {
+                       // Permitir futura filtragem mantendo cabeçalhos das categorias
+                       const itensVisiveis = cat.itens.filter((n) => nomeIndicadores.includes(n))
+                       if (itensVisiveis.length === 0) return null
 
-                                 {/* Detalhes do cálculo */}
-                                 {mesSelecionado && (
-                                   <div className="border-t pt-4 space-y-3">
-                                     <div>
-                                       <h4 className="font-medium text-sm mb-2">Fórmula:</h4>
-                                       <p className="text-sm text-muted-foreground bg-background/50 p-3 rounded border">
-                                         {obterFormula(indicador)}
-                                       </p>
-                                     </div>
-                                     
-                                     {(() => {
-                                       const detalhes = obterDetalhesCalculo(indicador, mesSelecionado)
-                                       
-                                       if (detalhes.erro) {
-                                         return (
-                                           <div className="text-sm text-muted-foreground bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded border border-yellow-200 dark:border-yellow-800">
-                                             {detalhes.erro}
-                                           </div>
-                                         )
-                                       }
-                                       
-                                       return (
-                                         <>
-                                           <div>
-                                             <h4 className="font-medium text-sm mb-2">Valores utilizados:</h4>
-                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                             {detalhes.componentes.map((componente: any, idx: number) => (
-                                                  <div key={idx} className="flex items-center justify-between text-sm bg-background/50 p-2 rounded border">
-                                                    <span>
-                                                      {componente.label}: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(componente.valor)}
-                                                    </span>
-                                                    {componente.fonte && (
-                                                      <Badge variant={fonteMeta[componente.fonte].variant as any} className="ml-2 shrink-0">
-                                                        {fonteMeta[componente.fonte].label}
-                                                      </Badge>
-                                                    )}
-                                                  </div>
-                                                ))}
-                                             </div>
-                                           </div>
-                                           
-                                           <div>
-                                             <h4 className="font-medium text-sm mb-2">Resultado:</h4>
-                                             <div className="text-sm font-semibold bg-primary/10 text-primary p-3 rounded border">
-                                               {formatarValor(detalhes.resultado, indicador)}
-                                             </div>
-                                           </div>
-                                         </>
-                                       )
-                                     })()}
-                                   </div>
-                                 )}
-                               </div>
+                       return (
+                         <>
+                           {/* Cabeçalho da categoria */}
+                           <TableRow key={`header-${cat.titulo}`}>
+                             <TableCell colSpan={mesesExibidos.length + 1} className="px-4 py-2 bg-muted/40 text-muted-foreground font-semibold uppercase tracking-wide">
+                               {cat.titulo}
                              </TableCell>
                            </TableRow>
-                         )}
-                       </>
-                     ))}
+
+                           {/* Indicadores da categoria */}
+                           {itensVisiveis.map((indicador) => {
+                             const rowIndex = nomeIndicadores.indexOf(indicador)
+                             return (
+                               <>
+                                 <TableRow
+                                   key={indicador}
+                                   className={rowIndex % 2 === 0 ? "bg-background hover:bg-muted/50" : "bg-muted/30 hover:bg-muted/60"}
+                                 >
+                                   {/* Primeira coluna fixa - Nome do indicador com ícone expansível */}
+                                   <TableCell className="sticky left-0 bg-inherit z-10 border-r font-medium px-4 py-3">
+                                     <div className="flex items-center gap-2">
+                                       <button
+                                         onClick={() => toggleIndicador(indicador)}
+                                         className="text-muted-foreground hover:text-foreground transition-colors"
+                                       >
+                                         {indicadorExpandido === indicador ? (
+                                           <ChevronDown className="h-4 w-4" />
+                                         ) : (
+                                           <ChevronRight className="h-4 w-4" />
+                                         )}
+                                       </button>
+                                       <div className="flex items-center gap-2">
+                                         <div className="flex flex-col">
+                                           <span className="flex items-center gap-2">
+                                             {indicador}
+                                           </span>
+                                           {indicador === "Participação de Capitais de Terceiros (PCT)" && (
+                                             <span className="text-xs text-muted-foreground">Grau de Endividamento</span>
+                                           )}
+                                         </div>
+                                         <InfoIndicatorPopover
+                                           indicatorKey={indicador}
+                                           title={indicador}
+                                           description={descricaoIndicadores[indicador]}
+                                         />
+                                       </div>
+                                     </div>
+                                   </TableCell>
+                                   {/* Células dos meses com valores calculados */}
+                                   {mesesExibidos.map((mes) => (
+                                     <TableCell
+                                       key={mes}
+                                       className="text-center px-3 py-3"
+                                     >
+                                       {formatarValor(indicadores[indicador]?.[mes] || null, indicador)}
+                                     </TableCell>
+                                   ))}
+                                 </TableRow>
+
+                                 {/* Linha expandida com detalhes do cálculo */}
+                                 {indicadorExpandido === indicador && (
+                                   <TableRow key={`${indicador}-detalhes`}>
+                                     <TableCell
+                                       colSpan={mesesExibidos.length + 1}
+                                       className="sticky left-0 bg-muted/20 border-b border-border px-4 py-6"
+                                     >
+                                       <div className="space-y-4">
+                                         {/* Seleção de mês */}
+                                         <div>
+                                           <Label className="text-sm font-medium mb-3 block">
+                                             Selecione o mês para ver os detalhes do cálculo:
+                                           </Label>
+                                           <RadioGroup
+                                             value={mesSelecionado}
+                                             onValueChange={setMesSelecionado}
+                                             className="flex flex-wrap gap-4"
+                                           >
+                                             {mesesExibidos.map((mes) => (
+                                               <div key={mes} className="flex items-center space-x-2">
+                                                 <RadioGroupItem value={mes} id={`mes-${mes}`} />
+                                                 <Label htmlFor={`mes-${mes}`} className="text-sm font-normal">
+                                                   {mes}
+                                                 </Label>
+                                               </div>
+                                             ))}
+                                           </RadioGroup>
+                                         </div>
+
+                                         {/* Detalhes do cálculo */}
+                                         {mesSelecionado && (
+                                           <div className="border-t pt-4 space-y-3">
+                                             <div>
+                                               <h4 className="font-medium text-sm mb-2">Fórmula:</h4>
+                                               <p className="text-sm text-muted-foreground bg-background/50 p-3 rounded border">
+                                                 {obterFormula(indicador)}
+                                               </p>
+                                             </div>
+
+                                             {(() => {
+                                               const detalhes = obterDetalhesCalculo(indicador, mesSelecionado)
+
+                                               if (detalhes.erro) {
+                                                 return (
+                                                   <div className="text-sm text-muted-foreground bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded border border-yellow-200 dark:border-yellow-800">
+                                                     {detalhes.erro}
+                                                   </div>
+                                                 )
+                                               }
+
+                                               return (
+                                                 <>
+                                                   <div>
+                                                     <h4 className="font-medium text-sm mb-2">Valores utilizados:</h4>
+                                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                       {detalhes.componentes.map((componente: any, idx: number) => (
+                                                         <div key={idx} className="flex items-center justify-between text-sm bg-background/50 p-2 rounded border">
+                                                           <span>
+                                                             {componente.label}: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(componente.valor)}
+                                                           </span>
+                                                           {componente.fonte && (
+                                                             <Badge variant={fonteMeta[componente.fonte].variant as any} className="ml-2 shrink-0">
+                                                               {fonteMeta[componente.fonte].label}
+                                                             </Badge>
+                                                           )}
+                                                         </div>
+                                                       ))}
+                                                     </div>
+                                                   </div>
+
+                                                   <div>
+                                                     <h4 className="font-medium text-sm mb-2">Resultado:</h4>
+                                                     <div className="text-sm font-semibold bg-primary/10 text-primary p-3 rounded border">
+                                                       {formatarValor(detalhes.resultado, indicador)}
+                                                     </div>
+                                                   </div>
+                                                 </>
+                                               )
+                                             })()}
+                                           </div>
+                                         )}
+                                       </div>
+                                     </TableCell>
+                                   </TableRow>
+                                 )}
+                               </>
+                             )
+                           })}
+                         </>
+                       )
+                     })}
                    </TableBody>
                 </Table>
               </div>
