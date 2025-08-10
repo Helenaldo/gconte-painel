@@ -38,7 +38,7 @@ export function Indicadores() {
   const [mesesExibidos, setMesesExibidos] = useState<string[]>([])
   const [indicadorExpandido, setIndicadorExpandido] = useState<string | null>(null)
   const [mesSelecionado, setMesSelecionado] = useState<string>("")
-  const [dadosDetalhados, setDadosDetalhados] = useState<{ [mes: number]: { [grupo: string]: number } }>({})
+  const [dadosDetalhados, setDadosDetalhados] = useState<{ [mes: number]: { [codigoPlano: string]: { saldo_atual: number; saldo_anterior: number } } }>({})
 
   // Lista de indicadores contábeis e financeiros
   const nomeIndicadores = [
@@ -63,7 +63,7 @@ export function Indicadores() {
     "Imobilização do Patrimônio Líquido (IPL)": "Avalia quanto do patrimônio líquido está aplicado em ativos imobilizados, como máquinas, equipamentos e imóveis, reduzindo a disponibilidade para capital de giro.",
     "Margem Bruta (%)": "Representa o percentual que sobra da receita líquida após a dedução dos custos diretos de produção ou prestação de serviços. Mede a eficiência produtiva da empresa.",
     "Margem Líquida (%)": "Indica o percentual do lucro líquido obtido sobre a receita líquida, refletindo a lucratividade final após todos os custos, despesas e tributos.",
-    "Giro do Ativo": "Mede a eficiência na utilização dos ativos para gerar receitas. Quanto maior, melhor a empresa transforma recursos investidos em vendas.",
+    "Giro do Ativo": "Mede a eficiência da empresa em gerar receita com o uso de seus ativos. Quanto maior, mais eficiente é a utilização dos recursos. Este número representa quantas vezes o ativo gira em um ano.",
     "Capital Circulante Líquido (CCL)": "Representa a diferença entre o ativo circulante e o passivo circulante, mostrando o volume de recursos disponíveis para financiar as operações no curto prazo"
   }
   // Fonte por coluna para variáveis de cada indicador
@@ -108,16 +108,16 @@ export function Indicadores() {
       'Patrimônio Líquido': 'saldo_atual',
     },
     'Margem Bruta (%)': {
-      'Receitas': 'saldo_atual',
-      'Custos': 'saldo_atual',
+      'Receitas': 'movimento',
+      'Custos': 'movimento',
     },
     'Margem Líquida (%)': {
-      'Receitas': 'saldo_atual',
-      'Custos': 'saldo_atual',
-      'Despesas': 'saldo_atual',
+      'Receitas': 'movimento',
+      'Custos': 'movimento',
+      'Despesas': 'movimento',
     },
     'Giro do Ativo': {
-      'Receitas': 'saldo_atual',
+      'Receitas': 'movimento',
       'Ativo Circulante': 'saldo_atual',
       'Ativo Não Circulante': 'saldo_atual',
     },
@@ -233,7 +233,7 @@ export function Indicadores() {
         .select(`
           id, ano, mes,
           contas_balancete (
-            codigo, nome, saldo_atual
+            codigo, nome, saldo_atual, saldo_anterior
           )
         `)
         .eq('cnpj', empresaSelecionada)
@@ -276,7 +276,7 @@ export function Indicadores() {
       })
 
       // Processar dados por mês usando APENAS contas parametrizadas do Plano de Contas Padrão
-      const dadosPorMes: { [mes: number]: { [codigoPlano: string]: number } } = {}
+      const dadosPorMes: { [mes: number]: { [codigoPlano: string]: { saldo_atual: number; saldo_anterior: number } } } = {}
       const mesesComDados: number[] = []
 
       balancetes.forEach(balancete => {
@@ -291,9 +291,10 @@ export function Indicadores() {
           if (planoContas) {
             const codigoPlano = planoContas.codigo
             if (!dadosPorMes[balancete.mes][codigoPlano]) {
-              dadosPorMes[balancete.mes][codigoPlano] = 0
+              dadosPorMes[balancete.mes][codigoPlano] = { saldo_atual: 0, saldo_anterior: 0 }
             }
-            dadosPorMes[balancete.mes][codigoPlano] += parseFloat(conta.saldo_atual.toString()) || 0
+            dadosPorMes[balancete.mes][codigoPlano].saldo_atual += parseFloat(conta.saldo_atual?.toString() || "0")
+            dadosPorMes[balancete.mes][codigoPlano].saldo_anterior += parseFloat(conta.saldo_anterior?.toString() || "0")
           }
         })
       })
@@ -314,34 +315,38 @@ export function Indicadores() {
         const mesNome = nomesMeses[mes - 1]
         const dados = dadosPorMes[mes]
 
-        // Função para obter valor de conta do Plano de Contas Padrão - usar conta específica ou somar filhas
-        const obterValorConta = (codigo: string): number => {
-          // Se a conta específica existe, usar seu valor (já consolidado)
-          if (dados[codigo] !== undefined) {
-            return dados[codigo]
+        // Funções para obter valores por campo/fonte (saldo_atual, saldo_anterior, movimento)
+        const obterValorContaCampo = (codigo: string, campo: 'saldo_atual' | 'saldo_anterior'): number => {
+          if (dados[codigo]?.[campo] !== undefined) {
+            return dados[codigo][campo]
           }
-          
-          // Se não existe, somar apenas contas filhas diretas (próximo nível)
           let total = 0
           const proximoNivel = codigo + '.'
-          for (const [codigoConta, valor] of Object.entries(dados)) {
-            // Verificar se é uma conta filha direta (não incluir netos)
+          for (const [codigoConta, valores] of Object.entries(dados)) {
             if (codigoConta.startsWith(proximoNivel)) {
               const parteFilha = codigoConta.substring(proximoNivel.length)
-              // Se não tem mais pontos, é filha direta
               if (!parteFilha.includes('.')) {
-                total += valor
+                const v = valores as { saldo_atual: number; saldo_anterior: number }
+                total += v[campo] || 0
               }
             }
           }
           return total
         }
 
-        // Fonte explícita por indicador (padrão: Saldo Atual)
+        const obterValorConta = (codigo: string): number => obterValorContaCampo(codigo, 'saldo_atual')
+
+        // Fonte explícita por indicador
         const obterValorContaPorFonte = (codigo: string, fonte: FonteColuna): number => {
-          // No momento, apenas Saldo Atual está implementado.
-          // Futuro: suportar 'saldo_anterior' e 'movimento' (saldo_atual - saldo_anterior)
-          return obterValorConta(codigo)
+          switch (fonte) {
+            case 'saldo_anterior':
+              return obterValorContaCampo(codigo, 'saldo_anterior')
+            case 'movimento':
+              return obterValorContaCampo(codigo, 'saldo_atual') - obterValorContaCampo(codigo, 'saldo_anterior')
+            case 'saldo_atual':
+            default:
+              return obterValorContaCampo(codigo, 'saldo_atual')
+          }
         }
 
         // Debug: Log das contas disponíveis para este mês
@@ -504,7 +509,7 @@ export function Indicadores() {
             const ac = obterValorContaPorFonte('1.1', getVarFonte("Giro do Ativo", 'Ativo Circulante'))
             const anc = obterValorContaPorFonte('1.2', getVarFonte("Giro do Ativo", 'Ativo Não Circulante'))
             const at = ac + anc
-            resultadosIndicadores["Giro do Ativo"][mesNome] = at !== 0 && rec !== 0 ? rec / at : null
+            resultadosIndicadores["Giro do Ativo"][mesNome] = at !== 0 && rec !== 0 ? (rec / at) * 12 : null
           } else {
             resultadosIndicadores["Giro do Ativo"][mesNome] = null
           }
@@ -567,7 +572,7 @@ export function Indicadores() {
       "Imobilização do Patrimônio Líquido (IPL)": "(Imobilizado - Depreciação Acumulada) ÷ Patrimônio Líquido",
       "Margem Bruta (%)": "(Lucro Bruto ÷ Receita Líquida) × 100",
       "Margem Líquida (%)": "((3 RECEITAS - 4.1 CUSTOS - 4.2 DESPESAS OPERACIONAIS) ÷ 3 RECEITAS) × 100",
-      "Giro do Ativo": "Receita Líquida ÷ Ativo Total",
+      "Giro do Ativo": "(Receita Líquida ÷ Ativo Total) × 12",
       "Capital Circulante Líquido (CCL)": "Ativo Circulante – Passivo Circulante"
     }
     return formulas[indicador] || ""
@@ -590,18 +595,19 @@ export function Indicadores() {
       }).format(valor)
     }
 
-    // Função para obter valor de conta do Plano de Contas Padrão - usar conta específica ou somar filhas
-    const obterValorConta = (codigo: string): number => {
-      if (dados[codigo] !== undefined) {
-        return dados[codigo]
+    // Funções para obter valores por campo/fonte (saldo_atual, saldo_anterior, movimento)
+    const obterValorContaCampo = (codigo: string, campo: 'saldo_atual' | 'saldo_anterior'): number => {
+      if (dados[codigo]?.[campo] !== undefined) {
+        return dados[codigo][campo]
       }
       let total = 0
       const proximoNivel = codigo + '.'
-      for (const [codigoConta, valor] of Object.entries(dados)) {
+      for (const [codigoConta, valores] of Object.entries(dados)) {
         if (codigoConta.startsWith(proximoNivel)) {
           const parteFilha = codigoConta.substring(proximoNivel.length)
           if (!parteFilha.includes('.')) {
-            total += valor as number
+            const v = valores as { saldo_atual: number; saldo_anterior: number }
+            total += v[campo] || 0
           }
         }
       }
@@ -609,8 +615,15 @@ export function Indicadores() {
     }
 
     const obterValorContaPorFonte = (codigo: string, fonte: FonteColuna): number => {
-      // No momento, apenas Saldo Atual está implementado.
-      return obterValorConta(codigo)
+      switch (fonte) {
+        case 'saldo_anterior':
+          return obterValorContaCampo(codigo, 'saldo_anterior')
+        case 'movimento':
+          return obterValorContaCampo(codigo, 'saldo_atual') - obterValorContaCampo(codigo, 'saldo_anterior')
+        case 'saldo_atual':
+        default:
+          return obterValorContaCampo(codigo, 'saldo_atual')
+      }
     }
 
     const comp = (label: string, codigo: string) => {
@@ -709,7 +722,7 @@ export function Indicadores() {
         const at = ac.valor + anc.valor
         return {
           componentes: [rec, { label: 'Ativo Total', valor: at }],
-          resultado: at !== 0 && rec.valor !== 0 ? rec.valor / at : null
+          resultado: at !== 0 && rec.valor !== 0 ? (rec.valor / at) * 12 : null
         }
       }
 
@@ -739,23 +752,24 @@ export function Indicadores() {
     }
   }
 
-  // Botão de informações do indicador com Popover (hover no desktop, clique no mobile)
+  // Botão de informações do indicador com Popover (hover no desktop, clique fixa/solta)
   const InfoIndicatorPopover = ({ indicatorKey, title, description }: { indicatorKey: string; title: string; description?: string }) => {
     const [open, setOpen] = useState(false)
+    const [pinned, setPinned] = useState(false)
     const contentId = `ind-desc-${indicatorKey.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
     const isDesktopHover = () => typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches
 
     return (
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setPinned(false) }}>
         <PopoverTrigger asChild>
           <button
             type="button"
             aria-label={`Informações sobre ${title}`}
             aria-describedby={contentId}
-            onMouseEnter={() => { if (isDesktopHover()) setOpen(true) }}
-            onMouseLeave={() => { if (isDesktopHover()) setOpen(false) }}
-            onClick={() => setOpen((o) => !o)}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen((o) => !o) } }}
+            onMouseEnter={() => { if (isDesktopHover() && !pinned) setOpen(true) }}
+            onMouseLeave={() => { if (isDesktopHover() && !pinned) setOpen(false) }}
+            onClick={() => setPinned((p) => { const next = !p; setOpen(next); return next })}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPinned((p) => { const next = !p; setOpen(next); return next }) } }}
             className="inline-flex items-center justify-center h-6 w-6 rounded-full border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             <Info className="h-3.5 w-3.5" aria-hidden="true" />
