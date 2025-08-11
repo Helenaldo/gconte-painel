@@ -64,7 +64,10 @@ export function Indicadores() {
     "Despesas",
     "Custos e Despesas",
     "Margem de Contribuição",
-    "Resultado Líquido"
+    "Resultado Líquido",
+    "ROE – Return on Equity (Retorno sobre o Patrimônio Líquido)",
+    "ROA – Return on Assets (Retorno sobre Ativos)",
+    "EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization"
   ]
 
   // Categorias para agrupamento da tabela
@@ -117,6 +120,14 @@ export function Indicadores() {
         'Resultado Líquido'
       ],
     },
+    {
+      titulo: 'Avaliação',
+      itens: [
+        'ROE – Return on Equity (Retorno sobre o Patrimônio Líquido)',
+        'ROA – Return on Assets (Retorno sobre Ativos)',
+        'EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization'
+      ],
+    },
   ]
 
   const descricaoIndicadores: { [key: string]: string } = {
@@ -142,7 +153,10 @@ export function Indicadores() {
     "Despesas": "Valor da despesa do mês.",
     "Custos e Despesas": "Valor do Custo e da Despesa do mês.",
     "Margem de Contribuição": "Valor da Receita líquida deduzida dos custos. A margem de contribuição está relacionada com o quanto cada produto ou serviço oferecido contribui para pagar as despesas fixas de uma empresa.",
-    "Resultado Líquido": "É o lucro ou prejuízo líquido do período. Se for positivo, significa que a empresa teve mais receitas do que gastos. Se for negativo, significa que a empresa teve mais gastos do que receitas."
+    "Resultado Líquido": "É o lucro ou prejuízo líquido do período. Se for positivo, significa que a empresa teve mais receitas do que gastos. Se for negativo, significa que a empresa teve mais gastos do que receitas.",
+    "ROE – Return on Equity (Retorno sobre o Patrimônio Líquido)": "Mede o retorno obtido para cada unidade monetária investida pelos sócios. Indica a rentabilidade do capital próprio da empresa. Quanto maior, melhor para os acionistas.",
+    "ROA – Return on Assets (Retorno sobre Ativos)": "Avalia a capacidade da empresa de gerar lucro em relação ao total de ativos que possui. Quanto maior o índice, mais eficiente é a utilização dos recursos disponíveis.",
+    "EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization": "Indica o lucro operacional antes do impacto de juros, tributos, depreciação e amortização. É utilizado para avaliar a geração de caixa operacional da empresa, desconsiderando efeitos financeiros e contábeis."
   }
   // Fonte por coluna para variáveis de cada indicador
   type FonteColuna = 'saldo_atual' | 'saldo_anterior' | 'movimento'
@@ -800,6 +814,45 @@ export function Indicadores() {
             resultadosIndicadores["Resultado Líquido"][mesNome] = null
           }
         }
+
+        // ROE – Return on Equity (Retorno sobre o Patrimônio Líquido)
+        {
+          if (temContasParametrizadas('3') && temContasParametrizadas('4') && temContasParametrizadas('2.3')) {
+            const lucroLiquido = obterValorContaPorFonte('3', 'movimento') - obterValorContaPorFonte('4', 'movimento')
+            const plAtual = obterValorContaCampo('2.3', 'saldo_atual')
+            const plAnterior = obterValorContaCampo('2.3', 'saldo_anterior')
+            const plMedio = (plAtual + plAnterior) / 2
+            resultadosIndicadores["ROE – Return on Equity (Retorno sobre o Patrimônio Líquido)"][mesNome] = plMedio !== 0 ? (lucroLiquido / plMedio) * 100 : null
+          } else {
+            resultadosIndicadores["ROE – Return on Equity (Retorno sobre o Patrimônio Líquido)"][mesNome] = null
+          }
+        }
+
+        // ROA – Return on Assets (Retorno sobre Ativos)
+        {
+          if (temContasParametrizadas('3') && temContasParametrizadas('4') && temContasParametrizadas('1.1') && temContasParametrizadas('1.2')) {
+            const lucroLiquido = obterValorContaPorFonte('3', 'movimento') - obterValorContaPorFonte('4', 'movimento')
+            const atAtual = obterValorContaCampo('1.1', 'saldo_atual') + obterValorContaCampo('1.2', 'saldo_atual')
+            const atAnterior = obterValorContaCampo('1.1', 'saldo_anterior') + obterValorContaCampo('1.2', 'saldo_anterior')
+            const atMedio = (atAtual + atAnterior) / 2
+            resultadosIndicadores["ROA – Return on Assets (Retorno sobre Ativos)"][mesNome] = atMedio !== 0 ? (lucroLiquido / atMedio) * 100 : null
+          } else {
+            resultadosIndicadores["ROA – Return on Assets (Retorno sobre Ativos)"][mesNome] = null
+          }
+        }
+
+        // EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization
+        {
+          if (temContasParametrizadas('3') && temContasParametrizadas('4')) {
+            const lucroOperacional = obterValorContaPorFonte('3', 'movimento') - obterValorContaPorFonte('4', 'movimento')
+            const tributos = temContasParametrizadas('4.2.3') ? obterValorContaPorFonte('4.2.3', 'movimento') : 0
+            const depreciacao = temContasParametrizadas('4.2.4') ? obterValorContaPorFonte('4.2.4', 'movimento') : 0
+            const amortizacao = temContasParametrizadas('4.2.5') ? obterValorContaPorFonte('4.2.5', 'movimento') : 0
+            resultadosIndicadores["EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization"][mesNome] = lucroOperacional + tributos + depreciacao + amortizacao
+          } else {
+            resultadosIndicadores["EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization"][mesNome] = null
+          }
+        }
       })
 
       setIndicadores(resultadosIndicadores)
@@ -826,9 +879,8 @@ export function Indicadores() {
   const formatarValor = (valor: number | null, indicador: string): string => {
     if (valor === null || valor === undefined) return "–"
     
-    if (indicador.includes("(%)")) {
-      return `${valor.toFixed(2)}%`
-    } else if (indicador.includes("CCL") || 
+    const isPercent = indicador.includes("(%)") || indicador.startsWith("ROE") || indicador.startsWith("ROA")
+    const isCurrency = indicador.includes("CCL") || 
                indicador === "Receitas Líquidas" || 
                indicador === "Receitas Brutas" || 
                indicador === "Custos" || 
@@ -836,7 +888,12 @@ export function Indicadores() {
                indicador === "Custos e Despesas" || 
                indicador === "Margem de Contribuição" ||
                indicador === "Resultado Líquido" ||
-               indicador === "Necessidade de Capital de Giro (NCG)") {
+               indicador === "EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization" ||
+               indicador === "Necessidade de Capital de Giro (NCG)"
+  
+    if (isPercent) {
+      return `${valor.toFixed(2)}%`
+    } else if (isCurrency) {
       return new Intl.NumberFormat('pt-BR', {
         style: 'currency',
         currency: 'BRL'
@@ -868,6 +925,9 @@ export function Indicadores() {
       "Custos e Despesas": "4 CUSTOS E DESPESAS",
       "Margem de Contribuição": "3 RECEITAS − 4.1 CUSTOS",
       "Resultado Líquido": "3 RECEITAS − 4 CUSTOS E DESPESAS",
+      "ROE – Return on Equity (Retorno sobre o Patrimônio Líquido)": "((3 RECEITAS − 4 CUSTOS E DESPESAS) ÷ Patrimônio Líquido Médio) × 100",
+      "ROA – Return on Assets (Retorno sobre Ativos)": "((3 RECEITAS − 4 CUSTOS E DESPESAS) ÷ Ativo Total Médio) × 100",
+      "EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization": "Lucro Operacional + Tributos + Depreciação + Amortização",
       "Prazo Médio de Pagamento (PMP)": "(2.1.1 FORNECEDORES ÷ (4.1 CUSTOS − 4.1.2 CUSTOS COM PESSOAL − 4.1.3 CUSTOS COM ENCARGOS SOCIAIS)) × (360 ÷ 12 × número do mês)",
       "Prazo Médio de Estocagem (PME)": "(1.1.4 ESTOQUES ÷ (4.1 CUSTOS − 4.1.2 CUSTOS COM PESSOAL − 4.1.3 CUSTOS COM ENCARGOS SOCIAIS)) × (360 ÷ 12 × número do mês)",
       "Prazo Médio de Recebimento (PMR)": "(1.1.2.1 CLIENTES ÷ 3.1.1 RECEITA BRUTA) × (360 ÷ 12 × número do mês)",
@@ -1163,6 +1223,61 @@ export function Indicadores() {
         const resultado = ativoCirculante.valor - passivoCirculante.valor
         return {
           componentes: [ativoCirculante, passivoCirculante],
+          resultado
+        }
+      }
+
+      case "ROE – Return on Equity (Retorno sobre o Patrimônio Líquido)": {
+        const receitas = obterValorContaPorFonte('3', 'movimento')
+        const custosEDespesas = obterValorContaPorFonte('4', 'movimento')
+        const lucroLiquido = receitas - custosEDespesas
+        const plAtual = obterValorContaCampo('2.3', 'saldo_atual')
+        const plAnterior = obterValorContaCampo('2.3', 'saldo_anterior')
+        const plMedio = (plAtual + plAnterior) / 2
+        const resultado = plMedio !== 0 ? (lucroLiquido / plMedio) * 100 : null
+        return {
+          componentes: [
+            { label: 'Lucro Líquido', valor: lucroLiquido, fonte: 'movimento' },
+            { label: 'PL (Saldo Atual)', valor: plAtual, fonte: 'saldo_atual' },
+            { label: 'PL (Saldo Anterior)', valor: plAnterior, fonte: 'saldo_anterior' },
+            { label: 'PL Médio', valor: plMedio }
+          ],
+          resultado
+        }
+      }
+
+      case "ROA – Return on Assets (Retorno sobre Ativos)": {
+        const receitas = obterValorContaPorFonte('3', 'movimento')
+        const custosEDespesas = obterValorContaPorFonte('4', 'movimento')
+        const lucroLiquido = receitas - custosEDespesas
+        const atAtual = obterValorContaCampo('1.1', 'saldo_atual') + obterValorContaCampo('1.2', 'saldo_atual')
+        const atAnterior = obterValorContaCampo('1.1', 'saldo_anterior') + obterValorContaCampo('1.2', 'saldo_anterior')
+        const atMedio = (atAtual + atAnterior) / 2
+        const resultado = atMedio !== 0 ? (lucroLiquido / atMedio) * 100 : null
+        return {
+          componentes: [
+            { label: 'Lucro Líquido', valor: lucroLiquido, fonte: 'movimento' },
+            { label: 'Ativo Total (Saldo Atual)', valor: atAtual, fonte: 'saldo_atual' },
+            { label: 'Ativo Total (Saldo Anterior)', valor: atAnterior, fonte: 'saldo_anterior' },
+            { label: 'Ativo Total Médio', valor: atMedio }
+          ],
+          resultado
+        }
+      }
+
+      case "EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization": {
+        const lucroOperacional = obterValorContaPorFonte('3', 'movimento') - obterValorContaPorFonte('4', 'movimento')
+        const tributos = obterValorContaPorFonte('4.2.3', 'movimento')
+        const depreciacao = obterValorContaPorFonte('4.2.4', 'movimento')
+        const amortizacao = obterValorContaPorFonte('4.2.5', 'movimento')
+        const resultado = lucroOperacional + tributos + depreciacao + amortizacao
+        return {
+          componentes: [
+            { label: 'Lucro Operacional', valor: lucroOperacional, fonte: 'movimento' },
+            { label: 'Tributos', valor: tributos, fonte: 'movimento' },
+            { label: 'Depreciação', valor: depreciacao, fonte: 'movimento' },
+            { label: 'Amortização', valor: amortizacao, fonte: 'movimento' }
+          ],
           resultado
         }
       }
