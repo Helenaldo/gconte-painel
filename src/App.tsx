@@ -21,6 +21,7 @@ import { Indicadores } from "@/pages/indicadores/Indicadores";
 import NotFound from "./pages/NotFound";
 import NovoProcessoModal from "@/pages/processos/Novo";
 import ProcessoDetalhes from "@/pages/processos/Detalhes";
+import ProcessosListar from "@/pages/processos/Listar";
 
 const queryClient = new QueryClient();
 
