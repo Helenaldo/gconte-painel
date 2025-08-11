@@ -22,6 +22,7 @@ import NotFound from "./pages/NotFound";
 import NovoProcessoModal from "@/pages/processos/Novo";
 import ProcessoDetalhes from "@/pages/processos/Detalhes";
 import ProcessosListar from "@/pages/processos/Listar";
+import VisaoGeral from "@/pages/processos/VisaoGeral";
 
 const queryClient = new QueryClient();
 
@@ -205,6 +206,16 @@ function AppRoutes() {
           <ProtectedRoute>
             <MainLayout user={userForLayout} onLogout={logout}>
               <NovoProcessoModal />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/processos/visao-geral"
+        element={
+          <ProtectedRoute>
+            <MainLayout user={userForLayout} onLogout={logout}>
+              <VisaoGeral />
             </MainLayout>
           </ProtectedRoute>
         }
