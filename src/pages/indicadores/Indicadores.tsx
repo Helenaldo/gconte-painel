@@ -198,9 +198,9 @@ export function Indicadores() {
     },
     'Prazo Médio de Pagamento (PMP)': {
       '2.1.1 FORNECEDORES': 'saldo_atual',
-      '4.1 CUSTOS': 'movimento',
-      '4.1.2 CUSTOS COM PESSOAL': 'movimento',
-      '4.1.3 CUSTOS COM ENCARGOS SOCIAIS': 'movimento',
+      '4.1 CUSTOS': 'saldo_atual',
+      '4.1.2 CUSTOS COM PESSOAL': 'saldo_atual',
+      '4.1.3 CUSTOS COM ENCARGOS SOCIAIS': 'saldo_atual',
     },
     'Prazo Médio de Estocagem (PME)': {
       '1.1.4 ESTOQUES': 'saldo_atual',
@@ -645,7 +645,7 @@ export function Indicadores() {
             const custosComPessoal = obterValorContaPorFonte('4.1.2', getVarFonte("Prazo Médio de Pagamento (PMP)", '4.1.2 CUSTOS COM PESSOAL'))
             const custosComEncargos = obterValorContaPorFonte('4.1.3', getVarFonte("Prazo Médio de Pagamento (PMP)", '4.1.3 CUSTOS COM ENCARGOS SOCIAIS'))
             const comprasAPrazo = custos - custosComPessoal - custosComEncargos
-            const fatorTempo = 360 / (12 * mes)
+            const fatorTempo = (360 / 12) * mes
             resultadosIndicadores["Prazo Médio de Pagamento (PMP)"][mesNome] = comprasAPrazo !== 0 ? (fornecedores / comprasAPrazo) * fatorTempo : null
           } else {
             resultadosIndicadores["Prazo Médio de Pagamento (PMP)"][mesNome] = null
@@ -1072,7 +1072,7 @@ export function Indicadores() {
         const custosComEncargos = comp('4.1.3 CUSTOS COM ENCARGOS SOCIAIS', '4.1.3')
         const comprasAPrazo = custos.valor - custosComPessoal.valor - custosComEncargos.valor
         const mesNumero = mesesExibidos.indexOf(mesSelecionado) + 1
-        const fatorTempo = 360 / (12 * mesNumero)
+         const fatorTempo = (360 / 12) * mesNumero
         const resultado = comprasAPrazo !== 0 ? (fornecedores.valor / comprasAPrazo) * fatorTempo : null
         return {
           componentes: [fornecedores, { label: 'Compras a Prazo', valor: comprasAPrazo }, { label: 'Fator Tempo', valor: fatorTempo }],
