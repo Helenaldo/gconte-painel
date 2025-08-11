@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { toast } from "sonner";
 import ReactQuill from "react-quill";
@@ -16,10 +16,19 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
+import { Form } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
 import {
   Calendar as CalendarIcon,
@@ -36,9 +45,13 @@ import {
   Plus,
   Paperclip,
   Download,
+  MoreVertical,
+  ChevronsUpDown,
+  Check,
+  Trash2,
 } from "lucide-react";
 
-// Mapeamentos (iguais aos usados nas outras páginas)
+// Mapeamentos
 const STATUS = [
   { label: "Aberto", value: "aberto" },
   { label: "Em Andamento", value: "em_andamento" },
@@ -69,6 +82,10 @@ const SETORES = [
 ] as const;
 
 type Setor = typeof SETORES[number]["value"];
+
+type StatusMov = "pendente" | "feito" | "cancelado";
+
+type MovTipo = "anotacao" | "protocolo" | "solicitacao" | "retorno_orgao" | "exigencia" | "envio_cliente" | "upload";
 
 function prioridadeVariant(v?: string) {
   switch (v) {
@@ -151,18 +168,20 @@ interface Processo {
 interface Movimento {
   id: string;
   processo_id: string;
-  tipo: string;
+  tipo: MovTipo;
   descricao: string | null;
   responsavel_id: string;
   data_mov: string; // ts
   prazo_mov: string | null; // ts
-  status_mov: string;
+  status_mov: StatusMov;
 }
 
 interface Anexo { id: string; movimento_id: string; nome_arquivo: string; mime: string; tamanho: number; url: string }
 
 interface Profile { id: string; nome: string; email: string; avatar_url?: string }
 interface Client { id: string; nome_empresarial: string; nome_fantasia: string | null }
+
+type Option = { id: string; label: string; subtitle?: string; avatar_url?: string };
 
 export default function ProcessoDetalhes() {
   const { id } = useParams();
@@ -172,11 +191,12 @@ export default function ProcessoDetalhes() {
   const [proc, setProc] = useState<Processo | null>(null);
   const [client, setClient] = useState<Client | null>(null);
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
+  const [allProfiles, setAllProfiles] = useState<Option[]>([]);
   const [movs, setMovs] = useState<Movimento[]>([]);
   const [anexosByMov, setAnexosByMov] = useState<Record<string, Anexo[]>>({});
   const [loading, setLoading] = useState(true);
 
-  // Checklist (local, sem persistência)
+  // Checklist (local)
   const [checklist, setChecklist] = useState<{ id: string; text: string; done: boolean }[]>([]);
   const [newItem, setNewItem] = useState("");
 
@@ -184,11 +204,17 @@ export default function ProcessoDetalhes() {
   const [tagInput, setTagInput] = useState("");
   const etiquetas = proc?.etiquetas || [];
 
-  // Novo Movimento modal
+  // Movimentos modal (create/edit)
   const [openMov, setOpenMov] = useState(false);
-  const movForm = useForm<{ tipo: string; descricao: string; prazo_mov?: string | null }>(
-    { defaultValues: { tipo: "anotacao", descricao: "", prazo_mov: null } }
-  );
+  const [editingMov, setEditingMov] = useState<Movimento | null>(null);
+
+  // Upload state
+  const [dropActive, setDropActive] = useState(false);
+  const [files, setFiles] = useState<File[]>([]);
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  const movForm = useForm<{ tipo: string; descricao: string; prazo_mov?: string | null; responsavel_id: string; status_mov: StatusMov }>();
 
   useEffect(() => {
     document.title = `Detalhes do Processo | ${id}`;
@@ -245,7 +271,7 @@ export default function ProcessoDetalhes() {
           setAnexosByMov(grouped);
         }
 
-        // Perfis (processo + responsáveis de movimentos)
+        // Perfis envolvidos
         const ids = new Set<string>();
         ids.add(p.responsavel_id as string);
         (mList || []).forEach((m: any) => ids.add(m.responsavel_id));
@@ -256,6 +282,14 @@ export default function ProcessoDetalhes() {
         const map: Record<string, Profile> = {};
         (profs || []).forEach((pr: any) => (map[pr.id] = pr));
         setProfiles(map);
+
+        // Perfis (todos) para combobox
+        const { data: all } = await supabase
+          .from("profiles")
+          .select("id, nome, email, avatar_url, status")
+          .eq("status", "ativo")
+          .order("nome", { ascending: true });
+        setAllProfiles((all || []).map((p: any) => ({ id: p.id, label: p.nome, subtitle: p.email, avatar_url: p.avatar_url })));
       } catch (err: any) {
         console.error(err);
         toast.error(err?.message || "Falha ao carregar");
@@ -267,6 +301,29 @@ export default function ProcessoDetalhes() {
       active = false;
     };
   }, [id, navigate]);
+
+  useEffect(() => {
+    // Reset form when opening for create/edit
+    if (!openMov) return;
+    const defaults = editingMov
+      ? {
+          tipo: editingMov.tipo,
+          descricao: editingMov.descricao || "",
+          prazo_mov: editingMov.prazo_mov ? editingMov.prazo_mov.substring(0, 16) : null,
+          responsavel_id: editingMov.responsavel_id,
+          status_mov: editingMov.status_mov,
+        }
+      : {
+          tipo: "anotacao",
+          descricao: "",
+          prazo_mov: null,
+          responsavel_id: proc?.responsavel_id || profile?.id || "",
+          status_mov: "pendente" as StatusMov,
+        };
+    movForm.reset(defaults as any);
+    setFiles([]);
+    setUploadProgress({});
+  }, [openMov, editingMov, proc, profile]);
 
   const slaBadge = useMemo(() => {
     if (!proc?.prazo) return { variant: "secondary", label: "-" } as const;
@@ -338,30 +395,158 @@ export default function ProcessoDetalhes() {
     }
   };
 
-  const salvarMovimento = async (vals: { tipo: string; descricao: string; prazo_mov?: string | null }) => {
-    if (!proc || !profile) return;
+  function storagePathFromPublicUrl(url: string): string | null {
+    const marker = "/storage/v1/object/public/anexos/";
+    const i = url.indexOf(marker);
+    if (i === -1) return null;
+    return url.substring(i + marker.length);
+  }
+
+  const onDropFiles = (newFiles: FileList | File[]) => {
+    const arr = Array.from(newFiles);
+    const accepted = arr.filter((f) => {
+      const okMime = ["application/pdf", "image/png", "image/jpeg", "image/jpg"].includes(f.type);
+      const okSize = f.size <= 10 * 1024 * 1024;
+      return okMime && okSize;
+    });
+    const rejected = arr.length - accepted.length;
+    if (rejected > 0) toast.warning(`${rejected} arquivo(s) ignorado(s)`);
+    setFiles((prev) => [...prev, ...accepted]);
+  };
+
+  const salvarMovimento = async (vals: { tipo: string; descricao: string; prazo_mov?: string | null; responsavel_id: string; status_mov: StatusMov }) => {
+    if (!proc?.id) {
+      toast.error("Processo ausente");
+      return;
+    }
+    if (!vals.tipo || !vals.descricao) {
+      toast.error("Preencha Tipo e Descrição");
+      return;
+    }
     try {
-      const payload: any = {
-        processo_id: proc.id,
-        tipo: vals.tipo,
-        descricao: vals.descricao || null,
-        responsavel_id: profile.id,
-        status_mov: "pendente",
-      };
-      if (vals.prazo_mov) payload.prazo_mov = vals.prazo_mov;
-      const { data, error } = await supabase
-        .from("movimentos")
-        .insert(payload)
-        .select("*")
-        .maybeSingle();
-      if (error) throw error;
-      setMovs((prev) => [data as any, ...prev]);
+      let saved: Movimento | null = null;
+      if (!editingMov) {
+        const payload: any = {
+          processo_id: proc.id,
+          tipo: vals.tipo,
+          descricao: vals.descricao || null,
+          responsavel_id: vals.responsavel_id || proc.responsavel_id,
+          status_mov: vals.status_mov || "pendente",
+        };
+        if (vals.prazo_mov) payload.prazo_mov = vals.prazo_mov;
+        const { data, error } = await supabase
+          .from("movimentos")
+          .insert(payload)
+          .select("*")
+          .maybeSingle();
+        if (error) throw error;
+        saved = data as any;
+        setMovs((prev) => [saved as any, ...prev]);
+      } else {
+        const { error } = await supabase
+          .from("movimentos")
+          .update({
+            tipo: vals.tipo,
+            descricao: vals.descricao || null,
+            responsavel_id: vals.responsavel_id || proc.responsavel_id,
+            status_mov: vals.status_mov,
+            prazo_mov: vals.prazo_mov || null,
+          })
+          .eq("id", editingMov.id)
+          .eq("processo_id", proc.id);
+        if (error) throw error;
+        setMovs((prev) => prev.map((m) => (m.id === editingMov!.id ? { ...m, ...vals } as any : m)));
+        saved = movs.find((m) => m.id === editingMov!.id) || null;
+      }
+
+      // Upload anexos (sequencial com barra simulada)
+      if (files.length && saved) {
+        for (const file of files) {
+          const key = `${file.name}-${file.size}-${file.lastModified}`;
+          // progresso simulado até 90%
+          setUploadProgress((p) => ({ ...p, [key]: 5 }));
+          let pct = 5;
+          const timer = setInterval(() => {
+            pct = Math.min(90, pct + 5);
+            setUploadProgress((p) => ({ ...p, [key]: pct }));
+          }, 120);
+          const path = `${proc.id}/${saved!.id}/${Date.now()}_${file.name}`;
+          const { error: upErr } = await supabase.storage.from("anexos").upload(path, file, { upsert: false });
+          clearInterval(timer);
+          if (upErr) {
+            setUploadProgress((p) => ({ ...p, [key]: 0 }));
+            toast.error(`Falha ao subir ${file.name}`);
+            continue;
+          }
+          const { data: pub } = supabase.storage.from("anexos").getPublicUrl(path);
+          setUploadProgress((p) => ({ ...p, [key]: 100 }));
+          const meta = {
+            movimento_id: saved!.id,
+            nome_arquivo: file.name,
+            mime: file.type,
+            tamanho: file.size,
+            url: pub.publicUrl,
+          };
+          const { data: anexData, error: anexErr } = await supabase
+            .from("anexos")
+            .insert(meta)
+            .select("*")
+            .maybeSingle();
+          if (anexErr) {
+            toast.error(`Falha ao salvar metadados de ${file.name}`);
+          } else {
+            setAnexosByMov((prev) => {
+              const list = prev[saved!.id] ? [...prev[saved!.id]] : [];
+              list.unshift(anexData as any);
+              return { ...prev, [saved!.id]: list };
+            });
+          }
+        }
+      }
+
       setOpenMov(false);
-      movForm.reset({ tipo: "anotacao", descricao: "", prazo_mov: null });
-      toast.success("Movimento criado");
+      setEditingMov(null);
+      setFiles([]);
+      setUploadProgress({});
+      toast.success(editingMov ? "Movimento atualizado" : "Movimento criado");
     } catch (e: any) {
       console.error(e);
       toast.error(e?.message || "Erro ao salvar movimento");
+    }
+  };
+
+  const onEditMov = (m: Movimento) => {
+    setEditingMov(m);
+    setOpenMov(true);
+  };
+
+  const onDeleteMov = async (m: Movimento) => {
+    const ok = window.confirm("Excluir este movimento? Esta ação não pode ser desfeita.");
+    if (!ok) return;
+    try {
+      // Delete anexos rows and storage files
+      const anexos = anexosByMov[m.id] || [];
+      if (anexos.length) {
+        const paths = anexos
+          .map((a) => storagePathFromPublicUrl(a.url))
+          .filter((p): p is string => !!p);
+        if (paths.length) {
+          await supabase.storage.from("anexos").remove(paths);
+        }
+        await supabase.from("anexos").delete().in("id", anexos.map((a) => a.id));
+      }
+      const { error } = await supabase.from("movimentos").delete().eq("id", m.id).eq("processo_id", proc!.id);
+      if (error) throw error;
+      setMovs((prev) => prev.filter((x) => x.id !== m.id));
+      setAnexosByMov((prev) => {
+        const clone = { ...prev } as any;
+        delete clone[m.id];
+        return clone;
+      });
+      toast.success("Movimento excluído");
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message || "Erro ao excluir");
     }
   };
 
@@ -441,7 +626,7 @@ export default function ProcessoDetalhes() {
                         {tipoIcon(m.tipo)}
                       </span>
                       <div className="flex items-center justify-between gap-2">
-                          <div className="text-sm font-medium capitalize">{(m.tipo || "").split("_").join(" ")}</div>
+                        <div className="text-sm font-medium capitalize">{(m.tipo || "").split("_").join(" ")}</div>
                         <div className="flex items-center gap-2">
                           <Badge variant={m.status_mov === "feito" ? "success" : m.status_mov === "cancelado" ? "destructive" : "secondary"}>
                             {m.status_mov}
@@ -453,6 +638,19 @@ export default function ProcessoDetalhes() {
                                 : `D-${differenceInCalendarDays(prazo, new Date())}`}
                             </Badge>
                           )}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button size="icon" variant="ghost"><MoreVertical className="h-4 w-4" /></Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                              <DropdownMenuItem onClick={() => onEditMov(m)}>Editar</DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem className="text-destructive" onClick={() => onDeleteMov(m)}>
+                                <Trash2 className="h-4 w-4 mr-2" /> Excluir
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </div>
                       {m.descricao && (
@@ -597,7 +795,7 @@ export default function ProcessoDetalhes() {
 
       {/* Botões flutuantes */}
       <div className="fixed bottom-6 right-6 flex flex-col gap-3">
-        <Button size="lg" onClick={() => setOpenMov(true)}>
+        <Button size="lg" onClick={() => { setEditingMov(null); setOpenMov(true); }}>
           <Plus className="h-4 w-4 mr-2" /> Novo Movimento
         </Button>
         <Button size="lg" variant="secondary" onClick={concluirProcesso}>
@@ -605,23 +803,20 @@ export default function ProcessoDetalhes() {
         </Button>
       </div>
 
-      {/* Modal Novo Movimento */}
+      {/* Modal Novo/Editar Movimento */}
       <Dialog open={openMov} onOpenChange={setOpenMov}>
-        <DialogContent className="max-w-xl">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Novo Movimento</DialogTitle>
+            <DialogTitle>{editingMov ? "Editar Movimento" : "Novo Movimento"}</DialogTitle>
           </DialogHeader>
           <Form {...(movForm as any)}>
-            <form
-              onSubmit={movForm.handleSubmit((vals) => salvarMovimento(vals))}
-              className="space-y-4"
-            >
+            <form onSubmit={movForm.handleSubmit((vals) => salvarMovimento(vals))} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label>Tipo</Label>
+                  <Label>Tipo *</Label>
                   <select
                     className="w-full mt-1 rounded-md border bg-background p-2"
-                    {...movForm.register("tipo")}
+                    {...movForm.register("tipo", { required: true })}
                   >
                     <option value="anotacao">Anotação</option>
                     <option value="protocolo">Protocolo</option>
@@ -633,6 +828,45 @@ export default function ProcessoDetalhes() {
                   </select>
                 </div>
                 <div>
+                  <Label>Status</Label>
+                  <select className="w-full mt-1 rounded-md border bg-background p-2" {...movForm.register("status_mov")}>
+                    <option value="pendente">Pendente</option>
+                    <option value="feito">Feito</option>
+                    <option value="cancelado">Cancelado</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Responsável</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={cn("w-full justify-between", !movForm.watch("responsavel_id") && "text-muted-foreground")}
+                        type="button">
+                        {movForm.watch("responsavel_id") ? allProfiles.find((r) => r.id === movForm.watch("responsavel_id"))?.label : "Selecionar responsável"}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="p-0 w-[--radix-popover-trigger-width]" align="start">
+                      <Command>
+                        <CommandInput placeholder="Buscar responsável..." />
+                        <CommandList>
+                          <CommandEmpty>Nenhum colaborador</CommandEmpty>
+                          <CommandGroup>
+                            {allProfiles.map((r) => (
+                              <CommandItem key={r.id} onSelect={() => movForm.setValue("responsavel_id", r.id)}>
+                                <Check className={cn("mr-2 h-4 w-4", movForm.watch("responsavel_id") === r.id ? "opacity-100" : "opacity-0")} />
+                                {r.label}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div>
                   <Label>Prazo do movimento (opcional)</Label>
                   <input
                     type="datetime-local"
@@ -641,12 +875,59 @@ export default function ProcessoDetalhes() {
                   />
                 </div>
               </div>
+
               <div>
-                <Label>Descrição</Label>
+                <Label>Descrição *</Label>
                 <div className="border rounded-md mt-1">
                   <ReactQuill theme="snow" value={movForm.watch("descricao") || ""} onChange={(v) => movForm.setValue("descricao", v)} />
                 </div>
               </div>
+
+              {/* Upload múltiplo */}
+              <div
+                className={cn(
+                  "mt-2 border-2 border-dashed rounded-md p-4 text-sm",
+                  dropActive ? "bg-muted/40" : "bg-background"
+                )}
+                onDragOver={(e) => { e.preventDefault(); setDropActive(true); }}
+                onDragLeave={() => setDropActive(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDropActive(false);
+                  onDropFiles(e.dataTransfer.files);
+                }}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    Arraste arquivos aqui ou
+                    <Button variant="link" type="button" onClick={() => inputRef.current?.click()} className="px-1">selecione</Button>
+                    (pdf, jpg, png até 10MB)
+                  </div>
+                  <UploadIcon className="h-4 w-4" />
+                </div>
+                <input ref={inputRef} type="file" multiple accept="application/pdf,image/png,image/jpeg" className="hidden"
+                  onChange={(e) => e.target.files && onDropFiles(e.target.files)} />
+                {!!files.length && (
+                  <div className="mt-3 space-y-2">
+                    {files.map((f) => {
+                      const key = `${f.name}-${f.size}-${f.lastModified}`;
+                      const pct = uploadProgress[key] ?? 0;
+                      return (
+                        <div key={key} className="rounded-md border p-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="line-clamp-1">{f.name}</span>
+                            <span className="text-muted-foreground">{Math.round(f.size / 1024)} KB</span>
+                          </div>
+                          <div className="mt-2 h-2 w-full rounded bg-muted">
+                            <div className="h-2 rounded bg-primary" style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => setOpenMov(false)}>Cancelar</Button>
                 <Button type="submit">Salvar</Button>
