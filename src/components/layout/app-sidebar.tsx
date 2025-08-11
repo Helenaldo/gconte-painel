@@ -15,7 +15,12 @@ import {
   BarChart3, 
   TestTube, 
   DollarSign,
-  ChevronDown
+  ChevronDown,
+  Briefcase,
+  List,
+  PlusCircle,
+  Tags,
+  BarChart2
 } from "lucide-react"
 
 import {
@@ -78,6 +83,17 @@ const menuItems = [
         url: "/escritorio/configuracoes",
         icon: Settings,
       },
+    ],
+  },
+  {
+    title: "Processos",
+    icon: Briefcase,
+    items: [
+      { title: "Visão geral", url: "/processos", icon: LayoutDashboard },
+      { title: "Listar", url: "/processos/listar", icon: List },
+      { title: "Novo", url: "/processos/novo", icon: PlusCircle },
+      { title: "Tipos", url: "/processos/tipos", icon: Tags },
+      { title: "Relatórios", url: "/processos/relatorios", icon: BarChart2 },
     ],
   },
   {
