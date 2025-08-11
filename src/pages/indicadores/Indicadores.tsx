@@ -199,7 +199,7 @@ export function Indicadores() {
     },
     'Margem de Contribuição': {
       '3 RECEITAS': 'movimento',
-      '4 CUSTOS E DESPESAS': 'movimento',
+      '4.1 CUSTOS': 'movimento',
     },
   }
 
@@ -653,10 +653,10 @@ export function Indicadores() {
 
         // Margem de Contribuição
         {
-          if (temContasParametrizadas('3') && temContasParametrizadas('4')) {
+          if (temContasParametrizadas('3') && temContasParametrizadas('4.1')) {
             const receitas = obterValorContaPorFonte('3', getVarFonte("Margem de Contribuição", '3 RECEITAS'))
-            const custosEDespesas = obterValorContaPorFonte('4', getVarFonte("Margem de Contribuição", '4 CUSTOS E DESPESAS'))
-            resultadosIndicadores["Margem de Contribuição"][mesNome] = receitas - custosEDespesas
+            const custos = obterValorContaPorFonte('4.1', getVarFonte("Margem de Contribuição", '4.1 CUSTOS'))
+            resultadosIndicadores["Margem de Contribuição"][mesNome] = receitas - custos
           } else {
             resultadosIndicadores["Margem de Contribuição"][mesNome] = null
           }
@@ -722,7 +722,7 @@ export function Indicadores() {
       "Custos": "4.1 CUSTOS",
       "Despesas": "4.2 DESPESAS OPERACIONAIS",
       "Custos e Despesas": "4 CUSTOS E DESPESAS",
-      "Margem de Contribuição": "3 RECEITAS − 4 CUSTOS E DESPESAS"
+      "Margem de Contribuição": "3 RECEITAS − 4.1 CUSTOS"
     }
     return formulas[indicador] || ""
   }
@@ -926,10 +926,10 @@ export function Indicadores() {
 
       case "Margem de Contribuição": {
         const receitas = comp('3 RECEITAS', '3')
-        const custosEDespesas = comp('4 CUSTOS E DESPESAS', '4')
-        const margem = receitas.valor - custosEDespesas.valor
+        const custos = comp('4.1 CUSTOS', '4.1')
+        const margem = receitas.valor - custos.valor
         return {
-          componentes: [receitas, custosEDespesas, { label: 'Margem de Contribuição', valor: margem }],
+          componentes: [receitas, custos, { label: 'Margem de Contribuição', valor: margem }],
           resultado: margem
         }
       }
