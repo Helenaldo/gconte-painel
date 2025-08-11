@@ -51,7 +51,13 @@ export function Indicadores() {
     "Margem Bruta (%)",
     "Margem Líquida (%)",
     "Giro do Ativo",
-    "Capital Circulante Líquido (CCL)"
+    "Capital Circulante Líquido (CCL)",
+    "Receitas Líquidas",
+    "Receitas Brutas",
+    "Custos",
+    "Despesas",
+    "Custos e Despesas",
+    "Margem de Contribuição"
   ]
 
   // Categorias para agrupamento da tabela
@@ -86,6 +92,17 @@ export function Indicadores() {
         'Giro do Ativo'
       ],
     },
+    {
+      titulo: 'Resultado',
+      itens: [
+        'Receitas Líquidas',
+        'Receitas Brutas',
+        'Custos',
+        'Despesas',
+        'Custos e Despesas',
+        'Margem de Contribuição'
+      ],
+    },
   ]
 
   const descricaoIndicadores: { [key: string]: string } = {
@@ -98,7 +115,13 @@ export function Indicadores() {
     "Margem Bruta (%)": "Representa o percentual que sobra da receita líquida após a dedução dos custos diretos de produção ou prestação de serviços. Mede a eficiência produtiva da empresa.",
     "Margem Líquida (%)": "Indica o percentual do lucro líquido obtido sobre a receita líquida, refletindo a lucratividade final após todos os custos, despesas e tributos.",
     "Giro do Ativo": "Mede a eficiência da empresa em gerar receita com o uso de seus ativos. Quanto maior, mais eficiente é a utilização dos recursos. Este número representa quantas vezes o ativo gira em um ano.",
-    "Capital Circulante Líquido (CCL)": "Representa a diferença entre o ativo circulante e o passivo circulante, mostrando o volume de recursos disponíveis para financiar as operações no curto prazo"
+    "Capital Circulante Líquido (CCL)": "Representa a diferença entre o ativo circulante e o passivo circulante, mostrando o volume de recursos disponíveis para financiar as operações no curto prazo",
+    "Receitas Líquidas": "Valor da receita líquida auferida no mês. Receita já deduzida dos tributos incidentes sobre a venda.",
+    "Receitas Brutas": "Valor da receita bruta auferida no mês.",
+    "Custos": "Valor do custo do mês.",
+    "Despesas": "Valor da despesa do mês.",
+    "Custos e Despesas": "Valor do Custo e da Despesa do mês.",
+    "Margem de Contribuição": "Valor da Receita líquida deduzida dos custos. A margem de contribuição está relacionada com o quanto cada produto ou serviço oferecido contribui para pagar as despesas fixas de uma empresa."
   }
   // Fonte por coluna para variáveis de cada indicador
   type FonteColuna = 'saldo_atual' | 'saldo_anterior' | 'movimento'
@@ -158,6 +181,25 @@ export function Indicadores() {
     'Capital Circulante Líquido (CCL)': {
       'Ativo Circulante': 'saldo_atual',
       'Passivo Circulante': 'saldo_atual',
+    },
+    'Receitas Líquidas': {
+      '3 RECEITAS': 'movimento',
+    },
+    'Receitas Brutas': {
+      '3.1.1 RECEITA BRUTA': 'movimento',
+    },
+    'Custos': {
+      '4.1 CUSTOS': 'movimento',
+    },
+    'Despesas': {
+      '4.2.1 DESPESAS ADMINISTRATIVAS': 'movimento',
+    },
+    'Custos e Despesas': {
+      '4 CUSTOS E DESPESAS': 'movimento',
+    },
+    'Margem de Contribuição': {
+      '3 RECEITAS': 'movimento',
+      '4 CUSTOS E DESPESAS': 'movimento',
     },
   }
 
@@ -558,6 +600,67 @@ export function Indicadores() {
             resultadosIndicadores["Capital Circulante Líquido (CCL)"][mesNome] = null
           }
         }
+
+        // Receitas Líquidas
+        {
+          if (temContasParametrizadas('3')) {
+            const receitas = obterValorContaPorFonte('3', getVarFonte("Receitas Líquidas", '3 RECEITAS'))
+            resultadosIndicadores["Receitas Líquidas"][mesNome] = receitas
+          } else {
+            resultadosIndicadores["Receitas Líquidas"][mesNome] = null
+          }
+        }
+
+        // Receitas Brutas
+        {
+          if (temContasParametrizadas('3.1.1')) {
+            const receitasBrutas = obterValorContaPorFonte('3.1.1', getVarFonte("Receitas Brutas", '3.1.1 RECEITA BRUTA'))
+            resultadosIndicadores["Receitas Brutas"][mesNome] = receitasBrutas
+          } else {
+            resultadosIndicadores["Receitas Brutas"][mesNome] = null
+          }
+        }
+
+        // Custos
+        {
+          if (temContasParametrizadas('4.1')) {
+            const custos = obterValorContaPorFonte('4.1', getVarFonte("Custos", '4.1 CUSTOS'))
+            resultadosIndicadores["Custos"][mesNome] = custos
+          } else {
+            resultadosIndicadores["Custos"][mesNome] = null
+          }
+        }
+
+        // Despesas
+        {
+          if (temContasParametrizadas('4.2.1')) {
+            const despesas = obterValorContaPorFonte('4.2.1', getVarFonte("Despesas", '4.2.1 DESPESAS ADMINISTRATIVAS'))
+            resultadosIndicadores["Despesas"][mesNome] = despesas
+          } else {
+            resultadosIndicadores["Despesas"][mesNome] = null
+          }
+        }
+
+        // Custos e Despesas
+        {
+          if (temContasParametrizadas('4')) {
+            const custosEDespesas = obterValorContaPorFonte('4', getVarFonte("Custos e Despesas", '4 CUSTOS E DESPESAS'))
+            resultadosIndicadores["Custos e Despesas"][mesNome] = custosEDespesas
+          } else {
+            resultadosIndicadores["Custos e Despesas"][mesNome] = null
+          }
+        }
+
+        // Margem de Contribuição
+        {
+          if (temContasParametrizadas('3') && temContasParametrizadas('4')) {
+            const receitas = obterValorContaPorFonte('3', getVarFonte("Margem de Contribuição", '3 RECEITAS'))
+            const custosEDespesas = obterValorContaPorFonte('4', getVarFonte("Margem de Contribuição", '4 CUSTOS E DESPESAS'))
+            resultadosIndicadores["Margem de Contribuição"][mesNome] = receitas - custosEDespesas
+          } else {
+            resultadosIndicadores["Margem de Contribuição"][mesNome] = null
+          }
+        }
       })
 
       setIndicadores(resultadosIndicadores)
@@ -586,7 +689,13 @@ export function Indicadores() {
     
     if (indicador.includes("(%)")) {
       return `${valor.toFixed(2)}%`
-    } else if (indicador.includes("CCL")) {
+    } else if (indicador.includes("CCL") || 
+               indicador === "Receitas Líquidas" || 
+               indicador === "Receitas Brutas" || 
+               indicador === "Custos" || 
+               indicador === "Despesas" || 
+               indicador === "Custos e Despesas" || 
+               indicador === "Margem de Contribuição") {
       return new Intl.NumberFormat('pt-BR', {
         style: 'currency',
         currency: 'BRL'
@@ -607,7 +716,13 @@ export function Indicadores() {
       "Margem Bruta (%)": "(Lucro Bruto ÷ Receita Líquida) × 100",
       "Margem Líquida (%)": "((3 RECEITAS - 4.1 CUSTOS - 4.2 DESPESAS OPERACIONAIS) ÷ 3 RECEITAS) × 100",
       "Giro do Ativo": "(Receita Líquida ÷ Ativo Total) × 12",
-      "Capital Circulante Líquido (CCL)": "Ativo Circulante – Passivo Circulante"
+      "Capital Circulante Líquido (CCL)": "Ativo Circulante – Passivo Circulante",
+      "Receitas Líquidas": "3 RECEITAS",
+      "Receitas Brutas": "3.1.1 RECEITA BRUTA",
+      "Custos": "4.1 CUSTOS",
+      "Despesas": "4.2.1 DESPESAS ADMINISTRATIVAS",
+      "Custos e Despesas": "4 CUSTOS E DESPESAS",
+      "Margem de Contribuição": "3 RECEITAS − 4 CUSTOS E DESPESAS"
     }
     return formulas[indicador] || ""
   }
@@ -766,6 +881,56 @@ export function Indicadores() {
         return {
           componentes: [ac, pc],
           resultado: ac.valor - pc.valor
+        }
+      }
+
+      case "Receitas Líquidas": {
+        const receitas = comp('3 RECEITAS', '3')
+        return {
+          componentes: [receitas],
+          resultado: receitas.valor
+        }
+      }
+
+      case "Receitas Brutas": {
+        const receitasBrutas = comp('3.1.1 RECEITA BRUTA', '3.1.1')
+        return {
+          componentes: [receitasBrutas],
+          resultado: receitasBrutas.valor
+        }
+      }
+
+      case "Custos": {
+        const custos = comp('4.1 CUSTOS', '4.1')
+        return {
+          componentes: [custos],
+          resultado: custos.valor
+        }
+      }
+
+      case "Despesas": {
+        const despesas = comp('4.2.1 DESPESAS ADMINISTRATIVAS', '4.2.1')
+        return {
+          componentes: [despesas],
+          resultado: despesas.valor
+        }
+      }
+
+      case "Custos e Despesas": {
+        const custosEDespesas = comp('4 CUSTOS E DESPESAS', '4')
+        return {
+          componentes: [custosEDespesas],
+          resultado: custosEDespesas.valor
+        }
+      }
+
+      case "Margem de Contribuição": {
+        const receitas = comp('3 RECEITAS', '3')
+        const custosEDespesas = comp('4 CUSTOS E DESPESAS', '4')
+        const margem = receitas.valor - custosEDespesas.valor
+        return {
+          componentes: [receitas, custosEDespesas, { label: 'Margem de Contribuição', valor: margem }],
+          resultado: margem
         }
       }
 
