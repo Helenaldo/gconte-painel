@@ -843,13 +843,12 @@ export function Indicadores() {
 
         // EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization
         {
-          if (temContasParametrizadas('3') && temContasParametrizadas('4')) {
-            const lucroOperacional = obterValorContaPorFonte('3', 'movimento') - obterValorContaPorFonte('4', 'movimento')
-            const tributos = temContasParametrizadas('4.2.3') ? obterValorContaPorFonte('4.2.3', 'movimento') : 0
-            const depreciacao = temContasParametrizadas('4.2.4') ? obterValorContaPorFonte('4.2.4', 'movimento') : 0
-            const amortizacao = temContasParametrizadas('4.2.5') ? obterValorContaPorFonte('4.2.5', 'movimento') : 0
-            resultadosIndicadores["EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization"][mesNome] = lucroOperacional + tributos + depreciacao + amortizacao
-          } else {
+            if (temContasParametrizadas('3') && temContasParametrizadas('4')) {
+              const lucroOperacional = obterValorContaPorFonte('3', 'movimento') - obterValorContaPorFonte('4', 'movimento')
+              const tributos = (temContasParametrizadas('3.1.2') ? obterValorContaPorFonte('3.1.2', 'movimento') : 0) + (temContasParametrizadas('4.2.3') ? obterValorContaPorFonte('4.2.3', 'movimento') : 0)
+              const depreciacaoEAmo = temContasParametrizadas('4.2.1.4') ? obterValorContaPorFonte('4.2.1.4', 'movimento') : 0
+              resultadosIndicadores["EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization"][mesNome] = lucroOperacional + tributos + depreciacaoEAmo
+            } else {
             resultadosIndicadores["EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization"][mesNome] = null
           }
         }
@@ -927,7 +926,7 @@ export function Indicadores() {
       "Resultado Líquido": "3 RECEITAS − 4 CUSTOS E DESPESAS",
       "ROE – Return on Equity (Retorno sobre o Patrimônio Líquido)": "((3 RECEITAS − 4 CUSTOS E DESPESAS) ÷ Patrimônio Líquido Médio) × 100",
       "ROA – Return on Assets (Retorno sobre Ativos)": "((3 RECEITAS − 4 CUSTOS E DESPESAS) ÷ Ativo Total Médio) × 100",
-      "EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization": "Lucro Operacional + Tributos + Depreciação + Amortização",
+      "EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization": "Lucro Operacional + Tributos + Depreciação e Amortização",
       "Prazo Médio de Pagamento (PMP)": "(2.1.1 FORNECEDORES ÷ (4.1 CUSTOS − 4.1.2 CUSTOS COM PESSOAL − 4.1.3 CUSTOS COM ENCARGOS SOCIAIS)) × (360 ÷ 12 × número do mês)",
       "Prazo Médio de Estocagem (PME)": "(1.1.4 ESTOQUES ÷ (4.1 CUSTOS − 4.1.2 CUSTOS COM PESSOAL − 4.1.3 CUSTOS COM ENCARGOS SOCIAIS)) × (360 ÷ 12 × número do mês)",
       "Prazo Médio de Recebimento (PMR)": "(1.1.2.1 CLIENTES ÷ 3.1.1 RECEITA BRUTA) × (360 ÷ 12 × número do mês)",
@@ -1267,16 +1266,14 @@ export function Indicadores() {
 
       case "EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization": {
         const lucroOperacional = obterValorContaPorFonte('3', 'movimento') - obterValorContaPorFonte('4', 'movimento')
-        const tributos = obterValorContaPorFonte('4.2.3', 'movimento')
-        const depreciacao = obterValorContaPorFonte('4.2.4', 'movimento')
-        const amortizacao = obterValorContaPorFonte('4.2.5', 'movimento')
-        const resultado = lucroOperacional + tributos + depreciacao + amortizacao
+        const tributos = obterValorContaPorFonte('3.1.2', 'movimento') + obterValorContaPorFonte('4.2.3', 'movimento')
+        const depreciacaoEAmo = obterValorContaPorFonte('4.2.1.4', 'movimento')
+        const resultado = lucroOperacional + tributos + depreciacaoEAmo
         return {
           componentes: [
             { label: 'Lucro Operacional', valor: lucroOperacional, fonte: 'movimento' },
             { label: 'Tributos', valor: tributos, fonte: 'movimento' },
-            { label: 'Depreciação', valor: depreciacao, fonte: 'movimento' },
-            { label: 'Amortização', valor: amortizacao, fonte: 'movimento' }
+            { label: 'Depreciação e Amortização', valor: depreciacaoEAmo, fonte: 'movimento' }
           ],
           resultado
         }
