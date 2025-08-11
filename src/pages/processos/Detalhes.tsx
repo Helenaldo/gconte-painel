@@ -169,7 +169,7 @@ interface Processo {
 interface Movimento {
   id: string;
   processo_id: string;
-  tipo: MovTipo;
+  tipo: string;
   descricao: string | null;
   responsavel_id: string;
   data_mov: string; // ts
