@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      anexos: {
+        Row: {
+          created_at: string
+          id: string
+          mime: string
+          movimento_id: string
+          nome_arquivo: string
+          tamanho: number
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mime: string
+          movimento_id: string
+          nome_arquivo: string
+          tamanho: number
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mime?: string
+          movimento_id?: string
+          nome_arquivo?: string
+          tamanho?: number
+          updated_at?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anexos_movimento_id_fkey"
+            columns: ["movimento_id"]
+            isOneToOne: false
+            referencedRelation: "movimentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       balancetes: {
         Row: {
           ano: number
@@ -275,6 +316,63 @@ export type Database = {
         }
         Relationships: []
       }
+      movimentos: {
+        Row: {
+          anexos: Json
+          created_at: string
+          data_mov: string
+          descricao: string | null
+          id: string
+          prazo_mov: string | null
+          processo_id: string
+          responsavel_id: string
+          status_mov: Database["public"]["Enums"]["status_mov"]
+          tipo: Database["public"]["Enums"]["movimento_tipo"]
+          updated_at: string
+        }
+        Insert: {
+          anexos?: Json
+          created_at?: string
+          data_mov?: string
+          descricao?: string | null
+          id?: string
+          prazo_mov?: string | null
+          processo_id: string
+          responsavel_id: string
+          status_mov?: Database["public"]["Enums"]["status_mov"]
+          tipo: Database["public"]["Enums"]["movimento_tipo"]
+          updated_at?: string
+        }
+        Update: {
+          anexos?: Json
+          created_at?: string
+          data_mov?: string
+          descricao?: string | null
+          id?: string
+          prazo_mov?: string | null
+          processo_id?: string
+          responsavel_id?: string
+          status_mov?: Database["public"]["Enums"]["status_mov"]
+          tipo?: Database["public"]["Enums"]["movimento_tipo"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimentos_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentos_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       office: {
         Row: {
           bairro: string | null
@@ -448,6 +546,75 @@ export type Database = {
         }
         Relationships: []
       }
+      processos: {
+        Row: {
+          cliente_id: string | null
+          created_at: string
+          data_abertura: string
+          data_conclusao: string | null
+          descricao: string | null
+          etiquetas: string[]
+          id: string
+          origem: string | null
+          prazo: string | null
+          prioridade: Database["public"]["Enums"]["process_prioridade"]
+          responsavel_id: string
+          setor: Database["public"]["Enums"]["process_setor"]
+          status: Database["public"]["Enums"]["process_status"]
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          cliente_id?: string | null
+          created_at?: string
+          data_abertura?: string
+          data_conclusao?: string | null
+          descricao?: string | null
+          etiquetas?: string[]
+          id?: string
+          origem?: string | null
+          prazo?: string | null
+          prioridade?: Database["public"]["Enums"]["process_prioridade"]
+          responsavel_id: string
+          setor: Database["public"]["Enums"]["process_setor"]
+          status?: Database["public"]["Enums"]["process_status"]
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          cliente_id?: string | null
+          created_at?: string
+          data_abertura?: string
+          data_conclusao?: string | null
+          descricao?: string | null
+          etiquetas?: string[]
+          id?: string
+          origem?: string | null
+          prazo?: string | null
+          prioridade?: Database["public"]["Enums"]["process_prioridade"]
+          responsavel_id?: string
+          setor?: Database["public"]["Enums"]["process_setor"]
+          status?: Database["public"]["Enums"]["process_status"]
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "processos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processos_responsavel_id_fkey"
+            columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -573,6 +740,30 @@ export type Database = {
     }
     Enums: {
       app_role: "operador" | "administrador"
+      movimento_tipo:
+        | "anotacao"
+        | "protocolo"
+        | "solicitacao"
+        | "retorno_orgao"
+        | "exigencia"
+        | "envio_cliente"
+        | "upload"
+      process_prioridade: "baixa" | "media" | "alta" | "critica"
+      process_setor:
+        | "contabil"
+        | "fiscal"
+        | "pessoal"
+        | "societario"
+        | "financeiro"
+        | "outro"
+      process_status:
+        | "aberto"
+        | "em_andamento"
+        | "aguardando_terceiros"
+        | "em_revisao"
+        | "concluido"
+        | "cancelado"
+      status_mov: "pendente" | "feito" | "cancelado"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -701,6 +892,33 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["operador", "administrador"],
+      movimento_tipo: [
+        "anotacao",
+        "protocolo",
+        "solicitacao",
+        "retorno_orgao",
+        "exigencia",
+        "envio_cliente",
+        "upload",
+      ],
+      process_prioridade: ["baixa", "media", "alta", "critica"],
+      process_setor: [
+        "contabil",
+        "fiscal",
+        "pessoal",
+        "societario",
+        "financeiro",
+        "outro",
+      ],
+      process_status: [
+        "aberto",
+        "em_andamento",
+        "aguardando_terceiros",
+        "em_revisao",
+        "concluido",
+        "cancelado",
+      ],
+      status_mov: ["pendente", "feito", "cancelado"],
     },
   },
 } as const
