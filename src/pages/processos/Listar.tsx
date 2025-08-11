@@ -17,6 +17,7 @@ import { Pagination, PaginationContent, PaginationItem, PaginationLink, Paginati
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
+import { getSla } from "@/lib/sla";
 
 // Types
 interface Processo {
@@ -452,7 +453,7 @@ export default function ProcessosListar() {
               const atMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
               const overdue = prazoDate && isBefore(prazoDate, atMidnight) && p.status !== "concluido";
               const daysTo = prazoDate ? differenceInCalendarDays(prazoDate, atMidnight) : undefined;
-              const dLabel = prazoDate ? (daysTo! < 0 ? `D+${Math.abs(daysTo!)}` : `D-${daysTo!}`) : "-";
+              const sla = getSla(prazoDate || undefined, p.status);
 
               return (
                 <TableRow key={p.id}>
@@ -482,7 +483,7 @@ export default function ProcessosListar() {
                   <TableCell>
                     {prazoDate ? (
                       <div className="flex items-center gap-2">
-                        <Badge variant={prazoBadgeVariant(prazoDate, p.status)}>{dLabel}</Badge>
+                        <Badge variant={sla.variant}>{sla.label}</Badge>
                         <span className="text-sm text-muted-foreground">{format(prazoDate, "dd/MM/yyyy")}</span>
                       </div>
                     ) : (
@@ -491,7 +492,7 @@ export default function ProcessosListar() {
                   </TableCell>
                   <TableCell>
                     {overdue ? (
-                      <Badge variant="destructive">Em atraso {Math.abs(daysTo!)}d</Badge>
+                      <Badge variant="destructive">Atrasado +{Math.abs(daysTo!)} </Badge>
                     ) : (
                       "—"
                     )}

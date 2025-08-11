@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { Form } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
+import { getSla } from "@/lib/sla";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -214,7 +215,7 @@ export default function ProcessoDetalhes() {
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  const movForm = useForm<{ tipo: string; descricao: string; prazo_mov?: string | null; responsavel_id: string; status_mov: StatusMov }>();
+  const movForm = useForm<{ tipo: MovTipo; descricao: string; prazo_mov?: string | null; responsavel_id: string; status_mov: StatusMov }>();
 
   useEffect(() => {
     document.title = `Detalhes do Processo | ${id}`;
@@ -326,13 +327,8 @@ export default function ProcessoDetalhes() {
   }, [openMov, editingMov, proc, profile]);
 
   const slaBadge = useMemo(() => {
-    if (!proc?.prazo) return { variant: "secondary", label: "-" } as const;
-    const d = parseISO(proc.prazo);
-    const today = new Date();
-    const atMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const days = differenceInCalendarDays(d, atMidnight);
-    const label = days < 0 ? `D+${Math.abs(days)}` : `D-${days}`;
-    return { variant: prazoBadgeVariant(d, proc.status), label } as const;
+    const prazo = proc?.prazo ? parseISO(proc.prazo) : null;
+    return getSla(prazo, proc?.status as string, null);
   }, [proc]);
 
   const checklistProgress = useMemo(() => {
@@ -414,7 +410,7 @@ export default function ProcessoDetalhes() {
     setFiles((prev) => [...prev, ...accepted]);
   };
 
-  const salvarMovimento = async (vals: { tipo: string; descricao: string; prazo_mov?: string | null; responsavel_id: string; status_mov: StatusMov }) => {
+  const salvarMovimento = async (vals: { tipo: MovTipo; descricao: string; prazo_mov?: string | null; responsavel_id: string; status_mov: StatusMov }) => {
     if (!proc?.id) {
       toast.error("Processo ausente");
       return;
@@ -455,7 +451,18 @@ export default function ProcessoDetalhes() {
           .eq("id", editingMov.id)
           .eq("processo_id", proc.id);
         if (error) throw error;
-        setMovs((prev) => prev.map((m) => (m.id === editingMov!.id ? { ...m, ...vals } as any : m)));
+        setMovs((prev) => prev.map((m) => (
+          m.id === editingMov!.id
+            ? {
+                ...m,
+                tipo: vals.tipo,
+                descricao: vals.descricao || null,
+                responsavel_id: vals.responsavel_id || proc.responsavel_id,
+                status_mov: vals.status_mov,
+                prazo_mov: vals.prazo_mov || null,
+              }
+            : m
+        )));
         saved = movs.find((m) => m.id === editingMov!.id) || null;
       }
 
