@@ -51,6 +51,12 @@ export function Indicadores() {
     "Margem Bruta (%)",
     "Margem Líquida (%)",
     "Giro do Ativo",
+    "Prazo Médio de Pagamento (PMP)",
+    "Prazo Médio de Estocagem (PME)",
+    "Prazo Médio de Recebimento (PMR)",
+    "Ciclo Operacional (CO)",
+    "Ciclo Financeiro (CF)",
+    "Necessidade de Capital de Giro (NCG)",
     "Capital Circulante Líquido (CCL)",
     "Receitas Líquidas",
     "Receitas Brutas",
@@ -89,7 +95,13 @@ export function Indicadores() {
     {
       titulo: 'Indicadores de Atividade / Eficiência',
       itens: [
-        'Giro do Ativo'
+        'Giro do Ativo',
+        'Prazo Médio de Pagamento (PMP)',
+        'Prazo Médio de Estocagem (PME)',
+        'Prazo Médio de Recebimento (PMR)',
+        'Ciclo Operacional (CO)',
+        'Ciclo Financeiro (CF)',
+        'Necessidade de Capital de Giro (NCG)'
       ],
     },
     {
@@ -115,6 +127,12 @@ export function Indicadores() {
     "Margem Bruta (%)": "Representa o percentual que sobra da receita líquida após a dedução dos custos diretos de produção ou prestação de serviços. Mede a eficiência produtiva da empresa.",
     "Margem Líquida (%)": "Indica o percentual do lucro líquido obtido sobre a receita líquida, refletindo a lucratividade final após todos os custos, despesas e tributos.",
     "Giro do Ativo": "Mede a eficiência da empresa em gerar receita com o uso de seus ativos. Quanto maior, mais eficiente é a utilização dos recursos. Este número representa quantas vezes o ativo gira em um ano.",
+    "Prazo Médio de Pagamento (PMP)": "Mede o tempo médio, em dias, que a empresa leva para pagar seus fornecedores, ajustado proporcionalmente ao mês de referência. Um prazo maior pode indicar melhor negociação, mas também pode afetar o relacionamento com fornecedores.",
+    "Prazo Médio de Estocagem (PME)": "Indica o tempo médio, em dias, que os produtos permanecem em estoque antes de serem vendidos, ajustado proporcionalmente ao mês de referência. Prazos longos podem representar capital parado e risco de obsolescência.",
+    "Prazo Médio de Recebimento (PMR)": "Mede o tempo médio, em dias, que a empresa leva para receber de seus clientes, ajustado proporcionalmente ao mês de referência. Prazos menores ajudam a melhorar o fluxo de caixa.",
+    "Ciclo Operacional (CO)": "Representa o tempo total, em dias, desde a compra de mercadorias ou matérias-primas até o recebimento das vendas. Indica a duração do processo operacional.",
+    "Ciclo Financeiro (CF)": "Mede o período, em dias, que a empresa financia suas operações com recursos próprios. Quanto menor, melhor para a liquidez da empresa.",
+    "Necessidade de Capital de Giro (NCG)": "Indica o montante de recursos que a empresa precisa manter investido para sustentar suas operações no curto prazo. Valores altos exigem mais capital próprio ou financiamentos.",
     "Capital Circulante Líquido (CCL)": "Representa a diferença entre o ativo circulante e o passivo circulante, mostrando o volume de recursos disponíveis para financiar as operações no curto prazo",
     "Receitas Líquidas": "Valor da receita líquida auferida no mês. Receita já deduzida dos tributos incidentes sobre a venda.",
     "Receitas Brutas": "Valor da receita bruta auferida no mês.",
@@ -177,6 +195,34 @@ export function Indicadores() {
       'Receitas': 'movimento',
       'Ativo Circulante': 'saldo_atual',
       'Ativo Não Circulante': 'saldo_atual',
+    },
+    'Prazo Médio de Pagamento (PMP)': {
+      '2.1.1 FORNECEDORES': 'saldo_atual',
+      '4.1 CUSTOS': 'movimento',
+      '4.1.2 CUSTOS COM PESSOAL': 'movimento',
+      '4.1.3 CUSTOS COM ENCARGOS SOCIAIS': 'movimento',
+    },
+    'Prazo Médio de Estocagem (PME)': {
+      '1.1.4 ESTOQUES': 'saldo_atual',
+      '4.1 CUSTOS': 'movimento',
+      '4.1.2 CUSTOS COM PESSOAL': 'movimento',
+      '4.1.3 CUSTOS COM ENCARGOS SOCIAIS': 'movimento',
+    },
+    'Prazo Médio de Recebimento (PMR)': {
+      '1.1.2.1 CLIENTES': 'saldo_atual',
+      '3.1.1 RECEITA BRUTA': 'movimento',
+    },
+    'Ciclo Operacional (CO)': {
+      'PME': 'movimento',
+      'PMR': 'movimento',
+    },
+    'Ciclo Financeiro (CF)': {
+      'CO': 'movimento',
+      'PMP': 'movimento',
+    },
+    'Necessidade de Capital de Giro (NCG)': {
+      '1.1 ATIVO CIRCULANTE': 'saldo_atual',
+      '2.1 PASSIVO CIRCULANTE': 'saldo_atual',
     },
     'Capital Circulante Líquido (CCL)': {
       'Ativo Circulante': 'saldo_atual',
@@ -591,6 +637,81 @@ export function Indicadores() {
           }
         }
 
+        // Prazo Médio de Pagamento (PMP)
+        {
+          if (temContasParametrizadas('2.1.1') && temContasParametrizadas('4.1') && temContasParametrizadas('4.1.2') && temContasParametrizadas('4.1.3')) {
+            const fornecedores = obterValorContaPorFonte('2.1.1', getVarFonte("Prazo Médio de Pagamento (PMP)", '2.1.1 FORNECEDORES'))
+            const custos = obterValorContaPorFonte('4.1', getVarFonte("Prazo Médio de Pagamento (PMP)", '4.1 CUSTOS'))
+            const custosComPessoal = obterValorContaPorFonte('4.1.2', getVarFonte("Prazo Médio de Pagamento (PMP)", '4.1.2 CUSTOS COM PESSOAL'))
+            const custosComEncargos = obterValorContaPorFonte('4.1.3', getVarFonte("Prazo Médio de Pagamento (PMP)", '4.1.3 CUSTOS COM ENCARGOS SOCIAIS'))
+            const comprasAPrazo = custos - custosComPessoal - custosComEncargos
+            const fatorTempo = 360 / (12 * mes)
+            resultadosIndicadores["Prazo Médio de Pagamento (PMP)"][mesNome] = comprasAPrazo !== 0 ? (fornecedores / comprasAPrazo) * fatorTempo : null
+          } else {
+            resultadosIndicadores["Prazo Médio de Pagamento (PMP)"][mesNome] = null
+          }
+        }
+
+        // Prazo Médio de Estocagem (PME)
+        {
+          if (temContasParametrizadas('1.1.4') && temContasParametrizadas('4.1') && temContasParametrizadas('4.1.2') && temContasParametrizadas('4.1.3')) {
+            const estoques = obterValorContaPorFonte('1.1.4', getVarFonte("Prazo Médio de Estocagem (PME)", '1.1.4 ESTOQUES'))
+            const custos = obterValorContaPorFonte('4.1', getVarFonte("Prazo Médio de Estocagem (PME)", '4.1 CUSTOS'))
+            const custosComPessoal = obterValorContaPorFonte('4.1.2', getVarFonte("Prazo Médio de Estocagem (PME)", '4.1.2 CUSTOS COM PESSOAL'))
+            const custosComEncargos = obterValorContaPorFonte('4.1.3', getVarFonte("Prazo Médio de Estocagem (PME)", '4.1.3 CUSTOS COM ENCARGOS SOCIAIS'))
+            const custoMercadoriasVendidas = custos - custosComPessoal - custosComEncargos
+            const fatorTempo = 360 / (12 * mes)
+            resultadosIndicadores["Prazo Médio de Estocagem (PME)"][mesNome] = custoMercadoriasVendidas !== 0 ? (estoques / custoMercadoriasVendidas) * fatorTempo : null
+          } else {
+            resultadosIndicadores["Prazo Médio de Estocagem (PME)"][mesNome] = null
+          }
+        }
+
+        // Prazo Médio de Recebimento (PMR)
+        {
+          if (temContasParametrizadas('1.1.2.1') && temContasParametrizadas('3.1.1')) {
+            const clientes = obterValorContaPorFonte('1.1.2.1', getVarFonte("Prazo Médio de Recebimento (PMR)", '1.1.2.1 CLIENTES'))
+            const vendasAPrazo = obterValorContaPorFonte('3.1.1', getVarFonte("Prazo Médio de Recebimento (PMR)", '3.1.1 RECEITA BRUTA'))
+            const fatorTempo = 360 / (12 * mes)
+            resultadosIndicadores["Prazo Médio de Recebimento (PMR)"][mesNome] = vendasAPrazo !== 0 ? (clientes / vendasAPrazo) * fatorTempo : null
+          } else {
+            resultadosIndicadores["Prazo Médio de Recebimento (PMR)"][mesNome] = null
+          }
+        }
+
+        // Ciclo Operacional (CO)
+        {
+          const pme = resultadosIndicadores["Prazo Médio de Estocagem (PME)"][mesNome]
+          const pmr = resultadosIndicadores["Prazo Médio de Recebimento (PMR)"][mesNome]
+          if (pme !== null && pmr !== null) {
+            resultadosIndicadores["Ciclo Operacional (CO)"][mesNome] = pme + pmr
+          } else {
+            resultadosIndicadores["Ciclo Operacional (CO)"][mesNome] = null
+          }
+        }
+
+        // Ciclo Financeiro (CF)
+        {
+          const co = resultadosIndicadores["Ciclo Operacional (CO)"][mesNome]
+          const pmp = resultadosIndicadores["Prazo Médio de Pagamento (PMP)"][mesNome]
+          if (co !== null && pmp !== null) {
+            resultadosIndicadores["Ciclo Financeiro (CF)"][mesNome] = co - pmp
+          } else {
+            resultadosIndicadores["Ciclo Financeiro (CF)"][mesNome] = null
+          }
+        }
+
+        // Necessidade de Capital de Giro (NCG)
+        {
+          if (temContasParametrizadas('1.1') && temContasParametrizadas('2.1')) {
+            const ativoCirculanteOp = obterValorContaPorFonte('1.1', getVarFonte("Necessidade de Capital de Giro (NCG)", '1.1 ATIVO CIRCULANTE'))
+            const passivoCirculanteOp = obterValorContaPorFonte('2.1', getVarFonte("Necessidade de Capital de Giro (NCG)", '2.1 PASSIVO CIRCULANTE'))
+            resultadosIndicadores["Necessidade de Capital de Giro (NCG)"][mesNome] = ativoCirculanteOp - passivoCirculanteOp
+          } else {
+            resultadosIndicadores["Necessidade de Capital de Giro (NCG)"][mesNome] = null
+          }
+        }
+
         {
           if (temContasParametrizadas('1.1') && temContasParametrizadas('2.1')) {
             const ac = obterValorContaPorFonte('1.1', getVarFonte("Capital Circulante Líquido (CCL)", 'Ativo Circulante'))
@@ -695,11 +816,15 @@ export function Indicadores() {
                indicador === "Custos" || 
                indicador === "Despesas" || 
                indicador === "Custos e Despesas" || 
-               indicador === "Margem de Contribuição") {
+               indicador === "Margem de Contribuição" ||
+               indicador === "Necessidade de Capital de Giro (NCG)") {
       return new Intl.NumberFormat('pt-BR', {
         style: 'currency',
         currency: 'BRL'
       }).format(valor)
+    } else if (indicador.includes("PMP") || indicador.includes("PME") || indicador.includes("PMR") || 
+               indicador.includes("CO") || indicador.includes("CF")) {
+      return `${valor.toFixed(0)} dias`
     } else {
       return valor.toFixed(2)
     }
@@ -722,7 +847,13 @@ export function Indicadores() {
       "Custos": "4.1 CUSTOS",
       "Despesas": "4.2 DESPESAS OPERACIONAIS",
       "Custos e Despesas": "4 CUSTOS E DESPESAS",
-      "Margem de Contribuição": "3 RECEITAS − 4.1 CUSTOS"
+      "Margem de Contribuição": "3 RECEITAS − 4.1 CUSTOS",
+      "Prazo Médio de Pagamento (PMP)": "(2.1.1 FORNECEDORES ÷ (4.1 CUSTOS − 4.1.2 CUSTOS COM PESSOAL − 4.1.3 CUSTOS COM ENCARGOS SOCIAIS)) × (360 ÷ 12 × número do mês)",
+      "Prazo Médio de Estocagem (PME)": "(1.1.4 ESTOQUES ÷ (4.1 CUSTOS − 4.1.2 CUSTOS COM PESSOAL − 4.1.3 CUSTOS COM ENCARGOS SOCIAIS)) × (360 ÷ 12 × número do mês)",
+      "Prazo Médio de Recebimento (PMR)": "(1.1.2.1 CLIENTES ÷ 3.1.1 RECEITA BRUTA) × (360 ÷ 12 × número do mês)",
+      "Ciclo Operacional (CO)": "Prazo Médio de Estocagem + Prazo Médio de Recebimento",
+      "Ciclo Financeiro (CF)": "Ciclo Operacional − Prazo Médio de Pagamento",
+      "Necessidade de Capital de Giro (NCG)": "1.1 ATIVO CIRCULANTE − 2.1 PASSIVO CIRCULANTE"
     }
     return formulas[indicador] || ""
   }
@@ -931,6 +1062,78 @@ export function Indicadores() {
         return {
           componentes: [receitas, custos, { label: 'Margem de Contribuição', valor: margem }],
           resultado: margem
+        }
+      }
+
+      case "Prazo Médio de Pagamento (PMP)": {
+        const fornecedores = comp('2.1.1 FORNECEDORES', '2.1.1')
+        const custos = comp('4.1 CUSTOS', '4.1')
+        const custosComPessoal = comp('4.1.2 CUSTOS COM PESSOAL', '4.1.2')
+        const custosComEncargos = comp('4.1.3 CUSTOS COM ENCARGOS SOCIAIS', '4.1.3')
+        const comprasAPrazo = custos.valor - custosComPessoal.valor - custosComEncargos.valor
+        const mesNumero = mesesExibidos.indexOf(mesSelecionado) + 1
+        const fatorTempo = 360 / (12 * mesNumero)
+        const resultado = comprasAPrazo !== 0 ? (fornecedores.valor / comprasAPrazo) * fatorTempo : null
+        return {
+          componentes: [fornecedores, { label: 'Compras a Prazo', valor: comprasAPrazo }, { label: 'Fator Tempo', valor: fatorTempo }],
+          resultado
+        }
+      }
+
+      case "Prazo Médio de Estocagem (PME)": {
+        const estoques = comp('1.1.4 ESTOQUES', '1.1.4')
+        const custos = comp('4.1 CUSTOS', '4.1')
+        const custosComPessoal = comp('4.1.2 CUSTOS COM PESSOAL', '4.1.2')
+        const custosComEncargos = comp('4.1.3 CUSTOS COM ENCARGOS SOCIAIS', '4.1.3')
+        const custoMercadoriasVendidas = custos.valor - custosComPessoal.valor - custosComEncargos.valor
+        const mesNumero = mesesExibidos.indexOf(mesSelecionado) + 1
+        const fatorTempo = 360 / (12 * mesNumero)
+        const resultado = custoMercadoriasVendidas !== 0 ? (estoques.valor / custoMercadoriasVendidas) * fatorTempo : null
+        return {
+          componentes: [estoques, { label: 'Custo Mercadorias Vendidas', valor: custoMercadoriasVendidas }, { label: 'Fator Tempo', valor: fatorTempo }],
+          resultado
+        }
+      }
+
+      case "Prazo Médio de Recebimento (PMR)": {
+        const clientes = comp('1.1.2.1 CLIENTES', '1.1.2.1')
+        const vendasAPrazo = comp('3.1.1 RECEITA BRUTA', '3.1.1')
+        const mesNumero = mesesExibidos.indexOf(mesSelecionado) + 1
+        const fatorTempo = 360 / (12 * mesNumero)
+        const resultado = vendasAPrazo.valor !== 0 ? (clientes.valor / vendasAPrazo.valor) * fatorTempo : null
+        return {
+          componentes: [clientes, vendasAPrazo, { label: 'Fator Tempo', valor: fatorTempo }],
+          resultado
+        }
+      }
+
+      case "Ciclo Operacional (CO)": {
+        const pme = indicadores["Prazo Médio de Estocagem (PME)"]?.[mesSelecionado] || 0
+        const pmr = indicadores["Prazo Médio de Recebimento (PMR)"]?.[mesSelecionado] || 0
+        const resultado = pme + pmr
+        return {
+          componentes: [{ label: 'PME', valor: pme }, { label: 'PMR', valor: pmr }],
+          resultado
+        }
+      }
+
+      case "Ciclo Financeiro (CF)": {
+        const co = indicadores["Ciclo Operacional (CO)"]?.[mesSelecionado] || 0
+        const pmp = indicadores["Prazo Médio de Pagamento (PMP)"]?.[mesSelecionado] || 0
+        const resultado = co - pmp
+        return {
+          componentes: [{ label: 'CO', valor: co }, { label: 'PMP', valor: pmp }],
+          resultado
+        }
+      }
+
+      case "Necessidade de Capital de Giro (NCG)": {
+        const ativoCirculante = comp('1.1 ATIVO CIRCULANTE', '1.1')
+        const passivoCirculante = comp('2.1 PASSIVO CIRCULANTE', '2.1')
+        const resultado = ativoCirculante.valor - passivoCirculante.valor
+        return {
+          componentes: [ativoCirculante, passivoCirculante],
+          resultado
         }
       }
 
