@@ -19,6 +19,8 @@ import { Parametrizacao } from "@/pages/indicadores/Parametrizacao";
 import { Dados } from "@/pages/indicadores/Dados";
 import { Indicadores } from "@/pages/indicadores/Indicadores";
 import NotFound from "./pages/NotFound";
+import NovoProcessoModal from "@/pages/processos/Novo";
+import ProcessoDetalhes from "@/pages/processos/Detalhes";
 
 const queryClient = new QueryClient();
 
@@ -192,6 +194,26 @@ function AppRoutes() {
                   <p className="text-muted-foreground">Seção reservada para futuras implementações</p>
                 </div>
               </div>
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/processos/novo"
+        element={
+          <ProtectedRoute>
+            <MainLayout user={userForLayout} onLogout={logout}>
+              <NovoProcessoModal />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/processos/:id"
+        element={
+          <ProtectedRoute>
+            <MainLayout user={userForLayout} onLogout={logout}>
+              <ProcessoDetalhes />
             </MainLayout>
           </ProtectedRoute>
         }
