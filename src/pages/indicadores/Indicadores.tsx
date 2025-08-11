@@ -192,7 +192,7 @@ export function Indicadores() {
       '4.1 CUSTOS': 'movimento',
     },
     'Despesas': {
-      '4.2.1 DESPESAS ADMINISTRATIVAS': 'movimento',
+      '4.2 DESPESAS OPERACIONAIS': 'movimento',
     },
     'Custos e Despesas': {
       '4 CUSTOS E DESPESAS': 'movimento',
@@ -633,8 +633,8 @@ export function Indicadores() {
 
         // Despesas
         {
-          if (temContasParametrizadas('4.2.1')) {
-            const despesas = obterValorContaPorFonte('4.2.1', getVarFonte("Despesas", '4.2.1 DESPESAS ADMINISTRATIVAS'))
+          if (temContasParametrizadas('4.2')) {
+            const despesas = obterValorContaPorFonte('4.2', getVarFonte("Despesas", '4.2 DESPESAS OPERACIONAIS'))
             resultadosIndicadores["Despesas"][mesNome] = despesas
           } else {
             resultadosIndicadores["Despesas"][mesNome] = null
@@ -720,7 +720,7 @@ export function Indicadores() {
       "Receitas Líquidas": "3 RECEITAS",
       "Receitas Brutas": "3.1.1 RECEITA BRUTA",
       "Custos": "4.1 CUSTOS",
-      "Despesas": "4.2.1 DESPESAS ADMINISTRATIVAS",
+      "Despesas": "4.2 DESPESAS OPERACIONAIS",
       "Custos e Despesas": "4 CUSTOS E DESPESAS",
       "Margem de Contribuição": "3 RECEITAS − 4 CUSTOS E DESPESAS"
     }
@@ -909,7 +909,7 @@ export function Indicadores() {
       }
 
       case "Despesas": {
-        const despesas = comp('4.2.1 DESPESAS ADMINISTRATIVAS', '4.2.1')
+        const despesas = comp('4.2 DESPESAS OPERACIONAIS', '4.2')
         return {
           componentes: [despesas],
           resultado: despesas.valor
