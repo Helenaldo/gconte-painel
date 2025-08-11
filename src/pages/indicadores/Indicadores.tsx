@@ -63,7 +63,8 @@ export function Indicadores() {
     "Custos",
     "Despesas",
     "Custos e Despesas",
-    "Margem de Contribuição"
+    "Margem de Contribuição",
+    "Resultado Líquido"
   ]
 
   // Categorias para agrupamento da tabela
@@ -112,7 +113,8 @@ export function Indicadores() {
         'Custos',
         'Despesas',
         'Custos e Despesas',
-        'Margem de Contribuição'
+        'Margem de Contribuição',
+        'Resultado Líquido'
       ],
     },
   ]
@@ -139,7 +141,8 @@ export function Indicadores() {
     "Custos": "Valor do custo do mês.",
     "Despesas": "Valor da despesa do mês.",
     "Custos e Despesas": "Valor do Custo e da Despesa do mês.",
-    "Margem de Contribuição": "Valor da Receita líquida deduzida dos custos. A margem de contribuição está relacionada com o quanto cada produto ou serviço oferecido contribui para pagar as despesas fixas de uma empresa."
+    "Margem de Contribuição": "Valor da Receita líquida deduzida dos custos. A margem de contribuição está relacionada com o quanto cada produto ou serviço oferecido contribui para pagar as despesas fixas de uma empresa.",
+    "Resultado Líquido": "É o lucro ou prejuízo líquido do período. Se for positivo, significa que a empresa teve mais receitas do que gastos. Se for negativo, significa que a empresa teve mais gastos do que receitas."
   }
   // Fonte por coluna para variáveis de cada indicador
   type FonteColuna = 'saldo_atual' | 'saldo_anterior' | 'movimento'
@@ -246,6 +249,10 @@ export function Indicadores() {
     'Margem de Contribuição': {
       '3 RECEITAS': 'movimento',
       '4.1 CUSTOS': 'movimento',
+    },
+    'Resultado Líquido': {
+      '3 RECEITAS': 'movimento',
+      '4 CUSTOS E DESPESAS': 'movimento',
     },
   }
 
@@ -782,6 +789,17 @@ export function Indicadores() {
             resultadosIndicadores["Margem de Contribuição"][mesNome] = null
           }
         }
+
+        // Resultado Líquido
+        {
+          if (temContasParametrizadas('3') && temContasParametrizadas('4')) {
+            const receitas = obterValorContaPorFonte('3', getVarFonte("Resultado Líquido", '3 RECEITAS'))
+            const custosEDespesas = obterValorContaPorFonte('4', getVarFonte("Resultado Líquido", '4 CUSTOS E DESPESAS'))
+            resultadosIndicadores["Resultado Líquido"][mesNome] = receitas - custosEDespesas
+          } else {
+            resultadosIndicadores["Resultado Líquido"][mesNome] = null
+          }
+        }
       })
 
       setIndicadores(resultadosIndicadores)
@@ -817,6 +835,7 @@ export function Indicadores() {
                indicador === "Despesas" || 
                indicador === "Custos e Despesas" || 
                indicador === "Margem de Contribuição" ||
+               indicador === "Resultado Líquido" ||
                indicador === "Necessidade de Capital de Giro (NCG)") {
       return new Intl.NumberFormat('pt-BR', {
         style: 'currency',
@@ -848,6 +867,7 @@ export function Indicadores() {
       "Despesas": "4.2 DESPESAS OPERACIONAIS",
       "Custos e Despesas": "4 CUSTOS E DESPESAS",
       "Margem de Contribuição": "3 RECEITAS − 4.1 CUSTOS",
+      "Resultado Líquido": "3 RECEITAS − 4 CUSTOS E DESPESAS",
       "Prazo Médio de Pagamento (PMP)": "(2.1.1 FORNECEDORES ÷ (4.1 CUSTOS − 4.1.2 CUSTOS COM PESSOAL − 4.1.3 CUSTOS COM ENCARGOS SOCIAIS)) × (360 ÷ 12 × número do mês)",
       "Prazo Médio de Estocagem (PME)": "(1.1.4 ESTOQUES ÷ (4.1 CUSTOS − 4.1.2 CUSTOS COM PESSOAL − 4.1.3 CUSTOS COM ENCARGOS SOCIAIS)) × (360 ÷ 12 × número do mês)",
       "Prazo Médio de Recebimento (PMR)": "(1.1.2.1 CLIENTES ÷ 3.1.1 RECEITA BRUTA) × (360 ÷ 12 × número do mês)",
@@ -1062,6 +1082,16 @@ export function Indicadores() {
         return {
           componentes: [receitas, custos, { label: 'Margem de Contribuição', valor: margem }],
           resultado: margem
+        }
+      }
+
+      case "Resultado Líquido": {
+        const receitas = comp('3 RECEITAS', '3')
+        const custosEDespesas = comp('4 CUSTOS E DESPESAS', '4')
+        const resultado = receitas.valor - custosEDespesas.valor
+        return {
+          componentes: [receitas, custosEDespesas, { label: 'Resultado Líquido', valor: resultado }],
+          resultado
         }
       }
 
