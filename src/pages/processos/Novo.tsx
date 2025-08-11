@@ -8,7 +8,7 @@ import { Calendar as CalendarIcon, ChevronsUpDown, Check, X, User, Briefcase, Ta
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import InputMask from "react-input-mask";
-import { format, isAfter, isBefore, parse } from "date-fns";
+import { format, isAfter, isBefore, parse, addDays } from "date-fns";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/auth-context";
@@ -65,6 +65,7 @@ type FormValues = z.infer<typeof FormSchema>;
 
 type Option = { id: string; label: string; subtitle?: string };
 
+type TipoLite = { id: string; nome: string; prefixo: string | null; setor_default: string; prazo_default: number; checklist_model: string[] };
 export default function NovoProcessoModal() {
   const navigate = useNavigate();
   const { profile } = useAuth();
@@ -72,6 +73,9 @@ export default function NovoProcessoModal() {
   const [clientes, setClientes] = useState<Option[]>([]);
   const [responsaveis, setResponsaveis] = useState<Option[]>([]);
   const [loadingCombos, setLoadingCombos] = useState(true);
+  const [tipos, setTipos] = useState<TipoLite[]>([]);
+  const [tipoSelecionado, setTipoSelecionado] = useState<string | null>(null);
+  const [checklistModelo, setChecklistModelo] = useState<string[]>([]);
 
   useEffect(() => {
     document.title = "Novo Processo | GConte";
@@ -98,9 +102,10 @@ export default function NovoProcessoModal() {
     let active = true;
     (async () => {
       try {
-        const [{ data: cli }, { data: prof } ] = await Promise.all([
+        const [{ data: cli }, { data: prof }, { data: tiposData }] = await Promise.all([
           supabase.from("clients").select("id, nome_empresarial, nome_fantasia, cnpj").order("nome_empresarial", { ascending: true }),
           supabase.from("profiles").select("id, nome, email, status").eq("status", "ativo").order("nome", { ascending: true }),
+          supabase.from("process_types").select("id, nome, prefixo, setor_default, prazo_default, checklist_model").order("created_at", { ascending: false }),
         ]);
         if (!active) return;
         setClientes(
@@ -113,6 +118,7 @@ export default function NovoProcessoModal() {
         setResponsaveis(
           (prof ?? []).map((p) => ({ id: p.id as string, label: p.nome as string, subtitle: p.email as string }))
         );
+        setTipos((tiposData as any) || []);
       } catch (e) {
         console.error(e);
         toast.error("Falha ao carregar dados");
@@ -342,6 +348,44 @@ export default function NovoProcessoModal() {
                   </FormItem>
                 )}
               />
+            </div>
+
+            {/* Tipo de Processo */}
+            <div>
+              <FormLabel>Tipo</FormLabel>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className={cn("w-full justify-between mt-1", !tipoSelecionado && "text-muted-foreground")}>
+                    {tipoSelecionado ? tipos.find((t) => t.id === tipoSelecionado)?.nome : "Selecionar tipo"}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="p-0 w-[--radix-popover-trigger-width]" align="start">
+                  <Command>
+                    <CommandInput placeholder="Buscar tipo..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhum tipo</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem onSelect={() => { setTipoSelecionado(null); setChecklistModelo([]); }}>
+                          Limpar
+                        </CommandItem>
+                        {tipos.map((t) => (
+                          <CommandItem key={t.id} onSelect={() => {
+                            setTipoSelecionado(t.id);
+                            setChecklistModelo(t.checklist_model || []);
+                            form.setValue("setor", t.setor_default as any, { shouldDirty: true });
+                            const prazoStr = format(addDays(new Date(), t.prazo_default || 0), "dd/MM/yyyy");
+                            form.setValue("prazo", prazoStr, { shouldDirty: true });
+                          }}>
+                            <Check className={cn("mr-2 h-4 w-4", tipoSelecionado === t.id ? "opacity-100" : "opacity-0")} />
+                            {t.nome}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { getSla } from "@/lib/sla";
 
 interface Processo {
   id: string;
@@ -246,11 +247,6 @@ export default function VisaoGeral() {
 function PrazoBadge({ dateISO, status }: { dateISO: string | null; status: Status }) {
   if (!dateISO) return <Badge variant="secondary">-</Badge>;
   const d = new Date(dateISO);
-  const today = new Date();
-  const atMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const daysTo = differenceInCalendarDays(d, atMidnight);
-  const dLabel = daysTo < 0 ? `D+${Math.abs(daysTo)}` : `D-${daysTo}`;
-  return (
-    <Badge variant={prazoBadgeVariant(d, status)}>{dLabel}</Badge>
-  );
+  const sla = getSla(d, status);
+  return <Badge variant={sla.variant}>{sla.label}</Badge>;
 }

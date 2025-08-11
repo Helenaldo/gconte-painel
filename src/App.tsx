@@ -23,6 +23,7 @@ import NovoProcessoModal from "@/pages/processos/Novo";
 import ProcessoDetalhes from "@/pages/processos/Detalhes";
 import ProcessosListar from "@/pages/processos/Listar";
 import VisaoGeral from "@/pages/processos/VisaoGeral";
+import Tipos from "@/pages/processos/Tipos";
 
 const queryClient = new QueryClient();
 
@@ -216,6 +217,16 @@ function AppRoutes() {
           <ProtectedRoute>
             <MainLayout user={userForLayout} onLogout={logout}>
               <VisaoGeral />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/processos/tipos"
+        element={
+          <ProtectedRoute>
+            <MainLayout user={userForLayout} onLogout={logout}>
+              <Tipos />
             </MainLayout>
           </ProtectedRoute>
         }

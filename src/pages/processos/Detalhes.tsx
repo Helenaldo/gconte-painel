@@ -215,7 +215,7 @@ export default function ProcessoDetalhes() {
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  const movForm = useForm<{ tipo: MovTipo; descricao: string; prazo_mov?: string | null; responsavel_id: string; status_mov: StatusMov }>();
+  const movForm = useForm<{ tipo: string; descricao: string; prazo_mov?: string | null; responsavel_id: string; status_mov: StatusMov }>();
 
   useEffect(() => {
     document.title = `Detalhes do Processo | ${id}`;

@@ -546,6 +546,77 @@ export type Database = {
         }
         Relationships: []
       }
+      process_checklist_items: {
+        Row: {
+          created_at: string
+          done: boolean
+          id: string
+          position: number
+          process_id: string
+          text: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          done?: boolean
+          id?: string
+          position?: number
+          process_id: string
+          text: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          done?: boolean
+          id?: string
+          position?: number
+          process_id?: string
+          text?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "process_checklist_items_process_id_fkey"
+            columns: ["process_id"]
+            isOneToOne: false
+            referencedRelation: "processos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      process_types: {
+        Row: {
+          checklist_model: string[]
+          created_at: string
+          id: string
+          nome: string
+          prazo_default: number
+          prefixo: string | null
+          setor_default: string
+          updated_at: string
+        }
+        Insert: {
+          checklist_model?: string[]
+          created_at?: string
+          id?: string
+          nome: string
+          prazo_default?: number
+          prefixo?: string | null
+          setor_default: string
+          updated_at?: string
+        }
+        Update: {
+          checklist_model?: string[]
+          created_at?: string
+          id?: string
+          nome?: string
+          prazo_default?: number
+          prefixo?: string | null
+          setor_default?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       processos: {
         Row: {
           cliente_id: string | null
