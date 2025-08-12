@@ -6,7 +6,7 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import listPlugin from "@fullcalendar/list";
 import interactionPlugin from "@fullcalendar/interaction";
-import "@fullcalendar/core/index.css";
+
 import "@fullcalendar/daygrid/index.css";
 import "@fullcalendar/timegrid/index.css";
 import "@fullcalendar/list/index.css";
