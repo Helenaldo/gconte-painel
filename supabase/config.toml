@@ -42,3 +42,6 @@ enable_confirmations = false
 
 [functions.fetch-cnpj]
 verify_jwt = false
+
+[functions.search-global]
+verify_jwt = true

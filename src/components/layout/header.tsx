@@ -10,8 +10,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import GlobalSearch from "@/components/search/global-search"
 import { SidebarTrigger } from "@/components/ui/sidebar"
-import { LogOut, Settings, User } from "lucide-react"
+import { LogOut, Settings, User, Search } from "lucide-react"
 
 interface HeaderProps {
   user?: {
@@ -43,6 +44,7 @@ export function Header({ user, onLogout }: HeaderProps) {
         </div>
 
         <div className="ml-auto flex items-center gap-4">
+          <GlobalSearch />
           <ThemeToggle />
           
           <DropdownMenu>

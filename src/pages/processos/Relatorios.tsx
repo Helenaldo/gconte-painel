@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/auth-context";
 import { format, parseISO, differenceInCalendarDays } from "date-fns";
@@ -201,11 +201,8 @@ function buildQuery(base: any, f: Filters) {
   if (f.conclusao.from) q = q.gte("data_conclusao", f.conclusao.from.toISOString());
   if (f.conclusao.to) q = q.lte("data_conclusao", new Date(f.conclusao.to.getTime() + 24*60*60*1000 - 1).toISOString());
 
-  // Tipo (apenas se existir coluna)
-  if (f.tipoId) {
-    // @ts-expect-error coluna pode não existir ainda
-    q = q.eq("tipo_id", f.tipoId);
-  }
+  // Tipo (não aplicado pois a coluna não existe na tabela processos)
+  // if (f.tipoId) { /* require schema change: processos.tipo_id */ }
 
   // Ordenação
   if (f.sortBy) {
@@ -265,7 +262,7 @@ function useProcessosData(filters: Filters) {
       const filtered = applySlaClientSide(rows, filters);
       return { rows: filtered, total: count || 0 };
     },
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
   // Aggregations: fetch a larger slice for charts (cap at 5000)

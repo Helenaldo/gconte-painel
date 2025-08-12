@@ -223,6 +223,16 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/processos/listar"
+        element={
+          <ProtectedRoute>
+            <MainLayout user={userForLayout} onLogout={logout}>
+              <ProcessosListar />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/processos/tipos"
         element={
           <ProtectedRoute>
