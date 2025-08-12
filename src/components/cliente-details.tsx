@@ -10,6 +10,7 @@ import { ptBR } from "date-fns/locale"
 import { supabase } from "@/integrations/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 import jsPDF from 'jspdf'
+import ClientProcessosTab from "./client/ClientProcessosTab"
 
 interface Cliente {
   id: string
@@ -390,11 +391,17 @@ export function ClienteDetails({ cliente }: ClienteDetailsProps) {
       <Card>
         <CardHeader>
           <div className="flex justify-between items-start">
-            <div>
-              <CardTitle className="text-xl">{cliente.nome_empresarial}</CardTitle>
-              {cliente.nome_fantasia && (
-                <p className="text-muted-foreground mt-1">{cliente.nome_fantasia}</p>
-              )}
+            <div className="flex items-center gap-3">
+              <div>
+                <CardTitle className="text-xl">{cliente.nome_empresarial}</CardTitle>
+                {cliente.nome_fantasia && (
+                  <p className="text-muted-foreground mt-1">{cliente.nome_fantasia}</p>
+                )}
+              </div>
+              {/* Atalho: Processos ativos */}
+              <Badge variant="info" onClick={() => {
+                const tab = document.querySelector('[role="tab"][data-state]');
+              }} className="cursor-pointer">Processos ativos: {/* valor dinâmico no tab */}</Badge>
             </div>
             {cliente.fim_contrato && (
               <Badge variant="destructive">Inativo</Badge>
@@ -438,7 +445,7 @@ export function ClienteDetails({ cliente }: ClienteDetailsProps) {
 
       {/* Tabs com relacionamentos */}
       <Tabs defaultValue="contatos" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="contatos" className="flex items-center gap-2">
             <Mail className="h-4 w-4" />
             Contatos ({contatos.length})
@@ -450,6 +457,10 @@ export function ClienteDetails({ cliente }: ClienteDetailsProps) {
           <TabsTrigger value="tributacao" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
             Tributação ({tributacoes.length})
+          </TabsTrigger>
+          <TabsTrigger value="processos" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Processos
           </TabsTrigger>
         </TabsList>
 
@@ -557,6 +568,18 @@ export function ClienteDetails({ cliente }: ClienteDetailsProps) {
                   ))}
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="processos" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Processos</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {/* ... keep existing code (Processos tab content rendered via component) */}
+              <ClientProcessosTab clienteId={cliente.id} clienteNome={cliente.nome_fantasia || cliente.nome_empresarial} />
             </CardContent>
           </Card>
         </TabsContent>

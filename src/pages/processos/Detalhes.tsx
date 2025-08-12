@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useRef } from "react";
-import { useNavigate, useParams, Link } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { Form } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { getSla } from "@/lib/sla";
+import { ClienteDetails } from "@/components/cliente-details";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -197,6 +198,9 @@ export default function ProcessoDetalhes() {
   const [anexosByMov, setAnexosByMov] = useState<Record<string, Anexo[]>>({});
   const [loading, setLoading] = useState(true);
 
+  const [openCliente, setOpenCliente] = useState(false);
+  const [contacts, setContacts] = useState<{ id: string; nome: string; email: string; telefone: string }[]>([]);
+
   // Checklist (local)
   const [checklist, setChecklist] = useState<{ id: string; text: string; done: boolean }[]>([]);
   const [newItem, setNewItem] = useState("");
@@ -245,6 +249,12 @@ export default function ProcessoDetalhes() {
             .eq("id", p.cliente_id)
             .maybeSingle();
           if (c) setClient(c as any);
+          const { data: cons } = await supabase
+            .from("contacts")
+            .select("id, nome, email, telefone")
+            .eq("client_id", p.cliente_id)
+            .order("created_at", { ascending: false });
+          setContacts((cons || []) as any);
         }
 
         // Movimentos (mais recente no topo)
@@ -582,9 +592,9 @@ export default function ProcessoDetalhes() {
                     <Badge variant={prioridadeVariant(proc.prioridade)}>{PRIORIDADES.find((p) => p.value === proc.prioridade)?.label}</Badge>
                     <Badge variant="secondary">{SETORES.find((s) => s.value === proc.setor)?.label}</Badge>
                     {client ? (
-                      <Link to="/escritorio/clientes" className="story-link text-sm">
+                      <Button variant="link" className="px-0" onClick={() => setOpenCliente(true)}>
                         {client.nome_fantasia || client.nome_empresarial}
-                      </Link>
+                      </Button>
                     ) : (
                       <span className="text-sm text-muted-foreground">Sem cliente</span>
                     )}
@@ -599,14 +609,16 @@ export default function ProcessoDetalhes() {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={resp?.avatar_url} alt={resp?.nome} />
-                  <AvatarFallback>{resp?.nome?.charAt(0) ?? "?"}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <div className="text-sm">Responsável</div>
-                  <div className="text-sm font-medium">{resp?.nome || "—"}</div>
-                </div>
+                <button className="flex items-center gap-3" onClick={() => navigate(`/escritorio/colaboradores?responsavel_id=${resp?.id}`)}>
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={resp?.avatar_url} alt={resp?.nome} />
+                    <AvatarFallback>{resp?.nome?.charAt(0) ?? "?"}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <div className="text-sm">Responsável</div>
+                    <div className="text-sm font-medium">{resp?.nome || "—"}</div>
+                  </div>
+                </button>
                 <Separator orientation="vertical" className="mx-2 h-8" />
                 <div className="flex items-center gap-2 text-sm">
                   <CalendarIcon className="h-4 w-4" />
@@ -788,13 +800,31 @@ export default function ProcessoDetalhes() {
 
           <Card>
             <CardHeader>
-              <CardTitle>SLA</CardTitle>
+              <CardTitle>Contatos do Cliente</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center gap-2">
-                <Badge variant={slaBadge.variant as any}>{slaBadge.label}</Badge>
-                <span className="text-sm text-muted-foreground">{proc.prazo ? format(parseISO(proc.prazo), "dd/MM/yyyy") : "Sem prazo"}</span>
-              </div>
+              {client ? (
+                <div className="space-y-2">
+                  {contacts.map((c) => (
+                    <div key={c.id} className="flex items-center justify-between gap-2 border rounded-md p-2">
+                      <div>
+                        <div className="text-sm font-medium">{c.nome}</div>
+                        <div className="text-xs text-muted-foreground">{c.email} • {c.telefone}</div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(`${c.email}`); toast.success("E-mail copiado"); }}>Copiar e-mail</Button>
+                        <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(`${c.telefone}`); toast.success("Telefone copiado"); }}>Copiar tel</Button>
+                        <Button size="sm" onClick={() => window.open(`https://wa.me/${c.telefone.replace(/\D/g,'')}`)}>WhatsApp</Button>
+                      </div>
+                    </div>
+                  ))}
+                  {contacts.length === 0 && (
+                    <div className="text-sm text-muted-foreground">Sem contatos.</div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-sm text-muted-foreground">Sem cliente associado.</div>
+              )}
             </CardContent>
           </Card>
         </aside>
@@ -810,8 +840,15 @@ export default function ProcessoDetalhes() {
         </Button>
       </div>
 
-      {/* Modal Novo/Editar Movimento */}
-      <Dialog open={openMov} onOpenChange={setOpenMov}>
+      {/* Modal Cliente */}
+      <Dialog open={openCliente} onOpenChange={setOpenCliente}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Cliente</DialogTitle>
+          </DialogHeader>
+          {client && <ClienteDetails cliente={{ id: client.id, cnpj: "", nome_empresarial: client.nome_empresarial, nome_fantasia: client.nome_fantasia || "", ramo_atividade: "", cep: "", logradouro: "", numero: "", complemento: "", bairro: "", municipio: "", uf: "", cliente_desde: new Date().toISOString(), fim_contrato: null }} />}
+        </DialogContent>
+      </Dialog>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingMov ? "Editar Movimento" : "Novo Movimento"}</DialogTitle>

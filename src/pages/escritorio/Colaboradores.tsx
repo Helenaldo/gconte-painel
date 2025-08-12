@@ -12,6 +12,7 @@ import { Plus, Search, Mail, UserPlus, Users, Shield, User, Edit, MailCheck, Tra
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/integrations/supabase/client"
 import { useAuth } from "@/context/auth-context"
+import ResponsavelKanban from "@/components/collaborator/ResponsavelKanban"
 
 interface Colaborador {
   id: string
@@ -39,6 +40,7 @@ export function Colaboradores() {
   const [invitations, setInvitations] = useState<Invitation[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isViewOpen, setIsViewOpen] = useState(false)
   const [selectedColaborador, setSelectedColaborador] = useState<Colaborador | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [roleFilter, setRoleFilter] = useState("all")
@@ -57,6 +59,16 @@ export function Colaboradores() {
   useEffect(() => {
     loadColaboradores()
     loadInvitations()
+
+    // deep-link open view modal
+    const sp = new URLSearchParams(window.location.search)
+    const rid = sp.get('responsavel_id')
+    if (rid) {
+      setTimeout(() => {
+        const c = colaboradores.find((x) => x.id === rid)
+        if (c) openViewModal(c)
+      }, 400)
+    }
   }, [])
 
   const loadColaboradores = async () => {
@@ -318,6 +330,11 @@ export function Colaboradores() {
     setIsEditModalOpen(true)
   }
 
+  const openViewModal = (colaborador: Colaborador) => {
+    setSelectedColaborador(colaborador)
+    setIsViewOpen(true)
+  }
+
   const resetForm = () => {
     setFormData({
       nome: "",
@@ -559,12 +576,19 @@ export function Colaboradores() {
                       <Button
                         variant="outline"
                         size="sm"
+                        onClick={() => openViewModal(colaborador)}
+                        title="Ver processos do colaborador"
+                      >
+                        Ver
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => openEditModal(colaborador)}
                         title="Editar colaborador"
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
-                      
                       <Button
                         variant="outline"
                         size="sm"
@@ -578,7 +602,6 @@ export function Colaboradores() {
                           <UserCheck className="h-4 w-4" />
                         )}
                       </Button>
-                      
                       <Button
                         variant="outline"
                         size="sm"
@@ -611,7 +634,7 @@ export function Colaboradores() {
           <DialogHeader>
             <DialogTitle>Editar Colaborador</DialogTitle>
           </DialogHeader>
-          
+          {/* ... keep existing code (form) */}
           <form onSubmit={handleUpdateColaborador} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="edit-nome">Nome *</Label>
@@ -622,18 +645,10 @@ export function Colaboradores() {
                 placeholder="Nome completo"
               />
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="edit-email">E-mail</Label>
-              <Input
-                id="edit-email"
-                type="email"
-                value={formData.email}
-                disabled
-                className="bg-muted"
-              />
+              <Input id="edit-email" type="email" value={formData.email} disabled className="bg-muted" />
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="edit-role">Nível de Acesso</Label>
               <Select value={formData.role} onValueChange={(value: 'operador' | 'administrador') => setFormData(prev => ({...prev, role: value}))}>
@@ -641,31 +656,30 @@ export function Colaboradores() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="operador">
-                    <div className="flex items-center">
-                      <User className="mr-2 h-4 w-4" />
-                      Operador
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="administrador">
-                    <div className="flex items-center">
-                      <Shield className="mr-2 h-4 w-4" />
-                      Administrador
-                    </div>
-                  </SelectItem>
+                  <SelectItem value="operador"><div className="flex items-center"><User className="mr-2 h-4 w-4" />Operador</div></SelectItem>
+                  <SelectItem value="administrador"><div className="flex items-center"><Shield className="mr-2 h-4 w-4" />Administrador</div></SelectItem>
                 </SelectContent>
               </Select>
             </div>
-
             <div className="flex justify-end gap-2 pt-4">
-              <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)}>
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={loading} className="bg-gradient-primary hover:opacity-90">
-                {loading ? "Salvando..." : "Salvar Alterações"}
-              </Button>
+              <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)}>Cancelar</Button>
+              <Button type="submit" disabled={loading} className="bg-gradient-primary hover:opacity-90">{loading ? "Salvando..." : "Salvar Alterações"}</Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Modal (Responsável por) */}
+      <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
+        <DialogContent className="max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>Processos de {selectedColaborador?.nome}</DialogTitle>
+          </DialogHeader>
+          {selectedColaborador && (
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-expect-error isolated file import
+            <ResponsavelKanban responsavelId={selectedColaborador.id} responsavelNome={selectedColaborador.nome} />
+          )}
         </DialogContent>
       </Dialog>
     </div>

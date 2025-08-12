@@ -81,6 +81,16 @@ export default function NovoProcessoModal() {
     document.title = "Novo Processo | GConte";
   }, []);
 
+  // Prefill by query params
+  const location = useLocation();
+  useEffect(() => {
+    const sp = new URLSearchParams(location.search);
+    const cliente = sp.get("cliente_id");
+    const responsavel = sp.get("responsavel_id");
+    if (cliente) form.setValue("clienteId", cliente as any, { shouldDirty: true });
+    if (responsavel) form.setValue("responsavelId", responsavel as any, { shouldDirty: true });
+  }, [location.search]);
+
   const form = useForm<FormValues>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
