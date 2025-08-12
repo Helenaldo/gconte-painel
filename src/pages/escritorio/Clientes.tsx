@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Plus, Search, Users, Pencil, Eye, Download, Upload, Calendar as CalendarIcon, UserX } from "lucide-react"
@@ -86,6 +87,12 @@ export function Clientes() {
   const [openContactModal, setOpenContactModal] = useState(false)
   const [selectedClientForContact, setSelectedClientForContact] = useState<Cliente | null>(null)
   const [contactForm, setContactForm] = useState({ nome: '', email: '', telefone: '' })
+  // Importação em lote
+  const [openBatchModal, setOpenBatchModal] = useState(false)
+  const [batchInput, setBatchInput] = useState('')
+  const [isBatchImporting, setIsBatchImporting] = useState(false)
+  const [summaryOpen, setSummaryOpen] = useState(false)
+  const [summary, setSummary] = useState<{ total: number; inserted: number; duplicates: number; invalid: number; failed: number }>({ total: 0, inserted: 0, duplicates: 0, invalid: 0, failed: 0 })
   const { toast } = useToast()
 
   // Carregar clientes do banco de dados
@@ -578,6 +585,94 @@ export function Clientes() {
     XLSX.utils.book_append_sheet(wb, ws, 'Clientes')
     XLSX.writeFile(wb, 'modelo-clientes.xlsx')
   }
+  // Helpers para importação em lote
+  const formatCnpj = (value: string) => {
+    const v = value.replace(/\D/g, "")
+    if (v.length !== 14) return value
+    return v.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5")
+  }
+
+  const parseBatchCnpjs = (raw: string) => {
+    const items = raw.split(',').map((s) => s.trim()).filter(Boolean)
+    const seen = new Set<string>()
+    const list: string[] = []
+    let invalid = 0
+    for (const it of items) {
+      const digits = it.replace(/\D/g, '')
+      if (digits.length === 14) {
+        if (!seen.has(digits)) {
+          seen.add(digits)
+          list.push(digits)
+        }
+      } else if (digits.length > 0) {
+        invalid++
+      }
+    }
+    return { list, invalid }
+  }
+
+  const handleBatchImport = async () => {
+    setIsBatchImporting(true)
+    try {
+      const { list, invalid } = parseBatchCnpjs(batchInput)
+      // mapa de CNPJs já existentes (normalizados)
+      const existing = new Set<string>(clientes.map((c) => (c.cnpj || '').replace(/\D/g, '')))
+
+      let duplicates = 0
+      let failed = 0
+      const toInsert: any[] = []
+
+      for (const cnpj of list) {
+        if (existing.has(cnpj)) {
+          duplicates++
+          continue
+        }
+        // Buscar dados via Edge Function
+        const { data, error } = await supabase.functions.invoke('fetch-cnpj', { body: { cnpj } })
+        if (error || !data || data.status !== 'OK') {
+          failed++
+          continue
+        }
+        const orNull = (v?: string) => (v && String(v).trim() !== '' ? v : null)
+        toInsert.push({
+          cnpj: formatCnpj(cnpj),
+          nome_empresarial: data.nome || '',
+          nome_fantasia: orNull(data.fantasia || undefined),
+          ramo_atividade: 'Não informado',
+          cep: orNull(data.cep || undefined),
+          logradouro: orNull(data.logradouro || undefined),
+          numero: orNull(data.numero || undefined),
+          complemento: orNull(data.complemento || undefined),
+          bairro: orNull(data.bairro || undefined),
+          municipio: orNull(data.municipio || undefined),
+          uf: orNull(data.uf || undefined),
+        })
+      }
+
+      let inserted = 0
+      if (toInsert.length > 0) {
+        const { error: insertError } = await supabase.from('clients').insert(toInsert)
+        if (insertError) {
+          // Se falhar a inserção em lote, considera todos como falha
+          failed += toInsert.length
+        } else {
+          inserted = toInsert.length
+        }
+      }
+
+      setSummary({ total: list.length, inserted, duplicates, invalid, failed })
+      setSummaryOpen(true)
+      setOpenBatchModal(false)
+      setBatchInput('')
+      await loadClientes()
+      toast({ title: 'Importação concluída', description: `${inserted} cadastrado(s), ${duplicates} duplicado(s), ${invalid} inválido(s), ${failed} com erro.` })
+    } catch (e) {
+      console.error(e)
+      toast({ title: 'Erro', description: 'Falha na importação em lote.', variant: 'destructive' })
+    } finally {
+      setIsBatchImporting(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -597,6 +692,10 @@ export function Clientes() {
           <Button variant="outline" onClick={handleImportCSV}>
             <Upload className="mr-2 h-4 w-4" />
             Importar XLSX
+          </Button>
+          <Button className="bg-gradient-primary hover:opacity-90" onClick={() => setOpenBatchModal(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            + Clientes em lote
           </Button>
           
           <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
@@ -1173,6 +1272,50 @@ export function Clientes() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Modal: Importar Clientes em Lote */}
+      <Dialog open={openBatchModal} onOpenChange={setOpenBatchModal}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Importar clientes em lote</DialogTitle>
+            <DialogDescription>
+              Cole os CNPJ separados por vírgula. Exemplo: 17.496.049/0001-80, 40987910000124, 06.085.938/0001-38, 03379896000150
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Label>CNPJs</Label>
+            <Textarea
+              placeholder="17.496.049/0001-80, 40987910000124, 06.085.938/0001-38, 03379896000150"
+              value={batchInput}
+              onChange={(e) => setBatchInput(e.target.value)}
+            />
+            <p className="text-sm text-muted-foreground">Separe por vírgula. Aceita com ou sem pontuação.</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenBatchModal(false)} disabled={isBatchImporting}>
+              Cancelar
+            </Button>
+            <Button onClick={handleBatchImport} disabled={!batchInput.trim() || isBatchImporting}>
+              {isBatchImporting ? 'Importando...' : 'Importar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Resumo da Importação */}
+      <AlertDialog open={summaryOpen} onOpenChange={setSummaryOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Importação concluída</AlertDialogTitle>
+            <AlertDialogDescription>
+              {summary.inserted} cadastrado(s), {summary.duplicates} duplicado(s), {summary.invalid} inválido(s), {summary.failed} com erro.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setSummaryOpen(false)}>OK</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
