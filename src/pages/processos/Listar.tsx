@@ -3,7 +3,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { format, parse, isBefore, differenceInCalendarDays } from "date-fns";
 import InputMask from "react-input-mask";
-import { ChevronsUpDown, Check, Search, Eye, Pencil, CheckCircle2, XCircle, Copy } from "lucide-react";
+import { ChevronsUpDown, Check, Search, Eye, Pencil, CheckCircle2, XCircle, Copy, FileSpreadsheet, Download } from "lucide-react";
+import * as XLSX from "xlsx";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/auth-context";
@@ -19,6 +20,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { cn } from "@/lib/utils";
 import { getSla } from "@/lib/sla";
 import DuplicarModal, { ProcessoBase } from "@/components/processos/DuplicarModal";
+import ImportarProcessosModal from "@/components/processos/ImportarProcessosModal";
 
 // Types
 interface Processo {
@@ -152,6 +154,9 @@ export default function ProcessosListar() {
   // Duplicar
   const [dupOpen, setDupOpen] = useState(false);
   const [dupOriginal, setDupOriginal] = useState<ProcessoBase | null>(null);
+
+  // Importar
+  const [importOpen, setImportOpen] = useState(false);
 
   useEffect(() => {
     document.title = "Processos | GConte";
