@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils"
 import InputMask from "react-input-mask"
 import { supabase } from "@/integrations/supabase/client"
 import { ClienteDetails } from "@/components/cliente-details"
+import * as XLSX from "xlsx"
 
 interface Cliente {
   id: string
@@ -385,21 +386,130 @@ export function Clientes() {
   }
 
   const handleImportCSV = () => {
-    toast({
-      title: "Em desenvolvimento",
-      description: "Funcionalidade de importação CSV será implementada em breve"
-    })
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.xlsx,.xls'
+    input.onchange = async (e: Event) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (!file) return
+      try {
+        toast({ title: 'Importando...', description: 'Lendo arquivo XLSX', duration: 2000 })
+        const reader = new FileReader()
+        reader.onload = async () => {
+          try {
+            const data = reader.result as ArrayBuffer
+            const wb = XLSX.read(data, { type: 'array', cellDates: true, dateNF: 'dd/mm/yyyy' })
+            const ws = wb.Sheets[wb.SheetNames[0]]
+            const json = XLSX.utils.sheet_to_json<any>(ws, { defval: '', raw: false })
+
+            const required = ['CNPJ', 'Nome Empresarial', 'Ramo de Atividade', 'Cliente Desde']
+            const validRows: any[] = []
+            const errors: string[] = []
+
+            const toISODate = (v: any): string | null => {
+              if (!v) return null
+              if (v instanceof Date && !isNaN(v.getTime())) return v.toISOString().split('T')[0]
+              if (typeof v === 'number') {
+                const d = XLSX.SSF.parse_date_code(v)
+                if (d) {
+                  const date = new Date(Date.UTC(d.y, (d.m || 1) - 1, d.d || 1))
+                  return date.toISOString().split('T')[0]
+                }
+              }
+              if (typeof v === 'string') {
+                const parsed = parseDate(v)
+                if (parsed) return parsed.toISOString().split('T')[0]
+              }
+              return null
+            }
+
+            json.forEach((row: any, index: number) => {
+              const rowIndex = index + 2 // considerando cabeçalho na linha 1
+              // ignorar linhas completamente vazias
+              const values = Object.values(row).join('').trim()
+              if (!values) return
+
+              const missing = required.filter((k) => !String(row[k] || '').trim())
+              if (missing.length) {
+                errors.push(`Linha ${rowIndex}: faltando ${missing.join(', ')}`)
+                return
+              }
+
+              const cnpj = String(row['CNPJ']).replace(/\D/g, '')
+              if (!validateCNPJ(cnpj)) {
+                errors.push(`Linha ${rowIndex}: CNPJ inválido`)
+                return
+              }
+
+              const clienteDesdeISO = toISODate(row['Cliente Desde'])
+              if (!clienteDesdeISO) {
+                errors.push(`Linha ${rowIndex}: data "Cliente Desde" inválida`)
+                return
+              }
+
+              const fimContratoISO = toISODate(row['Fim Contrato'])
+
+              validRows.push({
+                cnpj,
+                nome_empresarial: String(row['Nome Empresarial']).trim(),
+                nome_fantasia: String(row['Nome Fantasia'] || '').trim() || null,
+                ramo_atividade: String(row['Ramo de Atividade']).trim(),
+                cep: String(row['CEP'] || '').trim() || null,
+                logradouro: String(row['Logradouro'] || '').trim() || null,
+                numero: String(row['Numero'] || '').trim() || null,
+                complemento: String(row['Complemento'] || '').trim() || null,
+                bairro: String(row['Bairro'] || '').trim() || null,
+                municipio: String(row['Municipio'] || '').trim() || null,
+                uf: String(row['UF'] || '').trim() || null,
+                cliente_desde: clienteDesdeISO,
+                fim_contrato: fimContratoISO,
+              })
+            })
+
+            if (validRows.length === 0) {
+              toast({ title: 'Nenhum registro válido', description: errors[0] || 'Verifique o arquivo.', variant: 'destructive' })
+              return
+            }
+
+            const { error } = await supabase.from('clients').insert(validRows)
+            if (error) throw error
+
+            await loadClientes()
+            toast({ title: 'Importação concluída', description: `${validRows.length} registro(s) importado(s).${errors.length ? ` ${errors.length} linha(s) ignorada(s).` : ''}` })
+          } catch (err: any) {
+            console.error('Erro ao importar XLSX:', err)
+            toast({ title: 'Erro ao importar', description: err.message || 'Falha ao processar o arquivo.', variant: 'destructive' })
+          }
+        }
+        reader.readAsArrayBuffer(file)
+      } catch (err: any) {
+        console.error('Erro no arquivo XLSX:', err)
+        toast({ title: 'Erro', description: 'Não foi possível ler o arquivo.', variant: 'destructive' })
+      }
+    }
+    input.click()
   }
 
   const handleDownloadModel = () => {
-    const csvContent = "CNPJ,Nome Empresarial,Nome Fantasia,Ramo de Atividade,CEP,Logradouro,Numero,Complemento,Bairro,Municipio,UF,Cliente Desde,Fim Contrato\n"
-    const blob = new Blob([csvContent], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'modelo-clientes.csv'
-    a.click()
-    window.URL.revokeObjectURL(url)
+    const headers = [
+      'CNPJ',
+      'Nome Empresarial',
+      'Nome Fantasia',
+      'Ramo de Atividade',
+      'CEP',
+      'Logradouro',
+      'Numero',
+      'Complemento',
+      'Bairro',
+      'Municipio',
+      'UF',
+      'Cliente Desde',
+      'Fim Contrato',
+    ]
+    const ws = XLSX.utils.aoa_to_sheet([headers])
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Clientes')
+    XLSX.writeFile(wb, 'modelo-clientes.xlsx')
   }
 
   return (
@@ -415,11 +525,11 @@ export function Clientes() {
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleDownloadModel}>
             <Download className="mr-2 h-4 w-4" />
-            Baixar CSV Modelo
+            Baixar XLSX Modelo
           </Button>
           <Button variant="outline" onClick={handleImportCSV}>
             <Upload className="mr-2 h-4 w-4" />
-            Importar CSV
+            Importar XLSX
           </Button>
           
           <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
