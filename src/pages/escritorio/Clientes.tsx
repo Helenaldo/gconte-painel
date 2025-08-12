@@ -1061,6 +1061,118 @@ export function Clientes() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Modal: Nova Tributação */}
+      <Dialog open={openTaxModal} onOpenChange={setOpenTaxModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nova Tributação</DialogTitle>
+            <DialogDescription>
+              Cliente: {selectedClientForTax?.nome_empresarial}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label>Tipo</Label>
+              <Select value={taxForm.tipo} onValueChange={(v) => setTaxForm((f) => ({ ...f, tipo: v }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Simples Nacional">Simples Nacional</SelectItem>
+                  <SelectItem value="Lucro Presumido">Lucro Presumido</SelectItem>
+                  <SelectItem value="Lucro Real">Lucro Real</SelectItem>
+                  <SelectItem value="Isento/Imune">Isento/Imune</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Data</Label>
+              <Input
+                type="date"
+                value={taxForm.data}
+                onChange={(e) => setTaxForm((f) => ({ ...f, data: e.target.value }))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Valor (opcional)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="0,00"
+                value={taxForm.valor}
+                onChange={(e) => setTaxForm((f) => ({ ...f, valor: e.target.value }))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Descrição (opcional)</Label>
+              <Textarea
+                value={taxForm.descricao}
+                onChange={(e) => setTaxForm((f) => ({ ...f, descricao: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenTaxModal(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleCreateTaxation} disabled={!taxForm.tipo || !taxForm.data}>
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Novo Contato */}
+      <Dialog open={openContactModal} onOpenChange={setOpenContactModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Novo Contato</DialogTitle>
+            <DialogDescription>
+              Cliente: {selectedClientForContact?.nome_empresarial}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label>Nome</Label>
+              <Input
+                value={contactForm.nome}
+                onChange={(e) => setContactForm((f) => ({ ...f, nome: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>E-mail</Label>
+              <Input
+                type="email"
+                value={contactForm.email}
+                onChange={(e) => setContactForm((f) => ({ ...f, email: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Telefone</Label>
+              <Input
+                value={contactForm.telefone}
+                onChange={(e) => setContactForm((f) => ({ ...f, telefone: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenContactModal(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleCreateContact} disabled={!contactForm.nome || !contactForm.email || !contactForm.telefone}>
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
