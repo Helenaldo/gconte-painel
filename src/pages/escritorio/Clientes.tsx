@@ -3,8 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Plus, Search, Users, Pencil, Eye, Download, Upload, Calendar as CalendarIcon, UserX } from "lucide-react"
@@ -75,22 +76,35 @@ export function Clientes() {
     cliente_desde: undefined as Date | undefined,
     fim_contrato: undefined as Date | undefined
   })
+  const [taxFilter, setTaxFilter] = useState<'todos' | 'sem'>('todos')
+  const [contatoFilter, setContatoFilter] = useState<'todos' | 'sem'>('todos')
+  const [taxedClientIds, setTaxedClientIds] = useState<Set<string>>(new Set())
+  const [contactedClientIds, setContactedClientIds] = useState<Set<string>>(new Set())
+  const [openTaxModal, setOpenTaxModal] = useState(false)
+  const [selectedClientForTax, setSelectedClientForTax] = useState<Cliente | null>(null)
+  const [taxForm, setTaxForm] = useState({ tipo: '', data: '', valor: '', descricao: '' })
+  const [openContactModal, setOpenContactModal] = useState(false)
+  const [selectedClientForContact, setSelectedClientForContact] = useState<Cliente | null>(null)
+  const [contactForm, setContactForm] = useState({ nome: '', email: '', telefone: '' })
   const { toast } = useToast()
 
   // Carregar clientes do banco de dados
   const loadClientes = async () => {
     try {
-      const { data, error } = await supabase
-        .from('clients')
-        .select('*')
-        .order('nome_empresarial')
-      
-      if (error) {
-        console.error('Erro ao carregar clientes:', error)
+      const [clientsRes, taxationRes, contactsRes] = await Promise.all([
+        supabase.from('clients').select('*').order('nome_empresarial'),
+        supabase.from('taxation').select('client_id,status').eq('status', 'ativa'),
+        supabase.from('contacts').select('client_id')
+      ])
+
+      if (clientsRes.error || taxationRes.error || contactsRes.error) {
+        console.error('Erro ao carregar dados:', clientsRes.error || taxationRes.error || contactsRes.error)
         return
       }
-      
-      setClientes(data || [])
+
+      setClientes(clientsRes.data || [])
+      setTaxedClientIds(new Set((taxationRes.data || []).map((t: any) => t.client_id)))
+      setContactedClientIds(new Set((contactsRes.data || []).map((c: any) => c.client_id)))
     } catch (error) {
       console.error('Erro ao carregar clientes:', error)
     }
@@ -198,8 +212,11 @@ export function Clientes() {
     const matchesStatus = statusFilter === "todos" || 
                          (statusFilter === "ativos" && isActive) ||
                          (statusFilter === "inativos" && !isActive)
+
+    const matchesTrib = taxFilter === 'todos' || (taxFilter === 'sem' && !taxedClientIds.has(cliente.id))
+    const matchesContato = contatoFilter === 'todos' || (contatoFilter === 'sem' && !contactedClientIds.has(cliente.id))
     
-    return matchesSearch && matchesStatus
+    return matchesSearch && matchesStatus && matchesTrib && matchesContato
   })
 
   // Paginação
@@ -210,7 +227,7 @@ export function Clientes() {
   // Reset da página quando filtros mudam
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, statusFilter])
+  }, [searchTerm, statusFilter, taxFilter, contatoFilter])
 
   const parseDate = (dateString: string) => {
     if (!dateString) return undefined
@@ -382,6 +399,56 @@ export function Clientes() {
         description: "Erro ao excluir cliente",
         variant: "destructive"
       })
+    }
+  }
+
+  const handleCreateTaxation = async () => {
+    if (!selectedClientForTax) return
+    if (!taxForm.tipo || !taxForm.data) {
+      toast({ title: 'Preencha tipo e data', variant: 'destructive' })
+      return
+    }
+    try {
+      const { error } = await supabase.from('taxation').insert({
+        client_id: selectedClientForTax.id,
+        tipo: taxForm.tipo,
+        data: taxForm.data,
+        status: 'ativa',
+        valor: taxForm.valor ? Number(taxForm.valor) : null,
+        descricao: taxForm.descricao || null,
+      })
+      if (error) throw error
+      toast({ title: 'Tributação criada com sucesso' })
+      setOpenTaxModal(false)
+      setTaxForm({ tipo: '', data: '', valor: '', descricao: '' })
+      setSelectedClientForTax(null)
+      loadClientes()
+    } catch (err: any) {
+      toast({ title: 'Erro ao criar tributação', description: err.message, variant: 'destructive' })
+    }
+  }
+
+  const handleCreateContact = async () => {
+    if (!selectedClientForContact) return
+    if (!contactForm.nome || !contactForm.email || !contactForm.telefone) {
+      toast({ title: 'Preencha nome, e-mail e telefone', variant: 'destructive' })
+      return
+    }
+    try {
+      const { error } = await supabase.from('contacts').insert({
+        client_id: selectedClientForContact.id,
+        nome: contactForm.nome,
+        email: contactForm.email,
+        telefone: contactForm.telefone,
+      })
+      if (error) throw error
+      toast({ title: 'Contato criado com sucesso' })
+      setOpenContactModal(false)
+      setContactForm({ nome: '', email: '', telefone: '' })
+      setSelectedClientForContact(null)
+      loadClientes()
+    } catch (err: any) {
+      toast({ title: 'Erro ao criar contato', description: err.message, variant: 'destructive' })
     }
   }
 
@@ -804,12 +871,30 @@ export function Clientes() {
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-40">
-                <SelectValue />
+                <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ativos">Ativos</SelectItem>
                 <SelectItem value="inativos">Inativos</SelectItem>
                 <SelectItem value="todos">Todos</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={taxFilter} onValueChange={(v: any) => setTaxFilter(v)}>
+              <SelectTrigger className="w-56">
+                <SelectValue placeholder="Tributação" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Tributação: Todos</SelectItem>
+                <SelectItem value="sem">Sem tributação definida</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={contatoFilter} onValueChange={(v: any) => setContatoFilter(v)}>
+              <SelectTrigger className="w-56">
+                <SelectValue placeholder="Contato" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Contato: Todos</SelectItem>
+                <SelectItem value="sem">Sem contato cadastrado</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -877,7 +962,24 @@ export function Clientes() {
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
-                       {!cliente.fim_contrato && (
+                      {taxFilter === 'sem' && !cliente.fim_contrato && (
+                        <Button
+                          size="sm"
+                          onClick={() => { setSelectedClientForTax(cliente); setOpenTaxModal(true) }}
+                        >
+                          Nova Tributação
+                        </Button>
+                      )}
+                      {contatoFilter === 'sem' && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => { setSelectedClientForContact(cliente); setOpenContactModal(true) }}
+                        >
+                          Novo Contato
+                        </Button>
+                      )}
+                      {!cliente.fim_contrato && (
                         <Button
                           variant="outline"
                           size="sm"
