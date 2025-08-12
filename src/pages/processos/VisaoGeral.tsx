@@ -12,6 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getSla } from "@/lib/sla";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import CalendarioTab from "@/components/processos/CalendarioTab";
 
 interface Processo {
   id: string;
@@ -181,77 +183,90 @@ export default function VisaoGeral() {
     }
   };
 
-  return (
-    <main className="p-6">
-      <header className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Visão geral</h1>
-        <Button onClick={() => window.location.assign("/processos/novo")}>
-          Novo
-        </Button>
-      </header>
+    return (
+      <main className="p-6">
+        <header className="mb-4 flex items-center justify-between">
+          <h1 className="text-2xl font-semibold">Visão geral</h1>
+          <Button onClick={() => window.location.assign("/processos/novo")}>
+            Novo
+          </Button>
+        </header>
 
-      <DragDropContext onDragEnd={onDragEnd}>
-        <section className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-4">
-          {STATUS.map(({ label, value }) => {
-            const items = columns[value];
-            return (
-              <Droppable droppableId={value} key={value}>
-                {(provided, snapshot) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    className={cn(
-                      "rounded-md border bg-card p-3 flex flex-col min-h-[200px]",
-                      snapshot.isDraggingOver && "ring-2 ring-primary/40"
-                    )}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <h2 className="text-sm font-medium">{label}</h2>
-                      <Badge variant="secondary">{items?.length || 0}</Badge>
-                    </div>
-                    <div className="space-y-2">
-                      {items?.map((p, idx) => (
-                        <Draggable draggableId={p.id} index={idx} key={p.id}>
-                          {(dragProvided, dragSnapshot) => (
-                            <div
-                              ref={dragProvided.innerRef}
-                              {...dragProvided.draggableProps}
-                              {...dragProvided.dragHandleProps}
-                              className={cn(
-                                "rounded-md border bg-background p-3 shadow-sm",
-                                dragSnapshot.isDragging && "shadow-md"
-                              )}
-                            >
-                              <div className="text-sm font-medium line-clamp-2">{p.titulo}</div>
-                              <div className="text-xs text-muted-foreground">{p.cliente_id ? clientById[p.cliente_id]?.label : "—"}</div>
-                              <div className="flex items-center gap-2 mt-2">
-                                <Avatar className="h-6 w-6">
-                                  <AvatarImage src={respById[p.responsavel_id]?.avatar_url} alt={respById[p.responsavel_id]?.label} />
-                                  <AvatarFallback>{respById[p.responsavel_id]?.label?.charAt(0) ?? "?"}</AvatarFallback>
-                                </Avatar>
-                                <span className="text-xs">{respById[p.responsavel_id]?.label || "—"}</span>
-                              </div>
-                              <div className="flex items-center justify-between mt-2">
-                                <Badge variant={prioridadeVariant(p.prioridade)}>
-                                  {PRIORIDADES.find((x) => x.value === p.prioridade)?.label || p.prioridade}
-                                </Badge>
-                                <PrazoBadge status={p.status as Status} dateISO={p.prazo} />
-                              </div>
-                            </div>
+        <Tabs defaultValue="kanban" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="kanban">Quadros</TabsTrigger>
+            <TabsTrigger value="calendar">Calendário</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="kanban">
+            <DragDropContext onDragEnd={onDragEnd}>
+              <section className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-4">
+                {STATUS.map(({ label, value }) => {
+                  const items = columns[value];
+                  return (
+                    <Droppable droppableId={value} key={value}>
+                      {(provided, snapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                          className={cn(
+                            "rounded-md border bg-card p-3 flex flex-col min-h-[200px]",
+                            snapshot.isDraggingOver && "ring-2 ring-primary/40"
                           )}
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
-                    </div>
-                  </div>
-                )}
-              </Droppable>
-            );
-          })}
-        </section>
-      </DragDropContext>
-    </main>
-  );
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <h2 className="text-sm font-medium">{label}</h2>
+                            <Badge variant="secondary">{items?.length || 0}</Badge>
+                          </div>
+                          <div className="space-y-2">
+                            {items?.map((p, idx) => (
+                              <Draggable draggableId={p.id} index={idx} key={p.id}>
+                                {(dragProvided, dragSnapshot) => (
+                                  <div
+                                    ref={dragProvided.innerRef}
+                                    {...dragProvided.draggableProps}
+                                    {...dragProvided.dragHandleProps}
+                                    className={cn(
+                                      "rounded-md border bg-background p-3 shadow-sm",
+                                      dragSnapshot.isDragging && "shadow-md"
+                                    )}
+                                  >
+                                    <div className="text-sm font-medium line-clamp-2">{p.titulo}</div>
+                                    <div className="text-xs text-muted-foreground">{p.cliente_id ? clientById[p.cliente_id]?.label : "—"}</div>
+                                    <div className="flex items-center gap-2 mt-2">
+                                      <Avatar className="h-6 w-6">
+                                        <AvatarImage src={respById[p.responsavel_id]?.avatar_url} alt={respById[p.responsavel_id]?.label} />
+                                        <AvatarFallback>{respById[p.responsavel_id]?.label?.charAt(0) ?? "?"}</AvatarFallback>
+                                      </Avatar>
+                                      <span className="text-xs">{respById[p.responsavel_id]?.label || "—"}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between mt-2">
+                                      <Badge variant={prioridadeVariant(p.prioridade)}>
+                                        {PRIORIDADES.find((x) => x.value === p.prioridade)?.label || p.prioridade}
+                                      </Badge>
+                                      <PrazoBadge status={p.status as Status} dateISO={p.prazo} />
+                                    </div>
+                                  </div>
+                                )}
+                              </Draggable>
+                            ))}
+                            {provided.placeholder}
+                          </div>
+                        </div>
+                      )}
+                    </Droppable>
+                  );
+                })}
+              </section>
+            </DragDropContext>
+          </TabsContent>
+
+          <TabsContent value="calendar">
+            <CalendarioTab clientes={clientes} responsaveis={responsaveis} />
+          </TabsContent>
+        </Tabs>
+      </main>
+    );
 }
 
 function PrazoBadge({ dateISO, status }: { dateISO: string | null; status: Status }) {

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import FullCalendar from "@fullcalendar/react";
-import type { EventClickArg, EventContentArg } from "@fullcalendar/core";
-import type { EventDropArg } from "@fullcalendar/interaction";
+import type { EventClickArg, EventContentArg, EventDropArg } from "@fullcalendar/core";
+
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import listPlugin from "@fullcalendar/list";
@@ -106,8 +106,8 @@ export default function CalendarioTab({ clientes, responsaveis }: { clientes: Op
       let pq = supabase.from("processos").select("*").order("created_at", { ascending: false });
       if (clienteId) pq = pq.eq("cliente_id", clienteId);
       if (responsavelId) pq = pq.eq("responsavel_id", responsavelId);
-      if (setor) pq = pq.eq("setor", setor);
-      if (status) pq = pq.eq("status", status);
+      if (setor) pq = pq.eq("setor", setor as any);
+      if (status) pq = pq.eq("status", status as any);
       const [{ data: pData, error: pErr }, { data: mData, error: mErr }] = await Promise.all([
         pq,
         supabase.from("movimentos").select("*").order("data_mov", { ascending: false }),
@@ -210,7 +210,7 @@ export default function CalendarioTab({ clientes, responsaveis }: { clientes: Op
         <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 opacity-90">
           {cliente && <span className="truncate">{cliente.label}</span>}
           {resp && <span className="truncate">{resp.label}</span>}
-          {p.status && <span className="truncate uppercase">{String(p.status).replaceAll("_", " ")}</span>}
+          {p.status && <span className="truncate uppercase">{String(p.status).split("_").join(" ")}</span>}
           {sla && <span className={cn("rounded px-1", 
             sla.variant === "destructive" && "bg-destructive text-destructive-foreground",
             sla.variant === "warning" && "bg-warning text-warning-foreground",
@@ -397,7 +397,7 @@ export default function CalendarioTab({ clientes, responsaveis }: { clientes: Op
                   <div className="text-xs text-muted-foreground">{cliente?.label || "—"} • {resp?.label || "—"}</div>
                 </div>
                 <div className="flex items-center gap-2 text-xs">
-                  <Badge variant="secondary">{String(p.status).replaceAll("_", " ")}</Badge>
+                  <Badge variant="secondary">{String(p.status).split("_").join(" ")}</Badge>
                   {p.prioridade && <Badge className={PRIORIDADE_TO_CLASS[p.prioridade] || ""}>{p.prioridade}</Badge>}
                   {sla && <Badge variant={sla.variant}>{sla.label}</Badge>}
                 </div>
