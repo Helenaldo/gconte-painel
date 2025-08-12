@@ -79,6 +79,7 @@ export function Clientes() {
   })
   const [taxFilter, setTaxFilter] = useState<'todos' | 'sem'>('todos')
   const [contatoFilter, setContatoFilter] = useState<'todos' | 'sem'>('todos')
+  const [ramoFilter, setRamoFilter] = useState<'todos' | 'nao'>('todos')
   const [taxedClientIds, setTaxedClientIds] = useState<Set<string>>(new Set())
   const [contactedClientIds, setContactedClientIds] = useState<Set<string>>(new Set())
   const [openTaxModal, setOpenTaxModal] = useState(false)
@@ -222,8 +223,9 @@ export function Clientes() {
 
     const matchesTrib = taxFilter === 'todos' || (taxFilter === 'sem' && !taxedClientIds.has(cliente.id))
     const matchesContato = contatoFilter === 'todos' || (contatoFilter === 'sem' && !contactedClientIds.has(cliente.id))
+    const matchesRamo = ramoFilter === 'todos' || (ramoFilter === 'nao' && cliente.ramo_atividade === 'Não informado')
     
-    return matchesSearch && matchesStatus && matchesTrib && matchesContato
+    return matchesSearch && matchesStatus && matchesTrib && matchesContato && matchesRamo
   })
 
   // Paginação
@@ -234,7 +236,7 @@ export function Clientes() {
   // Reset da página quando filtros mudam
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, statusFilter, taxFilter, contatoFilter])
+  }, [searchTerm, statusFilter, taxFilter, contatoFilter, ramoFilter])
 
   const parseDate = (dateString: string) => {
     if (!dateString) return undefined
@@ -893,6 +895,15 @@ export function Clientes() {
                 <SelectItem value="sem">Sem contato cadastrado</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={ramoFilter} onValueChange={(v: any) => setRamoFilter(v)}>
+              <SelectTrigger className="w-56">
+                <SelectValue placeholder="Ramo de atividade" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Ramo: Todos</SelectItem>
+                <SelectItem value="nao">Ramo: Não informado</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
@@ -973,6 +984,14 @@ export function Clientes() {
                           onClick={() => { setSelectedClientForContact(cliente); setOpenContactModal(true) }}
                         >
                           Novo Contato
+                        </Button>
+                      )}
+                      {ramoFilter === 'nao' && (
+                        <Button
+                          size="sm"
+                          onClick={() => openEditModal(cliente)}
+                        >
+                          Informar atividade
                         </Button>
                       )}
                       {!cliente.fim_contrato && (
