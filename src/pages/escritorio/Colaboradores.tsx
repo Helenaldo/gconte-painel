@@ -676,8 +676,6 @@ export function Colaboradores() {
             <DialogTitle>Processos de {selectedColaborador?.nome}</DialogTitle>
           </DialogHeader>
           {selectedColaborador && (
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            // @ts-expect-error isolated file import
             <ResponsavelKanban responsavelId={selectedColaborador.id} responsavelNome={selectedColaborador.nome} />
           )}
         </DialogContent>

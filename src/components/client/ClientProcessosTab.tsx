@@ -140,8 +140,8 @@ export default function ClientProcessosTab({ clienteId, clienteNome }: Props) {
 
         if (q) query = query.ilike("titulo", `%${q}%`);
         if (status.length) query = query.in("status", status as any);
-        if (prioridade) query = query.eq("prioridade", prioridade);
-        if (setor) query = query.eq("setor", setor);
+        if (prioridade) query = query.eq("prioridade", prioridade as any);
+        if (setor) query = query.eq("setor", setor as any);
         if (responsavelId) query = query.eq("responsavel_id", responsavelId);
         if (prazoIni) query = query.gte("prazo", format(parse(prazoIni, "dd/MM/yyyy", new Date()), "yyyy-MM-dd"));
         if (prazoFim) query = query.lte("prazo", format(parse(prazoFim, "dd/MM/yyyy", new Date()), "yyyy-MM-dd"));

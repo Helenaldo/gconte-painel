@@ -849,6 +849,7 @@ export default function ProcessoDetalhes() {
           {client && <ClienteDetails cliente={{ id: client.id, cnpj: "", nome_empresarial: client.nome_empresarial, nome_fantasia: client.nome_fantasia || "", ramo_atividade: "", cep: "", logradouro: "", numero: "", complemento: "", bairro: "", municipio: "", uf: "", cliente_desde: new Date().toISOString(), fim_contrato: null }} />}
         </DialogContent>
       </Dialog>
+      <Dialog open={openMov} onOpenChange={setOpenMov}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingMov ? "Editar Movimento" : "Novo Movimento"}</DialogTitle>
