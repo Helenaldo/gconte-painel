@@ -6,7 +6,7 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import listPlugin from "@fullcalendar/list";
 import interactionPlugin from "@fullcalendar/interaction";
-
+import ptBr from "@fullcalendar/core/locales/pt-br";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -359,6 +359,8 @@ export default function CalendarioTab({ clientes, responsaveis }: { clientes: Op
       <div className="rounded-md border bg-card p-2">
         <FullCalendar
           plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
+          locales={[ptBr]}
+          locale="pt-br"
           headerToolbar={{ left: "prev,next today", center: "title", right: "dayGridMonth,timeGridWeek,listWeek" }}
           initialView={isMobile ? "listWeek" : "dayGridMonth"}
           events={events}
