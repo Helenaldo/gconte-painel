@@ -7,9 +7,6 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import listPlugin from "@fullcalendar/list";
 import interactionPlugin from "@fullcalendar/interaction";
 
-import "@fullcalendar/daygrid/main.css";
-import "@fullcalendar/timegrid/main.css";
-import "@fullcalendar/list/main.css";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useIsMobile } from "@/hooks/use-mobile";
