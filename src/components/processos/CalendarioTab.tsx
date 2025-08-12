@@ -320,31 +320,31 @@ export default function CalendarioTab({ clientes, responsaveis }: { clientes: Op
             {TIPO_OPTIONS.map((o) => (<SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>))}
           </SelectContent>
         </Select>
-        <Select value={clienteId} onValueChange={setClienteId}>
+        <Select value={clienteId || "all"} onValueChange={(v) => setClienteId(v === "all" ? "" : v)}>
           <SelectTrigger className="w-[220px]"><SelectValue placeholder="Cliente" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todos os clientes</SelectItem>
+            <SelectItem value="all">Todos os clientes</SelectItem>
             {clientes.map((c) => (<SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>))}
           </SelectContent>
         </Select>
-        <Select value={responsavelId} onValueChange={setResponsavelId}>
+        <Select value={responsavelId || "all"} onValueChange={(v) => setResponsavelId(v === "all" ? "" : v)}>
           <SelectTrigger className="w-[220px]"><SelectValue placeholder="Responsável" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todos os responsáveis</SelectItem>
+            <SelectItem value="all">Todos os responsáveis</SelectItem>
             {responsaveis.map((r) => (<SelectItem key={r.id} value={r.id}>{r.label}</SelectItem>))}
           </SelectContent>
         </Select>
-        <Select value={setor} onValueChange={setSetor}>
+        <Select value={setor || "all"} onValueChange={(v) => setSetor(v === "all" ? "" : v)}>
           <SelectTrigger className="w-[180px]"><SelectValue placeholder="Setor" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todos os setores</SelectItem>
+            <SelectItem value="all">Todos os setores</SelectItem>
             {setores.map((s) => (<SelectItem key={s} value={s}>{s}</SelectItem>))}
           </SelectContent>
         </Select>
-        <Select value={status} onValueChange={setStatus}>
+        <Select value={status || "all"} onValueChange={(v) => setStatus(v === "all" ? "" : v)}>
           <SelectTrigger className="w-[180px]"><SelectValue placeholder="Status" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Todos</SelectItem>
+            <SelectItem value="all">Todos</SelectItem>
             <SelectItem value="aberto">Aberto</SelectItem>
             <SelectItem value="em_andamento">Em Andamento</SelectItem>
             <SelectItem value="aguardando_terceiros">Aguardando Terceiros</SelectItem>
