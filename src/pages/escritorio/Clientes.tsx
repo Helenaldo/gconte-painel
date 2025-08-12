@@ -695,7 +695,7 @@ export function Clientes() {
           </Button>
           <Button className="bg-gradient-primary hover:opacity-90" onClick={() => setOpenBatchModal(true)}>
             <Plus className="mr-2 h-4 w-4" />
-            + Clientes em lote
+            Clientes em lote
           </Button>
           
           <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
