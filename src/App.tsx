@@ -24,6 +24,7 @@ import ProcessoDetalhes from "@/pages/processos/Detalhes";
 import ProcessosListar from "@/pages/processos/Listar";
 import VisaoGeral from "@/pages/processos/VisaoGeral";
 import Tipos from "@/pages/processos/Tipos";
+import RelatoriosProcessos from "@/pages/processos/Relatorios";
 
 const queryClient = new QueryClient();
 
@@ -227,6 +228,16 @@ function AppRoutes() {
           <ProtectedRoute>
             <MainLayout user={userForLayout} onLogout={logout}>
               <Tipos />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/processos/relatorios"
+        element={
+          <ProtectedRoute>
+            <MainLayout user={userForLayout} onLogout={logout}>
+              <RelatoriosProcessos />
             </MainLayout>
           </ProtectedRoute>
         }
