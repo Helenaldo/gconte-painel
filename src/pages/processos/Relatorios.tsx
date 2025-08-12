@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/auth-context";
 import { format, parseISO, differenceInCalendarDays } from "date-fns";
@@ -262,7 +262,7 @@ function useProcessosData(filters: Filters) {
       const filtered = applySlaClientSide(rows, filters);
       return { rows: filtered, total: count || 0 };
     },
-    placeholderData: keepPreviousData,
+    placeholderData: (prev) => prev,
   });
 
   // Aggregations: fetch a larger slice for charts (cap at 5000)
