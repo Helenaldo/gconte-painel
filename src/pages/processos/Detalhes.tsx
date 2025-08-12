@@ -17,6 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import ConcluirModal from "@/components/processos/ConcluirModal";
 import DuplicarModal from "@/components/processos/DuplicarModal";
 import { Form } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
@@ -200,6 +201,8 @@ export default function ProcessoDetalhes() {
   const [loading, setLoading] = useState(true);
 
   const [openCliente, setOpenCliente] = useState(false);
+  const [openConcluir, setOpenConcluir] = useState(false);
+  const [openReabrir, setOpenReabrir] = useState(false);
   const [contacts, setContacts] = useState<{ id: string; nome: string; email: string; telefone: string }[]>([]);
 
   // Checklist (local)
@@ -606,14 +609,15 @@ export default function ProcessoDetalhes() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant={slaBadge.variant as any}>{slaBadge.label}</Badge>
-                  <Button variant="outline" onClick={() => navigate(`/processos/${proc.id}/editar`)}>
-                    <Edit3 className="h-4 w-4 mr-2" />
-                    Editar
-                  </Button>
-                  <Button variant="secondary" onClick={() => setOpenDup(true)}>
-                    <Paperclip className="hidden" />
-                    Duplicar
-                  </Button>
+                  {proc.status !== "concluido" ? (
+                    <Button variant="secondary" onClick={() => setOpenConcluir(true)}>
+                      <CheckCircle2 className="h-4 w-4 mr-2" /> Concluir Processo
+                    </Button>
+                  ) : (
+                    <Button variant="outline" onClick={() => setOpenReabrir(true)}>
+                      Reabrir Processo
+                    </Button>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -838,14 +842,19 @@ export default function ProcessoDetalhes() {
         </aside>
       </section>
 
-      {/* Botões flutuantes */}
       <div className="fixed bottom-6 right-6 flex flex-col gap-3">
         <Button size="lg" onClick={() => { setEditingMov(null); setOpenMov(true); }}>
           <Plus className="h-4 w-4 mr-2" /> Novo Movimento
         </Button>
-        <Button size="lg" variant="secondary" onClick={concluirProcesso}>
-          <CheckCircle2 className="h-4 w-4 mr-2" /> Concluir Processo
-        </Button>
+        {proc.status !== "concluido" ? (
+          <Button size="lg" variant="secondary" onClick={() => setOpenConcluir(true)}>
+            <CheckCircle2 className="h-4 w-4 mr-2" /> Concluir Processo
+          </Button>
+        ) : (
+          <Button size="lg" variant="outline" onClick={() => setOpenReabrir(true)}>
+            <CheckCircle2 className="h-4 w-4 mr-2" /> Reabrir Processo
+          </Button>
+        )}
       </div>
 
       {/* Modal Cliente */}
@@ -858,16 +867,22 @@ export default function ProcessoDetalhes() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal Duplicar */}
-      <DuplicarModal
-        open={openDup}
-        onOpenChange={setOpenDup}
-        original={proc ? { id: proc.id, titulo: proc.titulo, cliente_id: proc.cliente_id, responsavel_id: proc.responsavel_id, setor: proc.setor, prioridade: proc.prioridade, prazo: proc.prazo, descricao: proc.descricao, etiquetas: proc.etiquetas } : null}
-        onSuccess={(newId) => {
-          toast.success("Processo duplicado. Abrindo...");
-          navigate(`/processos/${newId}`);
-        }}
-      />
+      {/* Modal Concluir */}
+      {proc && (
+        <ConcluirModal
+          open={openConcluir}
+          onOpenChange={setOpenConcluir}
+          proc={{ id: proc.id, titulo: proc.titulo, cliente_id: proc.cliente_id, responsavel_id: proc.responsavel_id, setor: proc.setor, prioridade: proc.prioridade, status: proc.status, prazo: proc.prazo, descricao: proc.descricao, etiquetas: proc.etiquetas, data_abertura: proc.created_at }}
+          movs={movs.map((m) => ({ id: m.id, tipo: m.tipo, status_mov: m.status_mov, data_mov: m.data_mov, prazo_mov: m.prazo_mov }))}
+          anexosByMov={anexosByMov as any}
+          checklist={checklist}
+          clientName={client ? (client.nome_fantasia || client.nome_empresarial) : null}
+          officeLogoUrl={null}
+          onConcluded={({ data_conclusao }) => {
+            setProc((prev) => prev ? { ...prev, status: "concluido", data_conclusao } as any : prev);
+          }}
+        />
+      )}
 
       {/* Modal Movimento */}
       <Dialog open={openMov} onOpenChange={setOpenMov}>
