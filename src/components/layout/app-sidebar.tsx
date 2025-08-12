@@ -89,7 +89,7 @@ const menuItems = [
     title: "Processos",
     icon: Briefcase,
     items: [
-      { title: "Visão geral", url: "/processos", icon: LayoutDashboard },
+      { title: "Visão geral", url: "/processos/visao-geral", icon: LayoutDashboard },
       { title: "Listar", url: "/processos/listar", icon: List },
       { title: "Novo", url: "/processos/novo", icon: PlusCircle },
       { title: "Tipos", url: "/processos/tipos", icon: Tags },
