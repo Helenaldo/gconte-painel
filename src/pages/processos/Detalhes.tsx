@@ -17,6 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import DuplicarModal from "@/components/processos/DuplicarModal";
 import { Form } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { getSla } from "@/lib/sla";
@@ -218,6 +219,9 @@ export default function ProcessoDetalhes() {
   const [files, setFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const inputRef = useRef<HTMLInputElement | null>(null);
+
+  // Duplicar
+  const [openDup, setOpenDup] = useState(false);
 
   const movForm = useForm<{ tipo: MovTipo; descricao: string; prazo_mov?: string | null; responsavel_id: string; status_mov: StatusMov }>();
 
@@ -606,6 +610,10 @@ export default function ProcessoDetalhes() {
                     <Edit3 className="h-4 w-4 mr-2" />
                     Editar
                   </Button>
+                  <Button variant="secondary" onClick={() => setOpenDup(true)}>
+                    <Paperclip className="hidden" />
+                    Duplicar
+                  </Button>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -849,6 +857,19 @@ export default function ProcessoDetalhes() {
           {client && <ClienteDetails cliente={{ id: client.id, cnpj: "", nome_empresarial: client.nome_empresarial, nome_fantasia: client.nome_fantasia || "", ramo_atividade: "", cep: "", logradouro: "", numero: "", complemento: "", bairro: "", municipio: "", uf: "", cliente_desde: new Date().toISOString(), fim_contrato: null }} />}
         </DialogContent>
       </Dialog>
+
+      {/* Modal Duplicar */}
+      <DuplicarModal
+        open={openDup}
+        onOpenChange={setOpenDup}
+        original={proc ? { id: proc.id, titulo: proc.titulo, cliente_id: proc.cliente_id, responsavel_id: proc.responsavel_id, setor: proc.setor, prioridade: proc.prioridade, prazo: proc.prazo, descricao: proc.descricao, etiquetas: proc.etiquetas } : null}
+        onSuccess={(newId) => {
+          toast.success("Processo duplicado. Abrindo...");
+          navigate(`/processos/${newId}`);
+        }}
+      />
+
+      {/* Modal Movimento */}
       <Dialog open={openMov} onOpenChange={setOpenMov}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>

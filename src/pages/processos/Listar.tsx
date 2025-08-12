@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { format, parse, isBefore, differenceInCalendarDays } from "date-fns";
 import InputMask from "react-input-mask";
-import { ChevronsUpDown, Check, Search, Eye, Pencil, CheckCircle2, XCircle } from "lucide-react";
+import { ChevronsUpDown, Check, Search, Eye, Pencil, CheckCircle2, XCircle, Copy } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/auth-context";
@@ -18,6 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { getSla } from "@/lib/sla";
+import DuplicarModal, { ProcessoBase } from "@/components/processos/DuplicarModal";
 
 // Types
 interface Processo {
@@ -147,6 +148,10 @@ export default function ProcessosListar() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+
+  // Duplicar
+  const [dupOpen, setDupOpen] = useState(false);
+  const [dupOriginal, setDupOriginal] = useState<ProcessoBase | null>(null);
 
   useEffect(() => {
     document.title = "Processos | GConte";
@@ -524,6 +529,38 @@ export default function ProcessosListar() {
                       <Button size="sm" variant="ghost" onClick={() => changeStatus(p.id, "cancelado")}>
                         <XCircle className="h-4 w-4" />
                       </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={async () => {
+                          try {
+                            const { data, error } = await supabase
+                              .from("processos")
+                              .select("id,titulo,cliente_id,responsavel_id,setor,prioridade,prazo,descricao,etiquetas")
+                              .eq("id", p.id)
+                              .maybeSingle();
+                            if (error) throw error;
+                            if (!data) return toast.error("Não encontrado");
+                            setDupOriginal({
+                              id: data.id,
+                              titulo: data.titulo,
+                              cliente_id: data.cliente_id,
+                              responsavel_id: data.responsavel_id,
+                              setor: data.setor,
+                              prioridade: data.prioridade,
+                              prazo: data.prazo,
+                              descricao: (data as any).descricao || null,
+                              etiquetas: ((data as any).etiquetas as string[]) || [],
+                            });
+                            setDupOpen(true);
+                          } catch (e: any) {
+                            console.error(e);
+                            toast.error(e?.message || "Falha ao preparar duplicação");
+                          }
+                        }}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -563,6 +600,17 @@ export default function ProcessosListar() {
           </PaginationContent>
         </Pagination>
       </div>
+
+      <DuplicarModal
+        open={dupOpen}
+        onOpenChange={setDupOpen}
+        original={dupOriginal}
+        onSuccess={(newId) => {
+          toast.success("Processo duplicado. Abrindo...");
+          window.open(`/processos/${newId}`, "_blank");
+          setDupOpen(false);
+        }}
+      />
     </main>
   );
 }
