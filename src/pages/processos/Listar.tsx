@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { format, parse, isBefore, differenceInCalendarDays } from "date-fns";
 import InputMask from "react-input-mask";
@@ -150,6 +150,19 @@ export default function ProcessosListar() {
 
   useEffect(() => {
     document.title = "Processos | GConte";
+  }, []);
+
+  // Read deep-link params (?q, ?search, ?cliente_id, ?responsavel_id)
+  const location = useLocation();
+  useEffect(() => {
+    const sp = new URLSearchParams(location.search);
+    const qParam = sp.get("q") || sp.get("search");
+    const clienteId = sp.get("cliente_id");
+    const responsavelId = sp.get("responsavel_id");
+    if (qParam || clienteId || responsavelId) {
+      setFilters((f) => ({ ...f, q: qParam || f.q, clienteId: clienteId || f.clienteId || null, responsavelId: responsavelId || f.responsavelId || null }));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Load options

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { Calendar as CalendarIcon, ChevronsUpDown, Check, X, User, Briefcase, Tags, CirclePlus } from "lucide-react";
 import ReactQuill from "react-quill";

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { toast } from "sonner";
 import { format, differenceInCalendarDays, isBefore } from "date-fns";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/auth-context";
@@ -73,6 +74,7 @@ function prazoBadgeVariant(prazo?: Date | null, status?: string) {
 
 export default function VisaoGeral() {
   const { profile } = useAuth();
+  const location = useLocation();
 
   const [clientes, setClientes] = useState<Option[]>([]);
   const [responsaveis, setResponsaveis] = useState<Option[]>([]);
@@ -116,7 +118,13 @@ export default function VisaoGeral() {
     (async () => {
       setLoading(true);
       try {
-        const { data, error } = await supabase.from("processos").select("*").order("created_at", { ascending: false });
+        const sp = new URLSearchParams(location.search);
+        const clienteId = sp.get("cliente_id");
+        const responsavelId = sp.get("responsavel_id");
+        let query = supabase.from("processos").select("*").order("created_at", { ascending: false });
+        if (clienteId) query = query.eq("cliente_id", clienteId);
+        if (responsavelId) query = query.eq("responsavel_id", responsavelId);
+        const { data, error } = await query;
         if (error) throw error;
         if (!active) return;
         const grouped: Record<Status, Processo[]> = {
@@ -136,7 +144,7 @@ export default function VisaoGeral() {
       }
     })();
     return () => { active = false };
-  }, []);
+  }, [location.search]);
 
   const onDragEnd = async (result: DropResult) => {
     const { destination, source, draggableId } = result;
@@ -177,7 +185,9 @@ export default function VisaoGeral() {
     <main className="p-6">
       <header className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Visão geral</h1>
-        <Button onClick={() => location.assign("/processos/novo")}>Novo</Button>
+        <Button onClick={() => window.location.assign("/processos/novo")}>
+          Novo
+        </Button>
       </header>
 
       <DragDropContext onDragEnd={onDragEnd}>
