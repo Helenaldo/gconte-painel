@@ -51,13 +51,19 @@ export function Login() {
     let mounted = true
     ;(async () => {
       try {
-        const { data } = await supabase
+        console.log('Buscando dados do escritório...')
+        const { data, error } = await supabase
           .from('office')
           .select('nome, cnpj, logomarca_url, telefone, email, instagram, logradouro, numero, complemento, bairro, cep, municipio, uf')
-          .single()
-        if (mounted) setOffice(data)
-      } catch (_) {
-        // ignore
+          .maybeSingle()
+        
+        console.log('Dados do escritório:', data, 'Erro:', error)
+        
+        if (mounted && data) {
+          setOffice(data)
+        }
+      } catch (err) {
+        console.error('Erro ao buscar dados do escritório:', err)
       }
     })()
     return () => { mounted = false }
