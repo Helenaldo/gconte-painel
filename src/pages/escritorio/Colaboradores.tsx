@@ -47,6 +47,9 @@ export function Colaboradores() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [loading, setLoading] = useState(false)
   
+  // Check if current user is administrator
+  const isAdmin = profile?.role === 'administrador'
+  
   const [formData, setFormData] = useState({
     nome: "",
     email: "",
@@ -428,87 +431,89 @@ export function Colaboradores() {
           </p>
         </div>
         
-        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-gradient-primary hover:opacity-90" onClick={resetForm}>
-              <Plus className="mr-2 h-4 w-4" />
-              Cadastrar Colaborador
-            </Button>
-          </DialogTrigger>
-          
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Cadastrar Novo Colaborador</DialogTitle>
-            </DialogHeader>
+        {isAdmin && (
+          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-gradient-primary hover:opacity-90" onClick={resetForm}>
+                <Plus className="mr-2 h-4 w-4" />
+                Cadastrar Colaborador
+              </Button>
+            </DialogTrigger>
             
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="nome">Nome *</Label>
-                <Input
-                  id="nome"
-                  value={formData.nome}
-                  onChange={(e) => setFormData(prev => ({...prev, nome: e.target.value}))}
-                  placeholder="Nome completo"
-                />
-              </div>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Cadastrar Novo Colaborador</DialogTitle>
+              </DialogHeader>
+              
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="nome">Nome *</Label>
+                  <Input
+                    id="nome"
+                    value={formData.nome}
+                    onChange={(e) => setFormData(prev => ({...prev, nome: e.target.value}))}
+                    placeholder="Nome completo"
+                  />
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="email">E-mail *</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData(prev => ({...prev, email: e.target.value}))}
-                  placeholder="email@exemplo.com"
-                />
-              </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">E-mail *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData(prev => ({...prev, email: e.target.value}))}
+                    placeholder="email@exemplo.com"
+                  />
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">Senha *</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData(prev => ({...prev, password: e.target.value}))}
-                  placeholder="Digite a senha (mínimo 6 caracteres)"
-                />
-              </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Senha *</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => setFormData(prev => ({...prev, password: e.target.value}))}
+                    placeholder="Digite a senha (mínimo 6 caracteres)"
+                  />
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="role">Nível de Acesso</Label>
-                <Select value={formData.role} onValueChange={(value: 'operador' | 'administrador') => setFormData(prev => ({...prev, role: value}))}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="operador">
-                      <div className="flex items-center">
-                        <User className="mr-2 h-4 w-4" />
-                        Operador
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="administrador">
-                      <div className="flex items-center">
-                        <Shield className="mr-2 h-4 w-4" />
-                        Administrador
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                <div className="space-y-2">
+                  <Label htmlFor="role">Nível de Acesso</Label>
+                  <Select value={formData.role} onValueChange={(value: 'operador' | 'administrador') => setFormData(prev => ({...prev, role: value}))}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="operador">
+                        <div className="flex items-center">
+                          <User className="mr-2 h-4 w-4" />
+                          Operador
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="administrador">
+                        <div className="flex items-center">
+                          <Shield className="mr-2 h-4 w-4" />
+                          Administrador
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <div className="flex justify-end gap-2 pt-4">
-                <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button type="submit" disabled={loading} className="bg-gradient-primary hover:opacity-90">
-                  <UserPlus className="mr-2 h-4 w-4" />
-                  {loading ? "Cadastrando..." : "Cadastrar Colaborador"}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+                <div className="flex justify-end gap-2 pt-4">
+                  <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={loading} className="bg-gradient-primary hover:opacity-90">
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    {loading ? "Cadastrando..." : "Cadastrar Colaborador"}
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       {/* Filters */}
@@ -555,6 +560,12 @@ export function Colaboradores() {
           </CardTitle>
           <CardDescription>
             Lista de todos os colaboradores cadastrados
+            {!isAdmin && (
+              <span className="block mt-2 text-amber-600">
+                <Shield className="inline mr-1 h-4 w-4" />
+                Apenas administradores podem gerenciar colaboradores
+              </span>
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -613,45 +624,49 @@ export function Colaboradores() {
                       >
                         Ver
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openEditModal(colaborador)}
-                        title="Editar colaborador"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openPasswordModal(colaborador)}
-                        title="Criar/alterar senha"
-                      >
-                        <Key className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleToggleStatus(colaborador)}
-                        disabled={loading || colaborador.id === profile?.id}
-                        title={colaborador.status === 'ativo' ? 'Desativar colaborador' : 'Ativar colaborador'}
-                      >
-                        {colaborador.status === 'ativo' ? (
-                          <UserX className="h-4 w-4" />
-                        ) : (
-                          <UserCheck className="h-4 w-4" />
-                        )}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDeleteColaborador(colaborador)}
-                        disabled={loading || colaborador.id === profile?.id}
-                        className="text-destructive hover:text-destructive"
-                        title="Excluir colaborador"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {isAdmin && (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openEditModal(colaborador)}
+                            title="Editar colaborador"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openPasswordModal(colaborador)}
+                            title="Criar/alterar senha"
+                          >
+                            <Key className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleToggleStatus(colaborador)}
+                            disabled={loading || colaborador.id === profile?.id}
+                            title={colaborador.status === 'ativo' ? 'Desativar colaborador' : 'Ativar colaborador'}
+                          >
+                            {colaborador.status === 'ativo' ? (
+                              <UserX className="h-4 w-4" />
+                            ) : (
+                              <UserCheck className="h-4 w-4" />
+                            )}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteColaborador(colaborador)}
+                            disabled={loading || colaborador.id === profile?.id}
+                            className="text-destructive hover:text-destructive"
+                            title="Excluir colaborador"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -669,45 +684,47 @@ export function Colaboradores() {
       </Card>
 
       {/* Edit Modal */}
-      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Editar Colaborador</DialogTitle>
-          </DialogHeader>
-          {/* ... keep existing code (form) */}
-          <form onSubmit={handleUpdateColaborador} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-nome">Nome *</Label>
-              <Input
-                id="edit-nome"
-                value={formData.nome}
-                onChange={(e) => setFormData(prev => ({...prev, nome: e.target.value}))}
-                placeholder="Nome completo"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-email">E-mail</Label>
-              <Input id="edit-email" type="email" value={formData.email} disabled className="bg-muted" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-role">Nível de Acesso</Label>
-              <Select value={formData.role} onValueChange={(value: 'operador' | 'administrador') => setFormData(prev => ({...prev, role: value}))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="operador"><div className="flex items-center"><User className="mr-2 h-4 w-4" />Operador</div></SelectItem>
-                  <SelectItem value="administrador"><div className="flex items-center"><Shield className="mr-2 h-4 w-4" />Administrador</div></SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex justify-end gap-2 pt-4">
-              <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)}>Cancelar</Button>
-              <Button type="submit" disabled={loading} className="bg-gradient-primary hover:opacity-90">{loading ? "Salvando..." : "Salvar Alterações"}</Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {isAdmin && (
+        <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Editar Colaborador</DialogTitle>
+            </DialogHeader>
+            {/* ... keep existing code (form) */}
+            <form onSubmit={handleUpdateColaborador} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-nome">Nome *</Label>
+                <Input
+                  id="edit-nome"
+                  value={formData.nome}
+                  onChange={(e) => setFormData(prev => ({...prev, nome: e.target.value}))}
+                  placeholder="Nome completo"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-email">E-mail</Label>
+                <Input id="edit-email" type="email" value={formData.email} disabled className="bg-muted" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-role">Nível de Acesso</Label>
+                <Select value={formData.role} onValueChange={(value: 'operador' | 'administrador') => setFormData(prev => ({...prev, role: value}))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="operador"><div className="flex items-center"><User className="mr-2 h-4 w-4" />Operador</div></SelectItem>
+                    <SelectItem value="administrador"><div className="flex items-center"><Shield className="mr-2 h-4 w-4" />Administrador</div></SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex justify-end gap-2 pt-4">
+                <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)}>Cancelar</Button>
+                <Button type="submit" disabled={loading} className="bg-gradient-primary hover:opacity-90">{loading ? "Salvando..." : "Salvar Alterações"}</Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* View Modal (Responsável por) */}
       <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
@@ -722,64 +739,66 @@ export function Colaboradores() {
       </Dialog>
 
       {/* Password Modal */}
-      <Dialog open={isPasswordModalOpen} onOpenChange={setIsPasswordModalOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Criar/Alterar Senha</DialogTitle>
-          </DialogHeader>
-          
-          {selectedColaborador && (
-            <div className="space-y-4">
-              <div className="bg-muted p-4 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={selectedColaborador.avatar_url} />
-                    <AvatarFallback>{selectedColaborador.nome.charAt(0).toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-medium">{selectedColaborador.nome}</p>
-                    <p className="text-sm text-muted-foreground">{selectedColaborador.email}</p>
+      {isAdmin && (
+        <Dialog open={isPasswordModalOpen} onOpenChange={setIsPasswordModalOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Criar/Alterar Senha</DialogTitle>
+            </DialogHeader>
+            
+            {selectedColaborador && (
+              <div className="space-y-4">
+                <div className="bg-muted p-4 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={selectedColaborador.avatar_url} />
+                      <AvatarFallback>{selectedColaborador.nome.charAt(0).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-medium">{selectedColaborador.nome}</p>
+                      <p className="text-muted-foreground">{selectedColaborador.email}</p>
+                    </div>
                   </div>
                 </div>
+                
+                <form onSubmit={handlePasswordChange} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Nova Senha *</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={passwordData.password}
+                      onChange={(e) => setPasswordData(prev => ({...prev, password: e.target.value}))}
+                      placeholder="Digite a nova senha (mínimo 6 caracteres)"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">Confirmar Senha *</Label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      value={passwordData.confirmPassword}
+                      onChange={(e) => setPasswordData(prev => ({...prev, confirmPassword: e.target.value}))}
+                      placeholder="Confirme a nova senha"
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-4">
+                    <Button type="button" variant="outline" onClick={() => setIsPasswordModalOpen(false)}>
+                      Cancelar
+                    </Button>
+                    <Button type="submit" disabled={loading} className="bg-gradient-primary hover:opacity-90">
+                      <Key className="mr-2 h-4 w-4" />
+                      {loading ? "Salvando..." : "Salvar Senha"}
+                    </Button>
+                  </div>
+                </form>
               </div>
-              
-              <form onSubmit={handlePasswordChange} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="password">Nova Senha *</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={passwordData.password}
-                    onChange={(e) => setPasswordData(prev => ({...prev, password: e.target.value}))}
-                    placeholder="Digite a nova senha (mínimo 6 caracteres)"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirmar Senha *</Label>
-                  <Input
-                    id="confirmPassword"
-                    type="password"
-                    value={passwordData.confirmPassword}
-                    onChange={(e) => setPasswordData(prev => ({...prev, confirmPassword: e.target.value}))}
-                    placeholder="Confirme a nova senha"
-                  />
-                </div>
-
-                <div className="flex justify-end gap-2 pt-4">
-                  <Button type="button" variant="outline" onClick={() => setIsPasswordModalOpen(false)}>
-                    Cancelar
-                  </Button>
-                  <Button type="submit" disabled={loading} className="bg-gradient-primary hover:opacity-90">
-                    <Key className="mr-2 h-4 w-4" />
-                    {loading ? "Salvando..." : "Salvar Senha"}
-                  </Button>
-                </div>
-              </form>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 }
