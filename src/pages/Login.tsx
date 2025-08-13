@@ -161,23 +161,19 @@ export function Login() {
         {/* Coluna: Formulário */}
         <Card className="shadow-lg border-0 bg-card/95 backdrop-blur">
           <CardHeader className="space-y-1">
-            <div className="flex items-center gap-3">
+            <div className="flex justify-center">
               {office?.logomarca_url ? (
-                <Avatar className="h-12 w-12">
+                <Avatar className="h-20 w-20">
                   <AvatarImage src={office.logomarca_url} alt="Logo do Escritório" className="object-contain" />
                   <AvatarFallback className="bg-gradient-primary">
-                    <span className="text-primary-foreground font-bold text-xl">GC</span>
+                    <span className="text-primary-foreground font-bold text-3xl">GC</span>
                   </AvatarFallback>
                 </Avatar>
               ) : (
-                <div className="h-12 w-12 rounded-xl bg-gradient-primary flex items-center justify-center">
-                  <span className="text-primary-foreground font-bold text-xl">GC</span>
+                <div className="h-20 w-20 rounded-xl bg-gradient-primary flex items-center justify-center">
+                  <span className="text-primary-foreground font-bold text-3xl">GC</span>
                 </div>
               )}
-              <div>
-                <CardTitle className="text-2xl font-bold text-foreground">{office?.nome || 'GCONTE PAINEL'}</CardTitle>
-                <CardDescription className="text-muted-foreground">Acesse sua conta</CardDescription>
-              </div>
             </div>
           </CardHeader>
 
