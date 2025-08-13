@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -13,6 +13,7 @@ import {
 import GlobalSearch from "@/components/search/global-search"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { LogOut, Settings, User, Search } from "lucide-react"
+import { supabase } from "@/integrations/supabase/client"
 
 interface HeaderProps {
   user?: {
@@ -24,10 +25,31 @@ interface HeaderProps {
 }
 
 export function Header({ user, onLogout }: HeaderProps) {
+  const [officeLogoUrl, setOfficeLogoUrl] = useState<string | null>(null)
+  
   const currentUser = user || {
     name: "Admin",
     email: "admin@gconte.com.br",
   }
+
+  useEffect(() => {
+    const loadOfficeLogo = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('office')
+          .select('logomarca_url')
+          .single()
+        
+        if (data?.logomarca_url) {
+          setOfficeLogoUrl(data.logomarca_url)
+        }
+      } catch (error) {
+        // Silently fail - will use fallback
+      }
+    }
+
+    loadOfficeLogo()
+  }, [])
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-header-border bg-header-background/95 backdrop-blur supports-[backdrop-filter]:bg-header-background/60">
@@ -36,9 +58,18 @@ export function Header({ user, onLogout }: HeaderProps) {
           <SidebarTrigger className="h-8 w-8" />
           
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded bg-gradient-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-sm">GC</span>
-            </div>
+            {officeLogoUrl ? (
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={officeLogoUrl} alt="Logo do Escritório" className="object-contain" />
+                <AvatarFallback className="bg-gradient-primary">
+                  <span className="text-primary-foreground font-bold text-sm">GC</span>
+                </AvatarFallback>
+              </Avatar>
+            ) : (
+              <div className="h-8 w-8 rounded bg-gradient-primary flex items-center justify-center">
+                <span className="text-primary-foreground font-bold text-sm">GC</span>
+              </div>
+            )}
             <span className="font-semibold text-header-foreground">GCONTE PAINEL</span>
           </div>
         </div>
