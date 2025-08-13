@@ -30,13 +30,31 @@ export function Login() {
     if (metaDesc) metaDesc.content = "Acesse sua conta no GCONTE Painel. Login seguro com reCAPTCHA."
   }, [])
 
-  // Office data (nome e logomarca)
-  const [office, setOffice] = useState<{ nome?: string; logomarca_url?: string | null } | null>(null)
+  // Office data - buscar todos os campos
+  const [office, setOffice] = useState<{
+    nome?: string;
+    cnpj?: string;
+    logomarca_url?: string | null;
+    telefone?: string;
+    email?: string;
+    instagram?: string;
+    logradouro?: string;
+    numero?: string;
+    complemento?: string;
+    bairro?: string;
+    cep?: string;
+    municipio?: string;
+    uf?: string;
+  } | null>(null)
+  
   useEffect(() => {
     let mounted = true
     ;(async () => {
       try {
-        const { data } = await supabase.from('office').select('nome, logomarca_url').single()
+        const { data } = await supabase
+          .from('office')
+          .select('nome, cnpj, logomarca_url, telefone, email, instagram, logradouro, numero, complemento, bairro, cep, municipio, uf')
+          .single()
         if (mounted) setOffice(data)
       } catch (_) {
         // ignore
@@ -253,17 +271,56 @@ export function Login() {
         <Card className="shadow-lg border-0 bg-card/95 backdrop-blur overflow-hidden">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-3">
-              <Avatar className="h-10 w-10">
+              <Avatar className="h-12 w-12">
                 <AvatarImage src={office?.logomarca_url || ''} alt={office?.nome || 'Logo do Escritório'} className="object-contain" />
                 <AvatarFallback className="bg-gradient-primary text-primary-foreground font-semibold">
                   {office?.nome ? office.nome.slice(0, 2).toUpperCase() : 'GC'}
                 </AvatarFallback>
               </Avatar>
-              <div>
+              <div className="flex-1">
                 <CardTitle className="text-lg font-semibold">{office?.nome || 'GCONTE PAINEL'}</CardTitle>
-                <CardDescription className="text-muted-foreground">Informações e utilidades</CardDescription>
+                {office?.cnpj && (
+                  <p className="text-xs text-muted-foreground">CNPJ: {office.cnpj}</p>
+                )}
+                <CardDescription className="text-muted-foreground">Informações e contatos</CardDescription>
               </div>
             </div>
+            
+            {/* Informações de contato do escritório */}
+            {office && (
+              <div className="mt-4 space-y-3 border-t pt-3">
+                {/* Endereço */}
+                {(office.logradouro || office.cep) && (
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-medium text-muted-foreground">Endereço</h4>
+                    <div className="text-sm">
+                      {office.logradouro && (
+                        <p>
+                          {[office.logradouro, office.numero].filter(Boolean).join(", ")}
+                          {office.complemento && `, ${office.complemento}`}
+                        </p>
+                      )}
+                      {(office.bairro || office.municipio || office.uf) && (
+                        <p>{[office.bairro, office.municipio, office.uf].filter(Boolean).join(" - ")}</p>
+                      )}
+                      {office.cep && <p>CEP: {office.cep}</p>}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Contatos */}
+                {(office.telefone || office.email || office.instagram) && (
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-medium text-muted-foreground">Contatos</h4>
+                    <div className="text-sm space-y-1">
+                      {office.telefone && <p>📞 {office.telefone}</p>}
+                      {office.email && <p>✉️ {office.email}</p>}
+                      {office.instagram && <p>📱 {office.instagram}</p>}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Calendário com feriados */}
