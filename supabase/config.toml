@@ -45,3 +45,6 @@ verify_jwt = false
 
 [functions.search-global]
 verify_jwt = true
+
+[functions.manage-password]
+verify_jwt = true

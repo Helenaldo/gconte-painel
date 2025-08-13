@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Search, Mail, UserPlus, Users, Shield, User, Edit, MailCheck, Trash2, UserX, UserCheck } from "lucide-react"
+import { Plus, Search, Mail, UserPlus, Users, Shield, User, Edit, MailCheck, Trash2, UserX, UserCheck, Key } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/integrations/supabase/client"
 import { useAuth } from "@/context/auth-context"
@@ -41,6 +41,7 @@ export function Colaboradores() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isViewOpen, setIsViewOpen] = useState(false)
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
   const [selectedColaborador, setSelectedColaborador] = useState<Colaborador | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [roleFilter, setRoleFilter] = useState("all")
@@ -52,6 +53,11 @@ export function Colaboradores() {
     email: "",
     role: "operador" as 'operador' | 'administrador',
     avatar: null as File | null
+  })
+
+  const [passwordData, setPasswordData] = useState({
+    password: "",
+    confirmPassword: ""
   })
   
   const { toast } = useToast()
@@ -335,6 +341,83 @@ export function Colaboradores() {
     setIsViewOpen(true)
   }
 
+  const openPasswordModal = (colaborador: Colaborador) => {
+    setSelectedColaborador(colaborador)
+    setPasswordData({
+      password: "",
+      confirmPassword: ""
+    })
+    setIsPasswordModalOpen(true)
+  }
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!selectedColaborador) return
+    
+    if (!passwordData.password || !passwordData.confirmPassword) {
+      toast({
+        title: "Erro",
+        description: "Todos os campos são obrigatórios",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (passwordData.password !== passwordData.confirmPassword) {
+      toast({
+        title: "Erro",
+        description: "As senhas não coincidem",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (passwordData.password.length < 6) {
+      toast({
+        title: "Erro",
+        description: "A senha deve ter pelo menos 6 caracteres",
+        variant: "destructive"
+      })
+      return
+    }
+
+    setLoading(true)
+    
+    try {
+      const { error } = await supabase.functions.invoke('manage-password', {
+        body: {
+          userId: selectedColaborador.id,
+          newPassword: passwordData.password,
+          userEmail: selectedColaborador.email
+        }
+      })
+
+      if (error) throw error
+
+      toast({
+        title: "Sucesso",
+        description: `Senha ${passwordData.password ? 'alterada' : 'criada'} com sucesso para ${selectedColaborador.nome}`
+      })
+
+      setIsPasswordModalOpen(false)
+      setPasswordData({
+        password: "",
+        confirmPassword: ""
+      })
+      
+    } catch (error: any) {
+      console.error('Erro ao gerenciar senha:', error)
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao gerenciar senha",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const resetForm = () => {
     setFormData({
       nome: "",
@@ -592,6 +675,14 @@ export function Colaboradores() {
                       <Button
                         variant="outline"
                         size="sm"
+                        onClick={() => openPasswordModal(colaborador)}
+                        title="Criar/alterar senha"
+                      >
+                        <Key className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => handleToggleStatus(colaborador)}
                         disabled={loading || colaborador.id === profile?.id}
                         title={colaborador.status === 'ativo' ? 'Desativar colaborador' : 'Ativar colaborador'}
@@ -677,6 +768,66 @@ export function Colaboradores() {
           </DialogHeader>
           {selectedColaborador && (
             <ResponsavelKanban responsavelId={selectedColaborador.id} responsavelNome={selectedColaborador.nome} />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Password Modal */}
+      <Dialog open={isPasswordModalOpen} onOpenChange={setIsPasswordModalOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Criar/Alterar Senha</DialogTitle>
+          </DialogHeader>
+          
+          {selectedColaborador && (
+            <div className="space-y-4">
+              <div className="bg-muted p-4 rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={selectedColaborador.avatar_url} />
+                    <AvatarFallback>{selectedColaborador.nome.charAt(0).toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-medium">{selectedColaborador.nome}</p>
+                    <p className="text-sm text-muted-foreground">{selectedColaborador.email}</p>
+                  </div>
+                </div>
+              </div>
+              
+              <form onSubmit={handlePasswordChange} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="password">Nova Senha *</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={passwordData.password}
+                    onChange={(e) => setPasswordData(prev => ({...prev, password: e.target.value}))}
+                    placeholder="Digite a nova senha (mínimo 6 caracteres)"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirmar Senha *</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    value={passwordData.confirmPassword}
+                    onChange={(e) => setPasswordData(prev => ({...prev, confirmPassword: e.target.value}))}
+                    placeholder="Confirme a nova senha"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-4">
+                  <Button type="button" variant="outline" onClick={() => setIsPasswordModalOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={loading} className="bg-gradient-primary hover:opacity-90">
+                    <Key className="mr-2 h-4 w-4" />
+                    {loading ? "Salvando..." : "Salvar Senha"}
+                  </Button>
+                </div>
+              </form>
+            </div>
           )}
         </DialogContent>
       </Dialog>
