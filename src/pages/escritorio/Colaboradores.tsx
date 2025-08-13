@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Search, Mail, UserPlus, Users, Shield, User, Edit, MailCheck, Trash2, UserX, UserCheck, Key } from "lucide-react"
+import { Plus, Search, UserPlus, Users, Shield, User, Edit, Trash2, UserX, UserCheck, Key } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/integrations/supabase/client"
 import { useAuth } from "@/context/auth-context"
@@ -37,7 +37,6 @@ interface Invitation {
 export function Colaboradores() {
   const { profile } = useAuth()
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([])
-  const [invitations, setInvitations] = useState<Invitation[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isViewOpen, setIsViewOpen] = useState(false)
@@ -52,6 +51,7 @@ export function Colaboradores() {
     nome: "",
     email: "",
     role: "operador" as 'operador' | 'administrador',
+    password: "",
     avatar: null as File | null
   })
 
@@ -64,7 +64,6 @@ export function Colaboradores() {
 
   useEffect(() => {
     loadColaboradores()
-    loadInvitations()
 
     // deep-link open view modal
     const sp = new URLSearchParams(window.location.search)
@@ -99,28 +98,22 @@ export function Colaboradores() {
     }
   }
 
-  const loadInvitations = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('invitations')
-        .select('*')
-        .is('used_at', null)
-        .order('created_at', { ascending: false })
-      
-      if (error) throw error
-      setInvitations(data || [])
-    } catch (error: any) {
-      console.error('Erro ao carregar convites:', error)
-    }
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!formData.nome || !formData.email) {
+    if (!formData.nome || !formData.email || !formData.password) {
       toast({
         title: "Erro",
-        description: "Nome e e-mail são obrigatórios",
+        description: "Nome, e-mail e senha são obrigatórios",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (formData.password.length < 6) {
+      toast({
+        title: "Erro",
+        description: "A senha deve ter pelo menos 6 caracteres",
         variant: "destructive"
       })
       return
@@ -129,23 +122,13 @@ export function Colaboradores() {
     setLoading(true)
     
     try {
-      // Check if email already exists
-      const { data: existingUser } = await supabase
-        .from('profiles')
-        .select('email')
-        .eq('email', formData.email)
-        .single()
-      
-      if (existingUser) {
-        throw new Error('E-mail já cadastrado no sistema')
-      }
-
-      // Send invitation
-      const { data, error } = await supabase.functions.invoke('send-invitation', {
+      // Create collaborator directly
+      const { error } = await supabase.functions.invoke('create-collaborator', {
         body: {
-          email: formData.email,
           nome: formData.nome,
-          role: formData.role
+          email: formData.email,
+          role: formData.role,
+          password: formData.password
         }
       })
 
@@ -153,24 +136,25 @@ export function Colaboradores() {
 
       toast({
         title: "Sucesso",
-        description: `Convite enviado para ${formData.email}`,
+        description: `Colaborador ${formData.nome} cadastrado com sucesso`,
       })
 
       setFormData({
         nome: "",
         email: "",
         role: "operador",
+        password: "",
         avatar: null
       })
       
       setIsModalOpen(false)
-      await loadInvitations()
+      await loadColaboradores()
       
     } catch (error: any) {
-      console.error('Erro ao enviar convite:', error)
+      console.error('Erro ao cadastrar colaborador:', error)
       toast({
         title: "Erro",
-        description: error.message || "Erro ao enviar convite",
+        description: error.message || "Erro ao cadastrar colaborador",
         variant: "destructive"
       })
     } finally {
@@ -261,23 +245,19 @@ export function Colaboradores() {
     setLoading(true)
     
     try {
-      // Delete from user_roles first
-      await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', colaborador.id)
-
-      // Delete from profiles
-      const { error } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', colaborador.id)
+      // Use the delete-collaborator edge function to properly delete from all tables
+      const { error } = await supabase.functions.invoke('delete-collaborator', {
+        body: {
+          userId: colaborador.id,
+          userEmail: colaborador.email
+        }
+      })
       
       if (error) throw error
 
       toast({
         title: "Sucesso",
-        description: "Colaborador excluído com sucesso"
+        description: "Colaborador excluído com sucesso de todas as tabelas"
       })
 
       await loadColaboradores()
@@ -331,6 +311,7 @@ export function Colaboradores() {
       nome: colaborador.nome,
       email: colaborador.email,
       role: colaborador.role,
+      password: "",
       avatar: null
     })
     setIsEditModalOpen(true)
@@ -423,6 +404,7 @@ export function Colaboradores() {
       nome: "",
       email: "",
       role: "operador",
+      password: "",
       avatar: null
     })
   }
@@ -450,13 +432,13 @@ export function Colaboradores() {
           <DialogTrigger asChild>
             <Button className="bg-gradient-primary hover:opacity-90" onClick={resetForm}>
               <Plus className="mr-2 h-4 w-4" />
-              Convidar Colaborador
+              Cadastrar Colaborador
             </Button>
           </DialogTrigger>
           
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
-              <DialogTitle>Convidar Novo Colaborador</DialogTitle>
+              <DialogTitle>Cadastrar Novo Colaborador</DialogTitle>
             </DialogHeader>
             
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -478,6 +460,17 @@ export function Colaboradores() {
                   value={formData.email}
                   onChange={(e) => setFormData(prev => ({...prev, email: e.target.value}))}
                   placeholder="email@exemplo.com"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password">Senha *</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData(prev => ({...prev, password: e.target.value}))}
+                  placeholder="Digite a senha (mínimo 6 caracteres)"
                 />
               </div>
 
@@ -509,8 +502,8 @@ export function Colaboradores() {
                   Cancelar
                 </Button>
                 <Button type="submit" disabled={loading} className="bg-gradient-primary hover:opacity-90">
-                  <Mail className="mr-2 h-4 w-4" />
-                  {loading ? "Enviando..." : "Enviar Convite"}
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  {loading ? "Cadastrando..." : "Cadastrar Colaborador"}
                 </Button>
               </div>
             </form>
@@ -552,50 +545,6 @@ export function Colaboradores() {
           </SelectContent>
         </Select>
       </div>
-
-      {/* Pending Invitations */}
-      {invitations.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <MailCheck className="mr-2 h-5 w-5" />
-              Convites Pendentes
-            </CardTitle>
-            <CardDescription>
-              Convites enviados aguardando confirmação
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {invitations.map((invitation) => (
-                <div key={invitation.id} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback>{invitation.nome.charAt(0).toUpperCase()}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">{invitation.nome}</p>
-                      <p className="text-sm text-muted-foreground">{invitation.email}</p>
-                    </div>
-                    <Badge variant={invitation.role === 'administrador' ? 'destructive' : 'secondary'}>
-                      {invitation.role === 'administrador' ? 'Admin' : 'Operador'}
-                    </Badge>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => resendInvitation(invitation)}
-                    disabled={loading}
-                  >
-                    <Mail className="h-4 w-4 mr-1" />
-                    Reenviar
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Collaborators Table */}
       <Card>
