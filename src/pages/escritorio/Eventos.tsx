@@ -3,12 +3,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Plus, Search, Calendar as CalendarIcon, Pencil, Eye, Trash2 } from "lucide-react"
+import { Plus, Search, Calendar as CalendarIcon, Pencil, Eye, Trash2, Check, ChevronsUpDown } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { format, parse } from "date-fns"
 import { ptBR } from "date-fns/locale"
@@ -30,6 +31,7 @@ interface Evento {
 interface Cliente {
   id: string
   nome_empresarial: string
+  nome_fantasia?: string
 }
 
 const setores = [
@@ -56,6 +58,7 @@ export function Eventos() {
     titulo: "",
     descricao: ""
   })
+  const [openClienteCombobox, setOpenClienteCombobox] = useState(false)
   const [dateInput, setDateInput] = useState("")
   const [loading, setLoading] = useState(true)
   const { toast } = useToast()
@@ -69,7 +72,7 @@ export function Eventos() {
     try {
       const { data, error } = await supabase
         .from('clients')
-        .select('id, nome_empresarial')
+        .select('id, nome_empresarial, nome_fantasia')
         .order('nome_empresarial')
 
       if (error) throw error
@@ -178,6 +181,7 @@ export function Eventos() {
     setFormData({ clienteId: "", data: undefined, setor: "", titulo: "", descricao: "" })
     setDateInput("")
     setEditingEvento(null)
+    setOpenClienteCombobox(false)
     setIsModalOpen(false)
   }
 
@@ -276,21 +280,66 @@ export function Eventos() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="cliente">Cliente *</Label>
-                <Select 
-                  value={formData.clienteId} 
-                  onValueChange={(value) => setFormData(prev => ({...prev, clienteId: value}))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione um cliente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {clientes.map(cliente => (
-                      <SelectItem key={cliente.id} value={cliente.id}>
-                        {cliente.nome_empresarial}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover open={openClienteCombobox} onOpenChange={setOpenClienteCombobox}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={openClienteCombobox}
+                      className="w-full justify-between"
+                    >
+                      {formData.clienteId
+                        ? (() => {
+                            const cliente = clientes.find(c => c.id === formData.clienteId)
+                            return cliente ? (
+                              <span>
+                                {cliente.nome_empresarial}
+                                {cliente.nome_fantasia && (
+                                  <span className="text-muted-foreground"> - {cliente.nome_fantasia}</span>
+                                )}
+                              </span>
+                            ) : "Selecione um cliente"
+                          })()
+                        : "Selecione um cliente"}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[400px] p-0">
+                    <Command>
+                      <CommandInput placeholder="Buscar cliente por nome empresarial ou fantasia..." />
+                      <CommandList>
+                        <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
+                        <CommandGroup>
+                          {clientes.map((cliente) => (
+                            <CommandItem
+                              key={cliente.id}
+                              value={`${cliente.nome_empresarial} ${cliente.nome_fantasia || ''}`}
+                              onSelect={() => {
+                                setFormData(prev => ({...prev, clienteId: cliente.id}))
+                                setOpenClienteCombobox(false)
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4 shrink-0",
+                                  formData.clienteId === cliente.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <div className="flex flex-col min-w-0 flex-1">
+                                <span className="truncate">{cliente.nome_empresarial}</span>
+                                {cliente.nome_fantasia && (
+                                  <span className="text-sm text-muted-foreground truncate">
+                                    {cliente.nome_fantasia}
+                                  </span>
+                                )}
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="space-y-2">
