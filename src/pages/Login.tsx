@@ -51,13 +51,10 @@ export function Login() {
     let mounted = true
     ;(async () => {
       try {
-        console.log('Buscando dados do escritório...')
         const { data, error } = await supabase
           .from('office')
           .select('nome, cnpj, logomarca_url, telefone, email, instagram, logradouro, numero, complemento, bairro, cep, municipio, uf')
           .maybeSingle()
-        
-        console.log('Dados do escritório:', data, 'Erro:', error)
         
         if (mounted && data) {
           setOffice(data)
