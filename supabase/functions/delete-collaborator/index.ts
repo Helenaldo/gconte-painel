@@ -99,9 +99,60 @@ async function handler(req: Request): Promise<Response> {
       )
     }
 
-    console.log(`Admin ${user.email} is deleting collaborator ${userEmail}`)
+    // Prevent self-deletion
+    if (userId === user.id) {
+      console.error('User trying to delete themselves:', user.email)
+      return new Response(
+        JSON.stringify({ error: 'Você não pode excluir sua própria conta' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        }
+      )
+    }
 
-    // Delete from user_roles first (foreign key constraint)
+    console.log(`Admin ${user.email} is deleting collaborator ${userEmail} (${userId})`)
+
+    // Delete all related data first
+    console.log('Deleting related data...')
+
+    // Delete from processos where user is responsible
+    const { error: processosError } = await supabaseAdmin
+      .from('processos')
+      .delete()
+      .eq('responsavel_id', userId)
+
+    if (processosError) {
+      console.error('Error deleting processos:', processosError)
+    } else {
+      console.log('Deleted processos for user')
+    }
+
+    // Delete from movimentos where user is responsible  
+    const { error: movimentosError } = await supabaseAdmin
+      .from('movimentos')
+      .delete()
+      .eq('responsavel_id', userId)
+
+    if (movimentosError) {
+      console.error('Error deleting movimentos:', movimentosError)
+    } else {
+      console.log('Deleted movimentos for user')
+    }
+
+    // Delete from invitations where user was invited by this user
+    const { error: invitationsError } = await supabaseAdmin
+      .from('invitations')
+      .delete()
+      .eq('invited_by', userId)
+
+    if (invitationsError) {
+      console.error('Error deleting invitations:', invitationsError)
+    } else {
+      console.log('Deleted invitations for user')
+    }
+
+    // Delete from user_roles
     const { error: rolesError } = await supabaseAdmin
       .from('user_roles')
       .delete()
@@ -109,6 +160,8 @@ async function handler(req: Request): Promise<Response> {
 
     if (rolesError) {
       console.error('Error deleting user roles:', rolesError)
+    } else {
+      console.log('Deleted user roles')
     }
 
     // Delete from profiles
@@ -119,15 +172,20 @@ async function handler(req: Request): Promise<Response> {
 
     if (profilesError) {
       console.error('Error deleting profile:', profilesError)
+    } else {
+      console.log('Deleted profile')
     }
 
-    // Delete from auth.users (this will cascade delete related data)
+    // Finally, delete from auth.users
+    console.log('Deleting from auth.users...')
     const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(userId)
 
     if (deleteAuthError) {
       console.error('Error deleting from auth.users:', deleteAuthError)
       return new Response(
-        JSON.stringify({ error: `Failed to delete user from auth: ${deleteAuthError.message}` }),
+        JSON.stringify({ 
+          error: `Erro ao excluir usuário do sistema de autenticação: ${deleteAuthError.message}` 
+        }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 500,
@@ -153,7 +211,7 @@ async function handler(req: Request): Promise<Response> {
     
     return new Response(
       JSON.stringify({ 
-        error: error.message || 'Internal server error' 
+        error: `Erro interno: ${error.message || 'Unknown error'}` 
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
