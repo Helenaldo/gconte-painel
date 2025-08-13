@@ -92,6 +92,40 @@ export function Configuracoes() {
     }
 
     try {
+      let logomarcaUrl = escritorio?.logomarca_url || null
+
+      // Upload da logomarca se houver uma nova
+      if (formData.logomarca) {
+        // Remove logomarca antiga se existir
+        if (escritorio?.logomarca_url) {
+          const oldPath = escritorio.logomarca_url.split('/').pop()
+          if (oldPath) {
+            await supabase.storage
+              .from('office-logos')
+              .remove([oldPath])
+          }
+        }
+
+        // Upload da nova logomarca
+        const fileExt = formData.logomarca.name.split('.').pop()
+        const fileName = `${Date.now()}.${fileExt}`
+        
+        const { error: uploadError } = await supabase.storage
+          .from('office-logos')
+          .upload(fileName, formData.logomarca)
+
+        if (uploadError) {
+          throw new Error(`Erro no upload da logomarca: ${uploadError.message}`)
+        }
+
+        // Obter URL pública
+        const { data: { publicUrl } } = supabase.storage
+          .from('office-logos')
+          .getPublicUrl(fileName)
+
+        logomarcaUrl = publicUrl
+      }
+
       const escritorioData = {
         nome: formData.nome,
         cnpj: formData.cnpj,
@@ -105,7 +139,7 @@ export function Configuracoes() {
         telefone: formData.telefone,
         email: formData.email || null,
         instagram: formData.instagram || null,
-        logomarca_url: formData.logomarca ? URL.createObjectURL(formData.logomarca) : escritorio?.logomarca_url || null
+        logomarca_url: logomarcaUrl
       }
 
       if (escritorio) {
