@@ -270,12 +270,6 @@ export function Login() {
         <Card className="shadow-lg border-0 bg-card/95 backdrop-blur overflow-hidden">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-3">
-              <Avatar className="h-12 w-12">
-                <AvatarImage src={office?.logomarca_url || ''} alt={office?.nome || 'Logo do Escritório'} className="object-contain" />
-                <AvatarFallback className="bg-gradient-primary text-primary-foreground font-semibold">
-                  {office?.nome ? office.nome.slice(0, 2).toUpperCase() : 'GC'}
-                </AvatarFallback>
-              </Avatar>
               <div className="flex-1">
                 <CardTitle className="text-lg font-semibold">{office?.nome || 'GCONTE PAINEL'}</CardTitle>
                 {office?.cnpj && (
