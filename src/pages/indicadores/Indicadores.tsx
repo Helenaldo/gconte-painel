@@ -287,28 +287,30 @@ export function Indicadores() {
 
   const carregarEmpresas = async () => {
     try {
-      // Buscar todas as empresas
+      // Primeiro, buscar CNPJs únicos que têm balancetes
+      const { data: balancetesData, error: balancetesError } = await supabase
+        .from('balancetes')
+        .select('cnpj')
+
+      if (balancetesError) throw balancetesError
+
+      const cnpjsComBalancetes = [...new Set(balancetesData?.map(b => b.cnpj) || [])]
+
+      if (cnpjsComBalancetes.length === 0) {
+        setEmpresas([])
+        return
+      }
+
+      // Depois, buscar dados das empresas que têm esses CNPJs
       const { data: empresasData, error: empresasError } = await supabase
         .from('clients')
         .select('cnpj, nome_empresarial')
+        .in('cnpj', cnpjsComBalancetes)
         .order('nome_empresarial')
 
       if (empresasError) throw empresasError
 
-      // Filtrar apenas empresas que têm balancetes
-      const empresasComBalancetes: Empresa[] = []
-      for (const empresa of empresasData || []) {
-        const { data: balancetes } = await supabase
-          .from('balancetes')
-          .select('id')
-          .eq('cnpj', empresa.cnpj)
-          .limit(1)
-
-        if (balancetes && balancetes.length > 0) {
-          empresasComBalancetes.push(empresa)
-        }
-      }
-      setEmpresas(empresasComBalancetes)
+      setEmpresas(empresasData || [])
     } catch (error) {
       console.error('Erro ao carregar empresas:', error)
       toast({
