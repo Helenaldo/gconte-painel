@@ -169,7 +169,7 @@ export default function ProcessosListar() {
       status: true,
       prazo: true,
       atraso: true,
-      orgao: false,
+      orgao: true,
     };
   });
 
