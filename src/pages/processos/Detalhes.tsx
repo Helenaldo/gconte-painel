@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
+import { cn, buildProcessoLink } from "@/lib/utils";
 import ConcluirModal from "@/components/processos/ConcluirModal";
 import DuplicarModal from "@/components/processos/DuplicarModal";
 import { Form } from "@/components/ui/form";
@@ -689,16 +689,9 @@ export default function ProcessoDetalhes() {
                       >
                         {orgao.nome}
                       </Button>
-                      {orgao.link_dinamico && proc.processo_numero && (() => {
-                        const sanitizeProcessNumber = (num: string) => {
-                          return num.trim().replace(/[^A-Za-z0-9\/\-\.\s]/g, '');
-                        };
-                        const generateDynamicLink = (template: string, processNumber: string) => {
-                          const sanitized = sanitizeProcessNumber(processNumber);
-                          return template.replace('<processo>', encodeURIComponent(sanitized));
-                        };
-                        const finalLink = generateDynamicLink(orgao.link_dinamico, proc.processo_numero);
-                        return (
+                      {(() => {
+                        const finalLink = buildProcessoLink(orgao.link_dinamico, proc.processo_numero);
+                        return finalLink ? (
                           <Button
                             size="sm"
                             variant="outline"
@@ -708,7 +701,7 @@ export default function ProcessoDetalhes() {
                             <ExternalLink className="h-3 w-3 mr-1" />
                             Acessar
                           </Button>
-                        );
+                        ) : null;
                       })()}
                     </div>
                   </>
@@ -1120,16 +1113,9 @@ export default function ProcessoDetalhes() {
                     <div className="mt-1 text-sm">{orgao.telefone}</div>
                   </div>
                 )}
-                {orgao.link_dinamico && proc.processo_numero && (() => {
-                  const sanitizeProcessNumber = (num: string) => {
-                    return num.trim().replace(/[^A-Za-z0-9\/\-\.\s]/g, '');
-                  };
-                  const generateDynamicLink = (template: string, processNumber: string) => {
-                    const sanitized = sanitizeProcessNumber(processNumber);
-                    return template.replace('<processo>', encodeURIComponent(sanitized));
-                  };
-                  const finalLink = generateDynamicLink(orgao.link_dinamico, proc.processo_numero);
-                  return (
+                {(() => {
+                  const finalLink = buildProcessoLink(orgao.link_dinamico, proc.processo_numero);
+                  return finalLink ? (
                     <div>
                       <Label className="text-sm font-medium text-muted-foreground">
                         Link Dinâmico
@@ -1143,18 +1129,17 @@ export default function ProcessoDetalhes() {
                         {finalLink}
                       </Button>
                     </div>
-                  );
+                  ) : orgao.link_dinamico ? (
+                    <div>
+                      <Label className="text-sm font-medium text-muted-foreground">
+                        Link Dinâmico
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        {orgao.link_dinamico} (número do processo necessário)
+                      </p>
+                    </div>
+                  ) : null;
                 })()}
-                {orgao.link_dinamico && !proc.processo_numero && (
-                  <div>
-                    <Label className="text-sm font-medium text-muted-foreground">
-                      Link Dinâmico
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      {orgao.link_dinamico} (número do processo necessário)
-                    </p>
-                  </div>
-                )}
               </div>
               
               {/* Documentos modelo */}
