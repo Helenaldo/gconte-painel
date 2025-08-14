@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { format, parse, isBefore, differenceInCalendarDays } from "date-fns";
 import InputMask from "react-input-mask";
-import { ChevronsUpDown, Check, Search, Eye, Pencil, CheckCircle2, XCircle, Copy, FileSpreadsheet, Download } from "lucide-react";
+import { ChevronsUpDown, Check, Search, Eye, Pencil, CheckCircle2, XCircle, Copy, FileSpreadsheet, Download, Building2, Settings } from "lucide-react";
 import * as XLSX from "xlsx";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -17,6 +17,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { getSla } from "@/lib/sla";
 import DuplicarModal, { ProcessoBase } from "@/components/processos/DuplicarModal";
@@ -33,6 +34,8 @@ interface Processo {
   status: string;
   prazo: string | null; // date
   created_at: string;
+  orgao_id: string | null;
+  processo_numero: string | null;
 }
 
 interface Option { id: string; label: string; subtitle?: string; avatar_url?: string }
@@ -78,7 +81,21 @@ type Filters = {
   prioridade?: Prioridade | null;
   prazoDe?: string | null; // dd/MM/yyyy
   prazoAte?: string | null; // dd/MM/yyyy
+  orgaoId?: string | null;
   q?: string;
+};
+
+const columnsStorageKey = "processosListColumns";
+
+type VisibleColumns = {
+  cliente: boolean;
+  responsavel: boolean;
+  setor: boolean;
+  prioridade: boolean;
+  status: boolean;
+  prazo: boolean;
+  atraso: boolean;
+  orgao: boolean;
 };
 
 function toISODate(str?: string | null) {
@@ -142,8 +159,23 @@ export default function ProcessosListar() {
     return saved ? JSON.parse(saved) : {};
   });
 
+  const [visibleColumns, setVisibleColumns] = useState<VisibleColumns>(() => {
+    const saved = localStorage.getItem(columnsStorageKey);
+    return saved ? JSON.parse(saved) : {
+      cliente: true,
+      responsavel: true,
+      setor: true,
+      prioridade: true,
+      status: true,
+      prazo: true,
+      atraso: true,
+      orgao: false,
+    };
+  });
+
   const [clientes, setClientes] = useState<Option[]>([]);
   const [responsaveis, setResponsaveis] = useState<Option[]>([]);
+  const [orgaos, setOrgaos] = useState<Option[]>([]);
 
   const [rows, setRows] = useState<Processo[]>([]);
   const [count, setCount] = useState(0);
@@ -180,9 +212,10 @@ export default function ProcessosListar() {
     let active = true;
     (async () => {
       try {
-        const [{ data: cli }, { data: prof }] = await Promise.all([
+        const [{ data: cli }, { data: prof }, { data: org }] = await Promise.all([
           supabase.from("clients").select("id, nome_empresarial, nome_fantasia, cnpj").order("nome_empresarial", { ascending: true }),
           supabase.from("profiles").select("id, nome, email, avatar_url, status").eq("status", "ativo").order("nome", { ascending: true }),
+          supabase.from("orgaos_instituicoes").select("id, nome, email, telefone").order("nome", { ascending: true }),
         ]);
         if (!active) return;
         setClientes(
@@ -190,6 +223,9 @@ export default function ProcessosListar() {
         );
         setResponsaveis(
           (prof ?? []).map((p) => ({ id: p.id as string, label: p.nome as string, subtitle: p.email as string, avatar_url: p.avatar_url as string | undefined }))
+        );
+        setOrgaos(
+          (org ?? []).map((o: any) => ({ id: o.id as string, label: o.nome as string, subtitle: o.email || o.telefone || undefined }))
         );
       } catch (e) {
         console.error(e);
@@ -202,6 +238,11 @@ export default function ProcessosListar() {
   useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify(filters));
   }, [filters]);
+
+  // Persist column visibility
+  useEffect(() => {
+    localStorage.setItem(columnsStorageKey, JSON.stringify(visibleColumns));
+  }, [visibleColumns]);
 
   // Fetch data
   useEffect(() => {
@@ -219,6 +260,7 @@ export default function ProcessosListar() {
         if (filters.prioridade) query = query.eq("prioridade", filters.prioridade);
         if (filters.clienteId) query = query.eq("cliente_id", filters.clienteId);
         if (filters.responsavelId) query = query.eq("responsavel_id", filters.responsavelId);
+        if (filters.orgaoId) query = query.eq("orgao_id", filters.orgaoId);
 
         const de = toISODate(filters.prazoDe);
         const ate = toISODate(filters.prazoAte);
@@ -251,6 +293,7 @@ export default function ProcessosListar() {
   // Helpers
   const clientById = useMemo(() => Object.fromEntries(clientes.map((c) => [c.id, c])), [clientes]);
   const respById = useMemo(() => Object.fromEntries(responsaveis.map((r) => [r.id, r])), [responsaveis]);
+  const orgaoById = useMemo(() => Object.fromEntries(orgaos.map((o) => [o.id, o])), [orgaos]);
 
   const totalPages = Math.max(1, Math.ceil(count / pageSize));
 
@@ -326,6 +369,43 @@ export default function ProcessosListar() {
                       <CommandItem key={r.id} onSelect={() => setFilters((f) => ({ ...f, responsavelId: r.id }))}>
                         <Check className={cn("mr-2 h-4 w-4", filters.responsavelId === r.id ? "opacity-100" : "opacity-0")} />
                         {r.label}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+
+          {/* Órgão/Instituição */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="justify-between min-w-[200px]">
+                {filters.orgaoId ? orgaoById[filters.orgaoId!]?.label : "Órgão/Instituição"}
+                <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="p-0 w-[240px]" align="start">
+              <Command>
+                <CommandInput placeholder="Buscar órgão..." />
+                <CommandList>
+                  <CommandEmpty>Nenhum órgão</CommandEmpty>
+                  <CommandGroup>
+                    <CommandItem onSelect={() => setFilters((f) => ({ ...f, orgaoId: null }))}>
+                      Limpar
+                    </CommandItem>
+                    {orgaos.map((o) => (
+                      <CommandItem key={o.id} onSelect={() => setFilters((f) => ({ ...f, orgaoId: o.id }))}>
+                        <Check className={cn("mr-2 h-4 w-4", filters.orgaoId === o.id ? "opacity-100" : "opacity-0")} />
+                        <div className="flex items-center gap-1">
+                          <Building2 className="h-3 w-3" />
+                          <div className="flex flex-col">
+                            <span>{o.label}</span>
+                            {o.subtitle && (
+                              <span className="text-xs text-muted-foreground">{o.subtitle}</span>
+                            )}
+                          </div>
+                        </div>
                       </CommandItem>
                     ))}
                   </CommandGroup>
@@ -443,6 +523,65 @@ export default function ProcessosListar() {
           </div>
 
           <div className="ml-auto flex items-center gap-2">
+            {/* Seletor de colunas */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Settings className="h-4 w-4 mr-2" />
+                  Colunas
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-[150px]">
+                <DropdownMenuCheckboxItem
+                  checked={visibleColumns.cliente}
+                  onCheckedChange={(checked) => setVisibleColumns(v => ({ ...v, cliente: checked }))}
+                >
+                  Cliente
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={visibleColumns.responsavel}
+                  onCheckedChange={(checked) => setVisibleColumns(v => ({ ...v, responsavel: checked }))}
+                >
+                  Responsável
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={visibleColumns.setor}
+                  onCheckedChange={(checked) => setVisibleColumns(v => ({ ...v, setor: checked }))}
+                >
+                  Setor
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={visibleColumns.prioridade}
+                  onCheckedChange={(checked) => setVisibleColumns(v => ({ ...v, prioridade: checked }))}
+                >
+                  Prioridade
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={visibleColumns.status}
+                  onCheckedChange={(checked) => setVisibleColumns(v => ({ ...v, status: checked }))}
+                >
+                  Status
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={visibleColumns.prazo}
+                  onCheckedChange={(checked) => setVisibleColumns(v => ({ ...v, prazo: checked }))}
+                >
+                  Prazo
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={visibleColumns.atraso}
+                  onCheckedChange={(checked) => setVisibleColumns(v => ({ ...v, atraso: checked }))}
+                >
+                  Atraso
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={visibleColumns.orgao}
+                  onCheckedChange={(checked) => setVisibleColumns(v => ({ ...v, orgao: checked }))}
+                >
+                  Órgão/Instituição
+                </DropdownMenuCheckboxItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button variant="secondary" onClick={() => setFilters({})}>Limpar</Button>
             <Button onClick={() => navigate("/processos/novo")}>Novo</Button>
           </div>
@@ -456,13 +595,14 @@ export default function ProcessosListar() {
             <TableRow>
               <TableHead className="w-12">#</TableHead>
               <TableHead>Título</TableHead>
-              <TableHead>Cliente</TableHead>
-              <TableHead>Responsável</TableHead>
-              <TableHead>Setor</TableHead>
-              <TableHead>Prioridade</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Prazo</TableHead>
-              <TableHead>Atraso</TableHead>
+              {visibleColumns.cliente && <TableHead>Cliente</TableHead>}
+              {visibleColumns.responsavel && <TableHead>Responsável</TableHead>}
+              {visibleColumns.setor && <TableHead>Setor</TableHead>}
+              {visibleColumns.prioridade && <TableHead>Prioridade</TableHead>}
+              {visibleColumns.status && <TableHead>Status</TableHead>}
+              {visibleColumns.prazo && <TableHead>Prazo</TableHead>}
+              {visibleColumns.atraso && <TableHead>Atraso</TableHead>}
+              {visibleColumns.orgao && <TableHead>Órgão/Instituição</TableHead>}
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -471,6 +611,7 @@ export default function ProcessosListar() {
               const num = (page - 1) * pageSize + idx + 1;
               const cli = p.cliente_id ? clientById[p.cliente_id] : undefined;
               const resp = respById[p.responsavel_id];
+              const orgao = p.orgao_id ? orgaoById[p.orgao_id] : undefined;
               const prazoDate = p.prazo ? new Date(p.prazo) : null;
               const today = new Date();
               const atMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -482,44 +623,66 @@ export default function ProcessosListar() {
                 <TableRow key={p.id}>
                   <TableCell>{num}</TableCell>
                   <TableCell className="font-medium">{p.titulo}</TableCell>
-                  <TableCell>{cli?.label || "—"}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Avatar className="h-6 w-6">
-                        <AvatarImage src={resp?.avatar_url} />
-                        <AvatarFallback>{resp?.label?.charAt(0) ?? "?"}</AvatarFallback>
-                      </Avatar>
-                      <span>{resp?.label || "—"}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{SETORES.find((s) => s.value === p.setor)?.label || p.setor}</TableCell>
-                  <TableCell>
-                    <Badge variant={prioridadeVariant(p.prioridade)}>
-                      {PRIORIDADES.find((x) => x.value === p.prioridade)?.label || p.prioridade}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={statusVariant(p.status)}>
-                      {STATUS.find((x) => x.value === p.status)?.label || p.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {prazoDate ? (
+                  {visibleColumns.cliente && <TableCell>{cli?.label || "—"}</TableCell>}
+                  {visibleColumns.responsavel && (
+                    <TableCell>
                       <div className="flex items-center gap-2">
-                        <Badge variant={sla.variant}>{sla.label}</Badge>
-                        <span className="text-sm text-muted-foreground">{format(prazoDate, "dd/MM/yyyy")}</span>
+                        <Avatar className="h-6 w-6">
+                          <AvatarImage src={resp?.avatar_url} />
+                          <AvatarFallback>{resp?.label?.charAt(0) ?? "?"}</AvatarFallback>
+                        </Avatar>
+                        <span>{resp?.label || "—"}</span>
                       </div>
-                    ) : (
-                      "—"
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {overdue ? (
-                      <Badge variant="destructive">Atrasado +{Math.abs(daysTo!)} </Badge>
-                    ) : (
-                      "—"
-                    )}
-                  </TableCell>
+                    </TableCell>
+                  )}
+                  {visibleColumns.setor && <TableCell>{SETORES.find((s) => s.value === p.setor)?.label || p.setor}</TableCell>}
+                  {visibleColumns.prioridade && (
+                    <TableCell>
+                      <Badge variant={prioridadeVariant(p.prioridade)}>
+                        {PRIORIDADES.find((x) => x.value === p.prioridade)?.label || p.prioridade}
+                      </Badge>
+                    </TableCell>
+                  )}
+                  {visibleColumns.status && (
+                    <TableCell>
+                      <Badge variant={statusVariant(p.status)}>
+                        {STATUS.find((x) => x.value === p.status)?.label || p.status}
+                      </Badge>
+                    </TableCell>
+                  )}
+                  {visibleColumns.prazo && (
+                    <TableCell>
+                      {prazoDate ? (
+                        <div className="flex items-center gap-2">
+                          <Badge variant={sla.variant}>{sla.label}</Badge>
+                          <span className="text-sm text-muted-foreground">{format(prazoDate, "dd/MM/yyyy")}</span>
+                        </div>
+                      ) : (
+                        "—"
+                      )}
+                    </TableCell>
+                  )}
+                  {visibleColumns.atraso && (
+                    <TableCell>
+                      {overdue ? (
+                        <Badge variant="destructive">Atrasado +{Math.abs(daysTo!)} </Badge>
+                      ) : (
+                        "—"
+                      )}
+                    </TableCell>
+                  )}
+                  {visibleColumns.orgao && (
+                    <TableCell>
+                      {orgao ? (
+                        <div className="flex items-center gap-1">
+                          <Building2 className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-sm">{orgao.label}</span>
+                        </div>
+                      ) : (
+                        "—"
+                      )}
+                    </TableCell>
+                  )}
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                       <Button size="sm" variant="ghost" onClick={() => navigate(`/processos/${p.id}`)}>
@@ -573,7 +736,15 @@ export default function ProcessosListar() {
             })}
             {!loading && rows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={3 + 
+                  (visibleColumns.cliente ? 1 : 0) +
+                  (visibleColumns.responsavel ? 1 : 0) +
+                  (visibleColumns.setor ? 1 : 0) +
+                  (visibleColumns.prioridade ? 1 : 0) +
+                  (visibleColumns.status ? 1 : 0) +
+                  (visibleColumns.prazo ? 1 : 0) +
+                  (visibleColumns.atraso ? 1 : 0) +
+                  (visibleColumns.orgao ? 1 : 0)} className="text-center text-muted-foreground py-8">
                   Nenhum processo encontrado.
                 </TableCell>
               </TableRow>
