@@ -100,20 +100,21 @@ export function OrgaosInstituicoes() {
 
   // Buscar documentos modelo de um órgão específico
   const { data: documentos = [] } = useQuery({
-    queryKey: ["documentos-modelo", viewingOrgao?.id],
+    queryKey: ["documentos-modelo", viewingOrgao?.id || editingOrgao?.id],
     queryFn: async () => {
-      if (!viewingOrgao?.id) return [];
+      const orgaoId = viewingOrgao?.id || editingOrgao?.id;
+      if (!orgaoId) return [];
       
       const { data, error } = await supabase
         .from("orgao_documentos_modelo")
         .select("*")
-        .eq("orgao_id", viewingOrgao.id)
+        .eq("orgao_id", orgaoId)
         .order("nome_arquivo");
       
       if (error) throw error;
       return data as DocumentoModelo[];
     },
-    enabled: !!viewingOrgao?.id
+    enabled: !!(viewingOrgao?.id || editingOrgao?.id)
   });
 
   // Mutation para criar/atualizar órgão
@@ -539,11 +540,94 @@ export function OrgaosInstituicoes() {
                     />
                   </div>
 
+                  {/* Documentos existentes (modo edição) */}
+                  {editingOrgao && isAdmin && (
+                    <div className="space-y-4">
+                      <Label className="text-sm font-medium">Documentos Existentes</Label>
+                      {documentos.length > 0 ? (
+                        <div className="space-y-2">
+                          {documentos.map((doc) => (
+                            <div
+                              key={doc.id}
+                              className="flex items-center justify-between p-3 border rounded"
+                            >
+                              <div className="flex items-center space-x-2">
+                                <FileText className="h-4 w-4" />
+                                <span className="text-sm">{doc.nome_arquivo}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  ({(doc.tamanho / 1024 / 1024).toFixed(2)} MB)
+                                </span>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => downloadDocument(doc)}
+                                      >
+                                        <Download className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Baixar documento</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                                
+                                <AlertDialog>
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <AlertDialogTrigger asChild>
+                                          <Button type="button" size="sm" variant="ghost">
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        </AlertDialogTrigger>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>Excluir documento</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Tem certeza que deseja excluir o documento "{doc.nome_arquivo}"? 
+                                        Esta ação não pode ser desfeita.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => deleteDocument(doc)}
+                                        className="bg-destructive text-destructive-foreground"
+                                      >
+                                        Excluir
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">Nenhum documento encontrado</p>
+                      )}
+                    </div>
+                  )}
+
                   {/* Upload de documentos */}
                   {isAdmin && (
                     <div className="space-y-4">
                       <div className="flex justify-between items-center">
-                        <Label>Documentos Modelo</Label>
+                        <Label>
+                          {editingOrgao ? 'Adicionar Novos Documentos' : 'Documentos Modelo'}
+                        </Label>
                         <div className="inline-flex">
                           <input
                             type="file"
