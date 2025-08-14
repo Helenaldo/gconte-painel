@@ -388,6 +388,41 @@ export function OrgaosInstituicoes() {
     }
   };
 
+  const deleteDocument = async (documento: DocumentoModelo) => {
+    try {
+      // Remover do storage
+      const { error: storageError } = await supabase.storage
+        .from("orgao-documentos")
+        .remove([documento.url]);
+      
+      if (storageError) throw storageError;
+
+      // Remover do banco de dados
+      const { error: dbError } = await supabase
+        .from("orgao_documentos_modelo")
+        .delete()
+        .eq("id", documento.id);
+      
+      if (dbError) throw dbError;
+
+      toast({
+        title: "Sucesso",
+        description: "Documento excluído com sucesso"
+      });
+
+      // Recarregar as listas
+      queryClient.invalidateQueries({ queryKey: ["orgaos-instituicoes"] });
+      queryClient.invalidateQueries({ queryKey: ["documentos-modelo"] });
+    } catch (error) {
+      console.error("Erro ao excluir documento:", error);
+      toast({
+        title: "Erro",
+        description: "Erro ao excluir documento",
+        variant: "destructive"
+      });
+    }
+  };
+
   const downloadAllDocuments = async () => {
     if (!documentos.length) return;
     
@@ -831,13 +866,61 @@ export function OrgaosInstituicoes() {
                             ({(doc.tamanho / 1024 / 1024).toFixed(2)} MB)
                           </span>
                         </div>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => downloadDocument(doc)}
-                        >
-                          <Download className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center space-x-2">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => downloadDocument(doc)}
+                                >
+                                  <Download className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Baixar documento</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          
+                          {isAdmin && (
+                            <AlertDialog>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <AlertDialogTrigger asChild>
+                                      <Button size="sm" variant="ghost">
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Excluir documento</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Tem certeza que deseja excluir o documento "{doc.nome_arquivo}"? 
+                                    Esta ação não pode ser desfeita.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => deleteDocument(doc)}
+                                    className="bg-destructive text-destructive-foreground"
+                                  >
+                                    Excluir
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
+                        </div>
                       </div>
                     ))}
                     {documentos.length === 0 && (
