@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.12 (cd3cf9e)"
@@ -430,6 +430,77 @@ export type Database = {
         }
         Relationships: []
       }
+      orgao_documentos_modelo: {
+        Row: {
+          created_at: string
+          id: string
+          mime_type: string
+          nome_arquivo: string
+          orgao_id: string
+          tamanho: number
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mime_type: string
+          nome_arquivo: string
+          orgao_id: string
+          tamanho: number
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mime_type?: string
+          nome_arquivo?: string
+          orgao_id?: string
+          tamanho?: number
+          updated_at?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orgao_documentos_modelo_orgao_id_fkey"
+            columns: ["orgao_id"]
+            isOneToOne: false
+            referencedRelation: "orgaos_instituicoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orgaos_instituicoes: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          link_dinamico: string | null
+          nome: string
+          telefone: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          link_dinamico?: string | null
+          nome: string
+          telefone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          link_dinamico?: string | null
+          nome?: string
+          telefone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       parametrizacoes: {
         Row: {
           conta_balancete_codigo: string
@@ -799,8 +870,8 @@ export type Database = {
       }
       has_role: {
         Args: {
-          _user_id: string
           _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
         }
         Returns: boolean
       }

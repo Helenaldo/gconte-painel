@@ -93,6 +93,7 @@ const menuItems = [
       { title: "Listar", url: "/processos/listar", icon: List },
       { title: "Novo", url: "/processos/novo", icon: PlusCircle },
       { title: "Tipos", url: "/processos/tipos", icon: Tags },
+      { title: "Órgão/Instituição", url: "/processos/orgaos-instituicoes", icon: Building2 },
       { title: "Relatórios", url: "/processos/relatorios", icon: BarChart2 },
     ],
   },
