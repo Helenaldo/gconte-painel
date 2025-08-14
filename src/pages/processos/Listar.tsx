@@ -96,6 +96,7 @@ type VisibleColumns = {
   prazo: boolean;
   atraso: boolean;
   orgao: boolean;
+  processo_numero: boolean;
 };
 
 function toISODate(str?: string | null) {
@@ -170,6 +171,7 @@ export default function ProcessosListar() {
       prazo: true,
       atraso: true,
       orgao: true,
+      processo_numero: true,
     };
   });
 
@@ -580,6 +582,12 @@ export default function ProcessosListar() {
                 >
                   Órgão/Instituição
                 </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={visibleColumns.processo_numero}
+                  onCheckedChange={(checked) => setVisibleColumns(v => ({ ...v, processo_numero: checked }))}
+                >
+                  Processo n.
+                </DropdownMenuCheckboxItem>
               </DropdownMenuContent>
             </DropdownMenu>
             <Button variant="secondary" onClick={() => setFilters({})}>Limpar</Button>
@@ -603,6 +611,7 @@ export default function ProcessosListar() {
               {visibleColumns.prazo && <TableHead>Prazo</TableHead>}
               {visibleColumns.atraso && <TableHead>Atraso</TableHead>}
               {visibleColumns.orgao && <TableHead>Órgão/Instituição</TableHead>}
+              {visibleColumns.processo_numero && <TableHead>Processo n.</TableHead>}
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -671,19 +680,24 @@ export default function ProcessosListar() {
                       )}
                     </TableCell>
                   )}
-                  {visibleColumns.orgao && (
-                    <TableCell>
-                      {orgao ? (
-                        <div className="flex items-center gap-1">
-                          <Building2 className="h-3 w-3 text-muted-foreground" />
-                          <span className="text-sm">{orgao.label}</span>
-                        </div>
-                      ) : (
-                        "—"
-                      )}
-                    </TableCell>
-                  )}
-                  <TableCell className="text-right">
+                   {visibleColumns.orgao && (
+                     <TableCell>
+                       {orgao ? (
+                         <div className="flex items-center gap-1">
+                           <Building2 className="h-3 w-3 text-muted-foreground" />
+                           <span className="text-sm">{orgao.label}</span>
+                         </div>
+                       ) : (
+                         "—"
+                       )}
+                     </TableCell>
+                   )}
+                   {visibleColumns.processo_numero && (
+                     <TableCell>
+                       <span className="text-sm font-mono">{p.processo_numero || "—"}</span>
+                     </TableCell>
+                   )}
+                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                       <Button size="sm" variant="ghost" onClick={() => navigate(`/processos/${p.id}`)}>
                         <Eye className="h-4 w-4" />
@@ -744,7 +758,8 @@ export default function ProcessosListar() {
                   (visibleColumns.status ? 1 : 0) +
                   (visibleColumns.prazo ? 1 : 0) +
                   (visibleColumns.atraso ? 1 : 0) +
-                  (visibleColumns.orgao ? 1 : 0)} className="text-center text-muted-foreground py-8">
+                  (visibleColumns.orgao ? 1 : 0) +
+                  (visibleColumns.processo_numero ? 1 : 0)} className="text-center text-muted-foreground py-8">
                   Nenhum processo encontrado.
                 </TableCell>
               </TableRow>
