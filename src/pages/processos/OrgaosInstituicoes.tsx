@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Plus, Eye, Edit, Trash2, FileText, Download, Upload, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -95,36 +96,14 @@ export function OrgaosInstituicoes() {
   // Mutation para criar/atualizar órgão
   const saveOrgaoMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      if (editingOrgao) {
-        const { error } = await supabase
-          .from("orgaos_instituicoes")
-          .update(data)
-          .eq("id", editingOrgao.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("orgaos_instituicoes")
-          .insert([data]);
-        if (error) throw error;
-      }
+      // Esta função não será mais usada diretamente, o handleSubmit faz tudo
+      return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["orgaos-instituicoes"] });
-      toast({
-        title: "Sucesso",
-        description: `Órgão/Instituição ${editingOrgao ? 'atualizado' : 'criado'} com sucesso`
-      });
-      resetForm();
+      // Callback vazio - o handleSubmit gerencia tudo
     },
-    onError: (error: any) => {
-      const isUnique = error?.message?.includes('duplicate key value violates unique constraint');
-      toast({
-        title: "Erro",
-        description: isUnique 
-          ? "Já existe um órgão/instituição com este nome" 
-          : "Erro ao salvar órgão/instituição",
-        variant: "destructive"
-      });
+    onError: () => {
+      // Callback vazio - o handleSubmit gerencia tudo
     }
   });
 
@@ -221,6 +200,7 @@ export function OrgaosInstituicoes() {
       link_dinamico: orgao.link_dinamico || ""
     });
     setEditingOrgao(orgao);
+    setUploadingFiles([]);
     setDialogOpen(true);
   };
 
@@ -229,7 +209,7 @@ export function OrgaosInstituicoes() {
     setViewDialogOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.nome.trim() || formData.nome.length < 2 || formData.nome.length > 120) {
@@ -241,15 +221,57 @@ export function OrgaosInstituicoes() {
       return;
     }
 
-    // Converter strings vazias para null para campos opcionais
-    const submissionData = {
-      nome: formData.nome.trim(),
-      telefone: formData.telefone.trim() || null,
-      email: formData.email.trim() || null,
-      link_dinamico: formData.link_dinamico.trim() || null
-    };
+    try {
+      // Converter strings vazias para null para campos opcionais
+      const submissionData = {
+        nome: formData.nome.trim(),
+        telefone: formData.telefone.trim() || null,
+        email: formData.email.trim() || null,
+        link_dinamico: formData.link_dinamico.trim() || null
+      };
 
-    saveOrgaoMutation.mutate(submissionData);
+      // Salvar o órgão primeiro
+      let orgaoId: string;
+      
+      if (editingOrgao) {
+        const { error } = await supabase
+          .from("orgaos_instituicoes")
+          .update(submissionData)
+          .eq("id", editingOrgao.id);
+        if (error) throw error;
+        orgaoId = editingOrgao.id;
+      } else {
+        const { data, error } = await supabase
+          .from("orgaos_instituicoes")
+          .insert([submissionData])
+          .select()
+          .single();
+        if (error) throw error;
+        orgaoId = data.id;
+      }
+
+      // Fazer upload dos arquivos se houver
+      if (uploadingFiles.length > 0) {
+        await uploadDocumentosMutation.mutateAsync({ orgaoId, files: uploadingFiles });
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["orgaos-instituicoes"] });
+      toast({
+        title: "Sucesso",
+        description: `Órgão/Instituição ${editingOrgao ? 'atualizado' : 'criado'} com sucesso`
+      });
+      resetForm();
+      
+    } catch (error: any) {
+      const isUnique = error?.message?.includes('duplicate key value violates unique constraint');
+      toast({
+        title: "Erro",
+        description: isUnique 
+          ? "Já existe um órgão/instituição com este nome" 
+          : "Erro ao salvar órgão/instituição",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -435,13 +457,60 @@ export function OrgaosInstituicoes() {
                       placeholder="https://exemplo.com"
                     />
                   </div>
+
+                  {/* Upload de documentos */}
+                  {isAdmin && (
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <Label>Documentos Modelo</Label>
+                        <div className="inline-flex">
+                          <input
+                            type="file"
+                            multiple
+                            accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                            onChange={handleFileChange}
+                            className="hidden"
+                            id="file-upload-form"
+                          />
+                          <Label htmlFor="file-upload-form" className="cursor-pointer">
+                            <Button type="button" size="sm" variant="outline" asChild>
+                              <span>
+                                <Upload className="h-4 w-4 mr-2" />
+                                Selecionar Arquivos
+                              </span>
+                            </Button>
+                          </Label>
+                        </div>
+                      </div>
+
+                      {/* Arquivos selecionados */}
+                      {uploadingFiles.length > 0 && (
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">Arquivos selecionados:</Label>
+                          {uploadingFiles.map((file, index) => (
+                            <div key={index} className="flex items-center justify-between bg-muted p-2 rounded">
+                              <span className="text-sm">{file.name}</span>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => removeUploadingFile(index)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   
                   <div className="flex justify-end space-x-2 pt-4">
                     <Button type="button" variant="outline" onClick={resetForm}>
                       Cancelar
                     </Button>
-                    <Button type="submit" disabled={saveOrgaoMutation.isPending}>
-                      {saveOrgaoMutation.isPending ? "Salvando..." : "Salvar"}
+                    <Button type="submit" disabled={saveOrgaoMutation.isPending || uploadDocumentosMutation.isPending}>
+                      {(saveOrgaoMutation.isPending || uploadDocumentosMutation.isPending) ? "Salvando..." : "Salvar"}
                     </Button>
                   </div>
                 </form>
@@ -490,28 +559,57 @@ export function OrgaosInstituicoes() {
                       </TableCell>
                       <TableCell>
                         <div className="flex space-x-2">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => openViewDialog(orgao)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => openViewDialog(orgao)}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Visualizar detalhes</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          
                           {isAdmin && (
                             <>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => openEditDialog(orgao)}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => openEditDialog(orgao)}
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Editar</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                              
                               <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button size="sm" variant="ghost">
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </AlertDialogTrigger>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <AlertDialogTrigger asChild>
+                                        <Button size="sm" variant="ghost">
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </AlertDialogTrigger>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Excluir</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
                                 <AlertDialogContent>
                                   <AlertDialogHeader>
                                     <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
