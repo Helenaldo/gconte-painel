@@ -53,6 +53,8 @@ import {
   ChevronsUpDown,
   Check,
   Trash2,
+  Building2,
+  ExternalLink,
 } from "lucide-react";
 
 // Mapeamentos
@@ -167,6 +169,8 @@ interface Processo {
   etiquetas: string[];
   created_at: string;
   updated_at: string;
+  orgao_id: string | null;
+  processo_numero: string | null;
 }
 
 interface Movimento {
@@ -184,6 +188,7 @@ interface Anexo { id: string; movimento_id: string; nome_arquivo: string; mime: 
 
 interface Profile { id: string; nome: string; email: string; avatar_url?: string }
 interface Client { id: string; nome_empresarial: string; nome_fantasia: string | null }
+interface Orgao { id: string; nome: string; email: string | null; telefone: string | null; link_dinamico: string | null }
 
 type Option = { id: string; label: string; subtitle?: string; avatar_url?: string };
 
@@ -194,6 +199,7 @@ export default function ProcessoDetalhes() {
 
   const [proc, setProc] = useState<Processo | null>(null);
   const [client, setClient] = useState<Client | null>(null);
+  const [orgao, setOrgao] = useState<Orgao | null>(null);
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
   const [allProfiles, setAllProfiles] = useState<Option[]>([]);
   const [movs, setMovs] = useState<Movimento[]>([]);
@@ -201,6 +207,8 @@ export default function ProcessoDetalhes() {
   const [loading, setLoading] = useState(true);
 
   const [openCliente, setOpenCliente] = useState(false);
+  const [openOrgao, setOpenOrgao] = useState(false);
+  const [orgaoDocumentos, setOrgaoDocumentos] = useState<any[]>([]);
   const [openConcluir, setOpenConcluir] = useState(false);
   const [openReabrir, setOpenReabrir] = useState(false);
   const [contacts, setContacts] = useState<{ id: string; nome: string; email: string; telefone: string }[]>([]);
@@ -262,6 +270,16 @@ export default function ProcessoDetalhes() {
             .eq("client_id", p.cliente_id)
             .order("created_at", { ascending: false });
           setContacts((cons || []) as any);
+        }
+
+        // Órgão/Instituição
+        if (p.orgao_id) {
+          const { data: o } = await supabase
+            .from("orgaos_instituicoes")
+            .select("id, nome, email, telefone, link_dinamico")
+            .eq("id", p.orgao_id)
+            .maybeSingle();
+          if (o) setOrgao(o as any);
         }
 
         // Movimentos (mais recente no topo)
@@ -636,6 +654,55 @@ export default function ProcessoDetalhes() {
                   <CalendarIcon className="h-4 w-4" />
                   Prazo: {proc.prazo ? format(parseISO(proc.prazo), "dd/MM/yyyy") : "—"}
                 </div>
+                {/* Processo número */}
+                {proc.processo_numero && (
+                  <>
+                    <Separator orientation="vertical" className="mx-2 h-8" />
+                    <div className="flex items-center gap-2 text-sm">
+                      <FileText className="h-4 w-4" />
+                      Processo nº: <span className="font-medium">{proc.processo_numero}</span>
+                    </div>
+                  </>
+                )}
+                {/* Órgão/Instituição */}
+                {orgao && (
+                  <>
+                    <Separator orientation="vertical" className="mx-2 h-8" />
+                    <div className="flex items-center gap-2 text-sm">
+                      <Building2 className="h-4 w-4" />
+                      <Button
+                        variant="link"
+                        className="px-0 h-auto font-medium"
+                        onClick={async () => {
+                          // Carregar documentos do órgão
+                          try {
+                            const { data } = await supabase
+                              .from("orgao_documentos_modelo")
+                              .select("*")
+                              .eq("orgao_id", orgao.id);
+                            setOrgaoDocumentos(data || []);
+                            setOpenOrgao(true);
+                          } catch (error) {
+                            toast.error("Erro ao carregar dados do órgão");
+                          }
+                        }}
+                      >
+                        {orgao.nome}
+                      </Button>
+                      {orgao.link_dinamico && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7"
+                          onClick={() => window.open(orgao.link_dinamico!, '_blank')}
+                        >
+                          <ExternalLink className="h-3 w-3 mr-1" />
+                          Abrir portal
+                        </Button>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </CardHeader>
           </Card>
@@ -1015,6 +1082,89 @@ export default function ProcessoDetalhes() {
               </div>
             </form>
           </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Órgão/Instituição */}
+      <Dialog open={openOrgao} onOpenChange={setOpenOrgao}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Órgão/Instituição</DialogTitle>
+          </DialogHeader>
+          {orgao && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium">Nome</Label>
+                  <div className="mt-1 text-sm">{orgao.nome}</div>
+                </div>
+                {orgao.email && (
+                  <div>
+                    <Label className="text-sm font-medium">E-mail</Label>
+                    <div className="mt-1 text-sm">{orgao.email}</div>
+                  </div>
+                )}
+                {orgao.telefone && (
+                  <div>
+                    <Label className="text-sm font-medium">Telefone</Label>
+                    <div className="mt-1 text-sm">{orgao.telefone}</div>
+                  </div>
+                )}
+                {orgao.link_dinamico && (
+                  <div>
+                    <Label className="text-sm font-medium">Portal</Label>
+                    <div className="mt-1">
+                      <Button
+                        variant="link"
+                        className="px-0 h-auto"
+                        onClick={() => window.open(orgao.link_dinamico!, '_blank')}
+                      >
+                        <ExternalLink className="h-3 w-3 mr-1" />
+                        Abrir portal do órgão
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Documentos modelo */}
+              {orgaoDocumentos.length > 0 && (
+                <div>
+                  <Label className="text-sm font-medium">Documentos Modelo</Label>
+                  <div className="mt-2 space-y-2">
+                    {orgaoDocumentos.map((doc) => (
+                      <div key={doc.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-muted-foreground" />
+                          <div>
+                            <p className="font-medium text-sm">{doc.nome_arquivo}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {(doc.tamanho / 1024 / 1024).toFixed(2)} MB
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            const link = document.createElement('a');
+                            link.href = doc.url;
+                            link.download = doc.nome_arquivo;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                          }}
+                        >
+                          <Download className="h-3 w-3 mr-1" />
+                          Download
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </main>
