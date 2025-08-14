@@ -18,6 +18,7 @@ import { Pagination, PaginationContent, PaginationItem, PaginationLink, Paginati
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { getSla } from "@/lib/sla";
 import DuplicarModal, { ProcessoBase } from "@/components/processos/DuplicarModal";
@@ -313,7 +314,8 @@ export default function ProcessosListar() {
   };
 
   return (
-    <main className="p-6">
+    <TooltipProvider>
+      <main className="p-6">
       <header className="mb-4">
         <h1 className="text-2xl font-semibold">Processos</h1>
       </header>
@@ -698,53 +700,88 @@ export default function ProcessosListar() {
                      </TableCell>
                    )}
                    <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button size="sm" variant="ghost" onClick={() => navigate(`/processos/${p.id}`)}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => navigate(`/processos/${p.id}`)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => changeStatus(p.id, "concluido")}>
-                        <CheckCircle2 className="h-4 w-4" />
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => changeStatus(p.id, "cancelado")}>
-                        <XCircle className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={async () => {
-                          try {
-                            const { data, error } = await supabase
-                              .from("processos")
-                              .select("id,titulo,cliente_id,responsavel_id,setor,prioridade,prazo,descricao,etiquetas")
-                              .eq("id", p.id)
-                              .maybeSingle();
-                            if (error) throw error;
-                            if (!data) return toast.error("Não encontrado");
-                            setDupOriginal({
-                              id: data.id,
-                              titulo: data.titulo,
-                              cliente_id: data.cliente_id,
-                              responsavel_id: data.responsavel_id,
-                              setor: data.setor,
-                              prioridade: data.prioridade,
-                              prazo: data.prazo,
-                              descricao: (data as any).descricao || null,
-                              etiquetas: ((data as any).etiquetas as string[]) || [],
-                            });
-                            setDupOpen(true);
-                          } catch (e: any) {
-                            console.error(e);
-                            toast.error(e?.message || "Falha ao preparar duplicação");
-                          }
-                        }}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+                     <div className="flex justify-end gap-2">
+                       <Tooltip>
+                         <TooltipTrigger asChild>
+                           <Button size="sm" variant="ghost" onClick={() => navigate(`/processos/${p.id}`)}>
+                             <Eye className="h-4 w-4" />
+                           </Button>
+                         </TooltipTrigger>
+                         <TooltipContent>
+                           <p>Visualizar processo</p>
+                         </TooltipContent>
+                       </Tooltip>
+                       <Tooltip>
+                         <TooltipTrigger asChild>
+                           <Button size="sm" variant="ghost" onClick={() => navigate(`/processos/${p.id}`)}>
+                             <Pencil className="h-4 w-4" />
+                           </Button>
+                         </TooltipTrigger>
+                         <TooltipContent>
+                           <p>Editar processo</p>
+                         </TooltipContent>
+                       </Tooltip>
+                       <Tooltip>
+                         <TooltipTrigger asChild>
+                           <Button size="sm" variant="ghost" onClick={() => changeStatus(p.id, "concluido")}>
+                             <CheckCircle2 className="h-4 w-4" />
+                           </Button>
+                         </TooltipTrigger>
+                         <TooltipContent>
+                           <p>Marcar como concluído</p>
+                         </TooltipContent>
+                       </Tooltip>
+                       <Tooltip>
+                         <TooltipTrigger asChild>
+                           <Button size="sm" variant="ghost" onClick={() => changeStatus(p.id, "cancelado")}>
+                             <XCircle className="h-4 w-4" />
+                           </Button>
+                         </TooltipTrigger>
+                         <TooltipContent>
+                           <p>Cancelar processo</p>
+                         </TooltipContent>
+                       </Tooltip>
+                       <Tooltip>
+                         <TooltipTrigger asChild>
+                           <Button
+                             size="sm"
+                             variant="ghost"
+                             onClick={async () => {
+                               try {
+                                 const { data, error } = await supabase
+                                   .from("processos")
+                                   .select("id,titulo,cliente_id,responsavel_id,setor,prioridade,prazo,descricao,etiquetas")
+                                   .eq("id", p.id)
+                                   .maybeSingle();
+                                 if (error) throw error;
+                                 if (!data) return toast.error("Não encontrado");
+                                 setDupOriginal({
+                                   id: data.id,
+                                   titulo: data.titulo,
+                                   cliente_id: data.cliente_id,
+                                   responsavel_id: data.responsavel_id,
+                                   setor: data.setor,
+                                   prioridade: data.prioridade,
+                                   prazo: data.prazo,
+                                   descricao: (data as any).descricao || null,
+                                   etiquetas: ((data as any).etiquetas as string[]) || [],
+                                 });
+                                 setDupOpen(true);
+                               } catch (e: any) {
+                                 console.error(e);
+                                 toast.error(e?.message || "Falha ao preparar duplicação");
+                               }
+                             }}
+                           >
+                             <Copy className="h-4 w-4" />
+                           </Button>
+                         </TooltipTrigger>
+                         <TooltipContent>
+                           <p>Duplicar processo</p>
+                         </TooltipContent>
+                       </Tooltip>
+                     </div>
+                   </TableCell>
                 </TableRow>
               );
             })}
@@ -803,5 +840,6 @@ export default function ProcessosListar() {
         }}
       />
     </main>
+    </TooltipProvider>
   );
 }
