@@ -697,9 +697,11 @@ export type Database = {
           descricao: string | null
           etiquetas: string[]
           id: string
+          orgao_id: string | null
           origem: string | null
           prazo: string | null
           prioridade: Database["public"]["Enums"]["process_prioridade"]
+          processo_numero: string | null
           responsavel_id: string
           setor: Database["public"]["Enums"]["process_setor"]
           status: Database["public"]["Enums"]["process_status"]
@@ -714,9 +716,11 @@ export type Database = {
           descricao?: string | null
           etiquetas?: string[]
           id?: string
+          orgao_id?: string | null
           origem?: string | null
           prazo?: string | null
           prioridade?: Database["public"]["Enums"]["process_prioridade"]
+          processo_numero?: string | null
           responsavel_id: string
           setor: Database["public"]["Enums"]["process_setor"]
           status?: Database["public"]["Enums"]["process_status"]
@@ -731,9 +735,11 @@ export type Database = {
           descricao?: string | null
           etiquetas?: string[]
           id?: string
+          orgao_id?: string | null
           origem?: string | null
           prazo?: string | null
           prioridade?: Database["public"]["Enums"]["process_prioridade"]
+          processo_numero?: string | null
           responsavel_id?: string
           setor?: Database["public"]["Enums"]["process_setor"]
           status?: Database["public"]["Enums"]["process_status"]
@@ -746,6 +752,13 @@ export type Database = {
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "processos_orgao_id_fkey"
+            columns: ["orgao_id"]
+            isOneToOne: false
+            referencedRelation: "orgaos_instituicoes"
             referencedColumns: ["id"]
           },
           {

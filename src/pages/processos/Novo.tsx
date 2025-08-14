@@ -4,7 +4,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
-import { Calendar as CalendarIcon, ChevronsUpDown, Check, X, User, Briefcase, Tags, CirclePlus } from "lucide-react";
+import { Calendar as CalendarIcon, ChevronsUpDown, Check, X, User, Briefcase, Tags, CirclePlus, FileText, Building2, ExternalLink } from "lucide-react";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import InputMask from "react-input-mask";
@@ -59,6 +59,8 @@ const FormSchema = z.object({
   prazo: z.string().min(10, "Informe a data"), // máscara dd/MM/yyyy
   descricao: z.string().optional(),
   etiquetas: z.array(z.string()).default([]),
+  orgaoId: z.string().uuid().optional().nullable(),
+  processoNumero: z.string().max(30, "Máximo 30 caracteres").regex(/^[a-zA-Z0-9\/-]*$/, "Apenas letras, números, '/' e '-' são permitidos").optional(),
 });
 
 type FormValues = z.infer<typeof FormSchema>;
@@ -66,16 +68,22 @@ type FormValues = z.infer<typeof FormSchema>;
 type Option = { id: string; label: string; subtitle?: string };
 
 type TipoLite = { id: string; nome: string; prefixo: string | null; setor_default: string; prazo_default: number; checklist_model: string[] };
+
+type OrgaoOption = { id: string; label: string; subtitle?: string; documentos_count?: number };
+
 export default function NovoProcessoModal() {
   const navigate = useNavigate();
   const { profile } = useAuth();
   const [open, setOpen] = useState(true);
   const [clientes, setClientes] = useState<Option[]>([]);
   const [responsaveis, setResponsaveis] = useState<Option[]>([]);
+  const [orgaos, setOrgaos] = useState<OrgaoOption[]>([]);
   const [loadingCombos, setLoadingCombos] = useState(true);
   const [tipos, setTipos] = useState<TipoLite[]>([]);
   const [tipoSelecionado, setTipoSelecionado] = useState<string | null>(null);
   const [checklistModelo, setChecklistModelo] = useState<string[]>([]);
+  const [showDocumentosModal, setShowDocumentosModal] = useState(false);
+  const [documentosOrgao, setDocumentosOrgao] = useState<any[]>([]);
 
   useEffect(() => {
     document.title = "Novo Processo | GConte";
@@ -103,6 +111,8 @@ export default function NovoProcessoModal() {
       prazo: "",
       descricao: "",
       etiquetas: [],
+      orgaoId: undefined,
+      processoNumero: "",
     },
     mode: "onBlur",
   });
@@ -112,10 +122,14 @@ export default function NovoProcessoModal() {
     let active = true;
     (async () => {
       try {
-        const [{ data: cli }, { data: prof }, { data: tiposData }] = await Promise.all([
+        const [{ data: cli }, { data: prof }, { data: tiposData }, { data: orgaosData }] = await Promise.all([
           supabase.from("clients").select("id, nome_empresarial, nome_fantasia, cnpj").order("nome_empresarial", { ascending: true }),
           supabase.from("profiles").select("id, nome, email, status").eq("status", "ativo").order("nome", { ascending: true }),
           supabase.from("process_types").select("id, nome, prefixo, setor_default, prazo_default, checklist_model").order("created_at", { ascending: false }),
+          supabase.from("orgaos_instituicoes").select(`
+            id, nome, email, telefone,
+            orgao_documentos_modelo (id)
+          `).order("nome", { ascending: true }),
         ]);
         if (!active) return;
         setClientes(
@@ -129,6 +143,14 @@ export default function NovoProcessoModal() {
           (prof ?? []).map((p) => ({ id: p.id as string, label: p.nome as string, subtitle: p.email as string }))
         );
         setTipos((tiposData as any) || []);
+        setOrgaos(
+          (orgaosData ?? []).map((o: any) => ({
+            id: o.id as string,
+            label: o.nome as string,
+            subtitle: o.email || o.telefone || undefined,
+            documentos_count: o.orgao_documentos_modelo?.length || 0,
+          }))
+        );
       } catch (e) {
         console.error(e);
         toast.error("Falha ao carregar dados");
@@ -174,6 +196,8 @@ export default function NovoProcessoModal() {
         prazo: format(parsed, "yyyy-MM-dd"),
         descricao: values.descricao ?? null,
         etiquetas: etiquetas as any,
+        orgao_id: values.orgaoId ?? null,
+        processo_numero: values.processoNumero?.trim() || null,
       } as any;
 
       // Garantir responsavel_id
@@ -355,6 +379,132 @@ export default function NovoProcessoModal() {
                       </PopoverContent>
                     </Popover>
                     <FormDescription>Padrão: você</FormDescription>
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Novos campos opcionais */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Órgão/Instituição */}
+              <FormField
+                control={form.control}
+                name="orgaoId"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Órgão/Instituição</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            className={cn("justify-between", !field.value && "text-muted-foreground")}
+                          >
+                            {field.value ? orgaos.find((o) => o.id === field.value)?.label : "Selecionar órgão"}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="p-0 w-[--radix-popover-trigger-width]" align="start">
+                        <Command>
+                          <CommandInput placeholder="Buscar órgão..." />
+                          <CommandList>
+                            <CommandEmpty>Nenhum órgão encontrado.</CommandEmpty>
+                            <CommandGroup>
+                              <CommandItem onSelect={() => field.onChange(null)}>
+                                <X className="mr-2 h-4 w-4" />
+                                Limpar seleção
+                              </CommandItem>
+                              {(orgaos || []).map((orgao) => (
+                                <CommandItem
+                                  key={orgao.id}
+                                  onSelect={() => field.onChange(orgao.id)}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      orgao.id === field.value ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  <div className="flex items-center justify-between w-full">
+                                    <div className="flex flex-col">
+                                      <span className="flex items-center gap-1">
+                                        <Building2 className="h-3 w-3" />
+                                        {orgao.label}
+                                      </span>
+                                      {orgao.subtitle && (
+                                        <span className="text-xs text-muted-foreground">{orgao.subtitle}</span>
+                                      )}
+                                    </div>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 px-2"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        // Navegar para a ficha do órgão
+                                        window.open(`/processos/orgaos-instituicoes?view=${orgao.id}`, '_blank');
+                                      }}
+                                    >
+                                      <ExternalLink className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                    {/* UX extra: Mostrar atalho para documentos modelo */}
+                    {field.value && orgaos.find(o => o.id === field.value)?.documentos_count && orgaos.find(o => o.id === field.value)!.documentos_count! > 0 && (
+                      <div className="mt-1">
+                        <Button
+                          type="button"
+                          variant="link"
+                          size="sm"
+                          className="h-auto p-0 text-xs"
+                          onClick={async () => {
+                            try {
+                              const { data } = await supabase
+                                .from("orgao_documentos_modelo")
+                                .select("*")
+                                .eq("orgao_id", field.value);
+                              setDocumentosOrgao(data || []);
+                              setShowDocumentosModal(true);
+                            } catch (error) {
+                              toast.error("Erro ao carregar documentos");
+                            }
+                          }}
+                        >
+                          <FileText className="h-3 w-3 mr-1" />
+                          Ver modelos ({orgaos.find(o => o.id === field.value)?.documentos_count})
+                        </Button>
+                      </div>
+                    )}
+                    <FormDescription>Opcional</FormDescription>
+                  </FormItem>
+                )}
+              />
+
+              {/* Processo nº */}
+              <FormField
+                control={form.control}
+                name="processoNumero"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Processo nº</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Ex: 123/2024-AB" 
+                        maxLength={30}
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormDescription>Opcional (máx. 30 caracteres)</FormDescription>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
@@ -617,6 +767,52 @@ export default function NovoProcessoModal() {
             </div>
           </form>
         </Form>
+
+        {/* Modal para exibir documentos modelo do órgão */}
+        <Dialog open={showDocumentosModal} onOpenChange={setShowDocumentosModal}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Documentos Modelo</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              {documentosOrgao.length === 0 ? (
+                <p className="text-muted-foreground text-center py-4">
+                  Nenhum documento encontrado.
+                </p>
+              ) : (
+                <div className="grid gap-2">
+                  {documentosOrgao.map((doc) => (
+                    <div key={doc.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <p className="font-medium text-sm">{doc.nome_arquivo}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {(doc.tamanho / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          const link = document.createElement('a');
+                          link.href = doc.url;
+                          link.download = doc.nome_arquivo;
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                        }}
+                      >
+                        Download
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   );
