@@ -241,7 +241,15 @@ export function OrgaosInstituicoes() {
       return;
     }
 
-    saveOrgaoMutation.mutate(formData);
+    // Converter strings vazias para null para campos opcionais
+    const submissionData = {
+      nome: formData.nome.trim(),
+      telefone: formData.telefone.trim() || null,
+      email: formData.email.trim() || null,
+      link_dinamico: formData.link_dinamico.trim() || null
+    };
+
+    saveOrgaoMutation.mutate(submissionData);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
