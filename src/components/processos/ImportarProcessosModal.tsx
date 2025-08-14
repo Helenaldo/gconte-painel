@@ -28,6 +28,8 @@ type Row = {
   status: string;
   descricao?: string | null;
   etiquetas?: string | null;
+  orgao_nome?: string | null;
+  processo_numero?: string | null;
   __errors?: Partial<Record<keyof Row, string>> & { __row?: string };
 };
 
@@ -99,6 +101,7 @@ export default function ImportarProcessosModal({ open, onOpenChange, onImported 
   const [progress, setProgress] = useState(0);
   const [fileName, setFileName] = useState<string | null>(null);
   const [errorReport, setErrorReport] = useState<Row[] | null>(null);
+  const [newOrgaos, setNewOrgaos] = useState<string[]>([]);
 
   const isAdmin = (profile as any)?.role === "administrador";
 
@@ -137,9 +140,27 @@ export default function ImportarProcessosModal({ open, onOpenChange, onImported 
         status: String(r.status || "").trim(),
         descricao: normalizeText(r.descricao || "") || null,
         etiquetas: normalizeText(r.etiquetas || "") || null,
+        orgao_nome: normalizeText(r.orgao_nome || r.orgao || "") || null,
+        processo_numero: normalizeText(r.processo_numero || r.processo_num || r.numero || "") || null,
       }));
       // validate
       const withErr = parsed.map((p) => ({ ...p, __errors: validateRow(p) }));
+      
+      // Identificar novos órgãos que precisam ser criados
+      const orgaoNomes = Array.from(new Set(withErr.map(r => r.orgao_nome).filter(Boolean))) as string[];
+      if (orgaoNomes.length) {
+        const { data: existingOrgaos } = await supabase
+          .from("orgaos_instituicoes")
+          .select("nome")
+          .in("nome", orgaoNomes);
+        
+        const existingNames = new Set((existingOrgaos || []).map((o: any) => o.nome));
+        const missing = orgaoNomes.filter(nome => !existingNames.has(nome));
+        setNewOrgaos(missing);
+      } else {
+        setNewOrgaos([]);
+      }
+      
       setRows(withErr);
       setErrorReport(null);
     } finally {
@@ -158,6 +179,25 @@ export default function ImportarProcessosModal({ open, onOpenChange, onImported 
   };
 
   const anyErrors = rows.some((r) => r.__errors && Object.keys(r.__errors).length > 0);
+
+  const createNewOrgaos = async () => {
+    if (!isAdmin || !newOrgaos.length) return;
+    
+    try {
+      const orgaosToCreate = newOrgaos.map(nome => ({ nome }));
+      const { error } = await supabase
+        .from("orgaos_instituicoes")
+        .insert(orgaosToCreate);
+      
+      if (error) throw error;
+      
+      toast.success(`${newOrgaos.length} órgão(s) criado(s) com sucesso`);
+      setNewOrgaos([]);
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message || "Erro ao criar órgãos");
+    }
+  };
 
   const handleImport = async () => {
     if (!rows.length) {
@@ -186,6 +226,14 @@ export default function ImportarProcessosModal({ open, onOpenChange, onImported 
       const mapNome: Record<string, string> = {};
       (cliByNome.data || []).forEach((c: any) => { mapNome[(c.nome_fantasia || c.nome_empresarial).toLowerCase()] = c.id; });
 
+      // Resolve órgãos por nome
+      const orgaoNomes = Array.from(new Set(rows.map((r) => r.orgao_nome).filter(Boolean))) as string[];
+      const mapOrgao: Record<string, string> = {};
+      if (orgaoNomes.length) {
+        const { data: orgaos } = await supabase.from("orgaos_instituicoes").select("id, nome").in("nome", orgaoNomes);
+        (orgaos || []).forEach((o: any) => { mapOrgao[o.nome] = o.id; });
+      }
+
       let done = 0;
       for (const r of rows) {
         const errs = validateRow(r);
@@ -205,6 +253,14 @@ export default function ImportarProcessosModal({ open, onOpenChange, onImported 
           errors.push({ ...r, __errors: { __row: "Linha inválida", ...errs } });
           continue;
         }
+        
+        // Verificar se órgão existe (se especificado)
+        const orgaoId = r.orgao_nome ? mapOrgao[r.orgao_nome] : null;
+        if (r.orgao_nome && !orgaoId) {
+          errors.push({ ...r, __errors: { __row: `Órgão "${r.orgao_nome}" não encontrado` } });
+          continue;
+        }
+        
         const prio = r.prioridade ? mapPrioridade(r.prioridade) : null;
         const stat = mapStatus(r.status) as Status | null;
         const prazoISO = r.prazo ? parseDate(r.prazo) : null;
@@ -220,6 +276,8 @@ export default function ImportarProcessosModal({ open, onOpenChange, onImported 
           status: stat || "aberto",
           descricao: r.descricao || null,
           etiquetas: etiquetasArr,
+          orgao_id: orgaoId || null,
+          processo_numero: r.processo_numero || null,
         };
         const { error } = await supabase.from("processos").insert(payload);
         if (error) {
@@ -265,6 +323,31 @@ export default function ImportarProcessosModal({ open, onOpenChange, onImported 
           {fileName && <span className="text-xs text-muted-foreground">{fileName}</span>}
         </div>
 
+        {/* Novos órgãos que precisam ser criados */}
+        {newOrgaos.length > 0 && (
+          <div className="rounded-md border border-orange-200 bg-orange-50 p-3">
+            <div className="text-sm font-medium text-orange-800 mb-2">
+              Órgãos não encontrados (será necessário criar):
+            </div>
+            <div className="flex flex-wrap gap-1 mb-3">
+              {newOrgaos.map((nome) => (
+                <Badge key={nome} variant="outline" className="text-orange-700 border-orange-300">
+                  {nome}
+                </Badge>
+              ))}
+            </div>
+            {isAdmin ? (
+              <Button size="sm" variant="outline" onClick={createNewOrgaos} className="text-orange-700 border-orange-300">
+                Criar órgãos faltantes
+              </Button>
+            ) : (
+              <div className="text-xs text-orange-700">
+                Apenas administradores podem criar novos órgãos.
+              </div>
+            )}
+          </div>
+        )}
+
         {loading && (
           <div className="w-full bg-secondary rounded h-2 overflow-hidden">
             <div className="h-2 bg-primary" style={{ width: `${progress}%` }} />
@@ -278,7 +361,7 @@ export default function ImportarProcessosModal({ open, onOpenChange, onImported 
               <TableHeader>
                 <TableRow>
                   {[
-                    "titulo","cnpj_cliente","cliente_nome","responsavel_email","setor","prioridade","prazo","status","descricao","etiquetas"
+                    "titulo","cnpj_cliente","cliente_nome","responsavel_email","setor","prioridade","prazo","status","descricao","etiquetas","orgao_nome","processo_numero"
                   ].map((h) => (
                     <TableHead key={h} className="whitespace-nowrap capitalize">{h.replace(/_/g, " ")}</TableHead>
                   ))}
