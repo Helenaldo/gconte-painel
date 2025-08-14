@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { format, parse, isBefore, differenceInCalendarDays } from "date-fns";
 import InputMask from "react-input-mask";
-import { ChevronsUpDown, Check, Search, Eye, Pencil, CheckCircle2, XCircle, Copy, FileSpreadsheet, Download, Building2, Settings } from "lucide-react";
+import { ChevronsUpDown, Check, Search, Eye, Pencil, CheckCircle2, XCircle, Copy, FileSpreadsheet, Download, Building2, Settings, ExternalLink } from "lucide-react";
 import * as XLSX from "xlsx";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -19,7 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
+import { cn, buildProcessoLink } from "@/lib/utils";
 import { getSla } from "@/lib/sla";
 import DuplicarModal, { ProcessoBase } from "@/components/processos/DuplicarModal";
 import ImportarProcessosModal from "@/components/processos/ImportarProcessosModal";
@@ -39,7 +39,7 @@ interface Processo {
   processo_numero: string | null;
 }
 
-interface Option { id: string; label: string; subtitle?: string; avatar_url?: string }
+interface Option { id: string; label: string; subtitle?: string; avatar_url?: string; link_dinamico?: string | null }
 
 const SETORES = [
   { label: "Contábil", value: "contabil" },
@@ -218,7 +218,7 @@ export default function ProcessosListar() {
         const [{ data: cli }, { data: prof }, { data: org }] = await Promise.all([
           supabase.from("clients").select("id, nome_empresarial, nome_fantasia, cnpj").order("nome_empresarial", { ascending: true }),
           supabase.from("profiles").select("id, nome, email, avatar_url, status").eq("status", "ativo").order("nome", { ascending: true }),
-          supabase.from("orgaos_instituicoes").select("id, nome, email, telefone").order("nome", { ascending: true }),
+          supabase.from("orgaos_instituicoes").select("id, nome, email, telefone, link_dinamico").order("nome", { ascending: true }),
         ]);
         if (!active) return;
         setClientes(
@@ -228,7 +228,7 @@ export default function ProcessosListar() {
           (prof ?? []).map((p) => ({ id: p.id as string, label: p.nome as string, subtitle: p.email as string, avatar_url: p.avatar_url as string | undefined }))
         );
         setOrgaos(
-          (org ?? []).map((o: any) => ({ id: o.id as string, label: o.nome as string, subtitle: o.email || o.telefone || undefined }))
+          (org ?? []).map((o: any) => ({ id: o.id as string, label: o.nome as string, subtitle: o.email || o.telefone || undefined, link_dinamico: o.link_dinamico }))
         );
       } catch (e) {
         console.error(e);
@@ -696,7 +696,33 @@ export default function ProcessosListar() {
                    )}
                    {visibleColumns.processo_numero && (
                      <TableCell>
-                       <span className="text-sm font-mono">{p.processo_numero || "—"}</span>
+                       {p.processo_numero ? (
+                         (() => {
+                           const portalLink = orgao?.link_dinamico ? buildProcessoLink(orgao.link_dinamico, p.processo_numero) : null;
+                           return portalLink ? (
+                             <Tooltip>
+                               <TooltipTrigger asChild>
+                                 <Button
+                                   variant="link"
+                                   size="sm"
+                                   className="h-auto p-0 font-mono text-sm"
+                                   onClick={() => window.open(portalLink, '_blank', 'noopener')}
+                                 >
+                                   <ExternalLink className="h-3 w-3 mr-1" />
+                                   {p.processo_numero}
+                                 </Button>
+                               </TooltipTrigger>
+                               <TooltipContent>
+                                 <p>Abrir no portal do órgão</p>
+                               </TooltipContent>
+                             </Tooltip>
+                           ) : (
+                             <span className="text-sm font-mono">{p.processo_numero}</span>
+                           );
+                         })()
+                       ) : (
+                         "—"
+                       )}
                      </TableCell>
                    )}
                    <TableCell className="text-right">
