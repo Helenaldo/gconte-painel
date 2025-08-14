@@ -533,11 +533,14 @@ export function OrgaosInstituicoes() {
                     <Label htmlFor="link_dinamico">Link Dinâmico</Label>
                     <Input
                       id="link_dinamico"
-                      type="url"
+                      type="text"
                       value={formData.link_dinamico}
                       onChange={(e) => setFormData(prev => ({ ...prev, link_dinamico: e.target.value }))}
-                      placeholder="https://exemplo.com"
+                      placeholder="https://exemplo.com/PI<processo>"
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Use &lt;processo&gt; onde o número do processo deve entrar. Ex.: https://…/PI&lt;processo&gt;
+                    </p>
                   </div>
 
                   {/* Documentos existentes (modo edição) */}
