@@ -689,17 +689,27 @@ export default function ProcessoDetalhes() {
                       >
                         {orgao.nome}
                       </Button>
-                      {orgao.link_dinamico && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7"
-                          onClick={() => window.open(orgao.link_dinamico!, '_blank')}
-                        >
-                          <ExternalLink className="h-3 w-3 mr-1" />
-                          Abrir portal
-                        </Button>
-                      )}
+                      {orgao.link_dinamico && proc.processo_numero && (() => {
+                        const sanitizeProcessNumber = (num: string) => {
+                          return num.trim().replace(/[^A-Za-z0-9\/\-\.\s]/g, '');
+                        };
+                        const generateDynamicLink = (template: string, processNumber: string) => {
+                          const sanitized = sanitizeProcessNumber(processNumber);
+                          return template.replace('<processo>', encodeURIComponent(sanitized));
+                        };
+                        const finalLink = generateDynamicLink(orgao.link_dinamico, proc.processo_numero);
+                        return (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7"
+                            onClick={() => window.open(finalLink, '_blank', 'noopener')}
+                          >
+                            <ExternalLink className="h-3 w-3 mr-1" />
+                            Acessar
+                          </Button>
+                        );
+                      })()}
                     </div>
                   </>
                 )}
@@ -1110,19 +1120,39 @@ export default function ProcessoDetalhes() {
                     <div className="mt-1 text-sm">{orgao.telefone}</div>
                   </div>
                 )}
-                {orgao.link_dinamico && (
-                  <div>
-                    <Label className="text-sm font-medium">Portal</Label>
-                    <div className="mt-1">
+                {orgao.link_dinamico && proc.processo_numero && (() => {
+                  const sanitizeProcessNumber = (num: string) => {
+                    return num.trim().replace(/[^A-Za-z0-9\/\-\.\s]/g, '');
+                  };
+                  const generateDynamicLink = (template: string, processNumber: string) => {
+                    const sanitized = sanitizeProcessNumber(processNumber);
+                    return template.replace('<processo>', encodeURIComponent(sanitized));
+                  };
+                  const finalLink = generateDynamicLink(orgao.link_dinamico, proc.processo_numero);
+                  return (
+                    <div>
+                      <Label className="text-sm font-medium text-muted-foreground">
+                        Link Dinâmico
+                      </Label>
                       <Button
-                        variant="link"
+                        variant="link" 
                         className="px-0 h-auto"
-                        onClick={() => window.open(orgao.link_dinamico!, '_blank')}
+                        onClick={() => window.open(finalLink, '_blank', 'noopener')}
                       >
                         <ExternalLink className="h-3 w-3 mr-1" />
-                        Abrir portal do órgão
+                        {finalLink}
                       </Button>
                     </div>
+                  );
+                })()}
+                {orgao.link_dinamico && !proc.processo_numero && (
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">
+                      Link Dinâmico
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      {orgao.link_dinamico} (número do processo necessário)
+                    </p>
                   </div>
                 )}
               </div>
