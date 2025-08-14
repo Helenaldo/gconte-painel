@@ -26,6 +26,10 @@ interface OrgaoInstituicao {
   updated_at: string;
 }
 
+interface OrgaoComDocumentos extends OrgaoInstituicao {
+  documentos: DocumentoModelo[];
+}
+
 interface DocumentoModelo {
   id: string;
   orgao_id: string;
@@ -61,17 +65,36 @@ export function OrgaosInstituicoes() {
     document.title = "Órgãos/Instituições | GConTE";
   }, []);
 
-  // Buscar órgãos/instituições
+  // Buscar órgãos/instituições com contagem de documentos
   const { data: orgaos = [], isLoading } = useQuery({
     queryKey: ["orgaos-instituicoes"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Buscar órgãos
+      const { data: orgaosData, error: orgaosError } = await supabase
         .from("orgaos_instituicoes")
         .select("*")
         .order("nome");
       
-      if (error) throw error;
-      return data as OrgaoInstituicao[];
+      if (orgaosError) throw orgaosError;
+
+      // Buscar contagem de documentos para cada órgão
+      const orgaosWithDocs = await Promise.all(
+        (orgaosData || []).map(async (orgao) => {
+          const { data: docsData, error: docsError } = await supabase
+            .from("orgao_documentos_modelo")
+            .select("*")
+            .eq("orgao_id", orgao.id);
+          
+          if (docsError) {
+            console.error("Erro ao buscar documentos:", docsError);
+            return { ...orgao, documentos: [] };
+          }
+          
+          return { ...orgao, documentos: docsData || [] };
+        })
+      );
+      
+      return orgaosWithDocs as OrgaoComDocumentos[];
     }
   });
 
@@ -342,6 +365,29 @@ export function OrgaosInstituicoes() {
     }
   };
 
+  const downloadDocumentFromList = async (documento: DocumentoModelo) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from("orgao-documentos")
+        .download(documento.url);
+        
+      if (error) throw error;
+      
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = documento.nome_arquivo;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao baixar documento",
+        variant: "destructive"
+      });
+    }
+  };
+
   const downloadAllDocuments = async () => {
     if (!documentos.length) return;
     
@@ -552,10 +598,37 @@ export function OrgaosInstituicoes() {
                       <TableCell>{orgao.telefone || "-"}</TableCell>
                       <TableCell>{orgao.email || "-"}</TableCell>
                       <TableCell>
-                        <Badge variant="secondary">
-                          <FileText className="h-3 w-3 mr-1" />
-                          Documentos
-                        </Badge>
+                        {orgao.documentos && orgao.documentos.length > 0 ? (
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className="cursor-pointer">
+                              <FileText className="h-3 w-3 mr-1" />
+                              {orgao.documentos.length} documento{orgao.documentos.length > 1 ? 's' : ''}
+                            </Badge>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => {
+                                      const promises = orgao.documentos.map(doc => downloadDocumentFromList(doc));
+                                      Promise.all(promises);
+                                    }}
+                                  >
+                                    <Download className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Baixar todos os documentos</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                        ) : (
+                          <Badge variant="outline">
+                            Sem documentos
+                          </Badge>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div className="flex space-x-2">
