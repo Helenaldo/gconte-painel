@@ -21,7 +21,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { cn } from "@/lib/utils";
+import { cn, buildProcessoLink } from "@/lib/utils";
 
 // Enums mapeados para os valores do banco
 const SETORES = [
@@ -69,7 +69,7 @@ type Option = { id: string; label: string; subtitle?: string };
 
 type TipoLite = { id: string; nome: string; prefixo: string | null; setor_default: string; prazo_default: number; checklist_model: string[] };
 
-type OrgaoOption = { id: string; label: string; subtitle?: string; documentos_count?: number };
+type OrgaoOption = { id: string; label: string; subtitle?: string; documentos_count?: number; link_dinamico?: string | null };
 
 export default function NovoProcessoModal() {
   const navigate = useNavigate();
@@ -127,7 +127,7 @@ export default function NovoProcessoModal() {
           supabase.from("profiles").select("id, nome, email, status").eq("status", "ativo").order("nome", { ascending: true }),
           supabase.from("process_types").select("id, nome, prefixo, setor_default, prazo_default, checklist_model").order("created_at", { ascending: false }),
           supabase.from("orgaos_instituicoes").select(`
-            id, nome, email, telefone,
+            id, nome, email, telefone, link_dinamico,
             orgao_documentos_modelo (id)
           `).order("nome", { ascending: true }),
         ]);
@@ -149,6 +149,7 @@ export default function NovoProcessoModal() {
             label: o.nome as string,
             subtitle: o.email || o.telefone || undefined,
             documentos_count: o.orgao_documentos_modelo?.length || 0,
+            link_dinamico: o.link_dinamico,
           }))
         );
       } catch (e) {
@@ -493,20 +494,40 @@ export default function NovoProcessoModal() {
               <FormField
                 control={form.control}
                 name="processoNumero"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Processo nº</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="Ex: 123/2024-AB" 
-                        maxLength={30}
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormDescription>Opcional (máx. 30 caracteres)</FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                  const selectedOrgao = orgaos.find(o => o.id === form.watch("orgaoId"));
+                  const canShowPortalLink = selectedOrgao?.link_dinamico && field.value?.trim();
+                  const portalLink = canShowPortalLink ? buildProcessoLink(selectedOrgao.link_dinamico, field.value) : null;
+                  
+                  return (
+                    <FormItem>
+                      <FormLabel>Processo nº</FormLabel>
+                      <div className="flex items-center gap-2">
+                        <FormControl>
+                          <Input 
+                            placeholder="Ex: 123/2024-AB" 
+                            maxLength={30}
+                            {...field} 
+                          />
+                        </FormControl>
+                        {portalLink && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => window.open(portalLink, '_blank', 'noopener')}
+                            title="Abrir no portal do órgão"
+                          >
+                            <ExternalLink className="h-4 w-4 mr-1" />
+                            Abrir no portal
+                          </Button>
+                        )}
+                      </div>
+                      <FormDescription>Opcional (máx. 30 caracteres)</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
             </div>
 
