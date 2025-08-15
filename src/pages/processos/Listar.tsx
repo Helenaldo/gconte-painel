@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { format, parse, isBefore, differenceInCalendarDays } from "date-fns";
 import InputMask from "react-input-mask";
-import { ChevronsUpDown, Check, Search, Eye, Pencil, CheckCircle2, XCircle, Copy, FileSpreadsheet, Download, Building2, Settings, ExternalLink } from "lucide-react";
+import { ChevronsUpDown, Check, Search, Eye, Pencil, CheckCircle2, XCircle, Copy, FileSpreadsheet, Download, Building2, Settings, ExternalLink, Trash2 } from "lucide-react";
 import * as XLSX from "xlsx";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -19,6 +19,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
 import { cn, buildProcessoLink } from "@/lib/utils";
 import { getSla } from "@/lib/sla";
 import DuplicarModal, { ProcessoBase } from "@/components/processos/DuplicarModal";
@@ -193,6 +195,12 @@ export default function ProcessosListar() {
   // Importar
   const [importOpen, setImportOpen] = useState(false);
 
+  // Excluir
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [processoToDelete, setProcessoToDelete] = useState<Processo | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
   useEffect(() => {
     document.title = "Processos | GConte";
   }, []);
@@ -311,6 +319,61 @@ export default function ProcessosListar() {
       console.error(e);
       toast.error(e?.message || "Falha ao atualizar");
     }
+  };
+
+  const handleDeleteProcess = async () => {
+    if (!processoToDelete || deleteConfirmText !== "Excluir") {
+      toast.error("Digite 'Excluir' para confirmar");
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      // Primeiro exclui os movimentos relacionados
+      const { error: movimentosError } = await supabase
+        .from("movimentos")
+        .delete()
+        .eq("processo_id", processoToDelete.id);
+
+      if (movimentosError) throw movimentosError;
+
+      // Depois exclui o processo
+      const { error: processoError } = await supabase
+        .from("processos")
+        .delete()
+        .eq("id", processoToDelete.id);
+
+      if (processoError) throw processoError;
+
+      toast.success("Processo excluído com sucesso");
+      
+      // Remove da lista local
+      setRows((prev) => prev.filter((r) => r.id !== processoToDelete.id));
+      setCount((prev) => prev - 1);
+      
+      // Fecha o diálogo
+      setDeleteOpen(false);
+      setProcessoToDelete(null);
+      setDeleteConfirmText("");
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message || "Falha ao excluir processo");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const openDeleteDialog = (processo: Processo) => {
+    setProcessoToDelete(processo);
+    setDeleteConfirmText("");
+    setDeleteOpen(true);
+  };
+
+  // Verificar se usuário pode excluir (admin/operador ou responsável pelo processo)
+  const canDelete = (processo: Processo) => {
+    return profile?.role === 'administrador' || 
+           profile?.role === 'operador' || 
+           processo.responsavel_id === profile?.id;
   };
 
   return (
@@ -767,45 +830,62 @@ export default function ProcessosListar() {
                            <p>Cancelar processo</p>
                          </TooltipContent>
                        </Tooltip>
-                       <Tooltip>
-                         <TooltipTrigger asChild>
-                           <Button
-                             size="sm"
-                             variant="ghost"
-                             onClick={async () => {
-                               try {
-                                 const { data, error } = await supabase
-                                   .from("processos")
-                                   .select("id,titulo,cliente_id,responsavel_id,setor,prioridade,prazo,descricao,etiquetas")
-                                   .eq("id", p.id)
-                                   .maybeSingle();
-                                 if (error) throw error;
-                                 if (!data) return toast.error("Não encontrado");
-                                 setDupOriginal({
-                                   id: data.id,
-                                   titulo: data.titulo,
-                                   cliente_id: data.cliente_id,
-                                   responsavel_id: data.responsavel_id,
-                                   setor: data.setor,
-                                   prioridade: data.prioridade,
-                                   prazo: data.prazo,
-                                   descricao: (data as any).descricao || null,
-                                   etiquetas: ((data as any).etiquetas as string[]) || [],
-                                 });
-                                 setDupOpen(true);
-                               } catch (e: any) {
-                                 console.error(e);
-                                 toast.error(e?.message || "Falha ao preparar duplicação");
-                               }
-                             }}
-                           >
-                             <Copy className="h-4 w-4" />
-                           </Button>
-                         </TooltipTrigger>
-                         <TooltipContent>
-                           <p>Duplicar processo</p>
-                         </TooltipContent>
-                       </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={async () => {
+                                try {
+                                  const { data, error } = await supabase
+                                    .from("processos")
+                                    .select("id,titulo,cliente_id,responsavel_id,setor,prioridade,prazo,descricao,etiquetas")
+                                    .eq("id", p.id)
+                                    .maybeSingle();
+                                  if (error) throw error;
+                                  if (!data) return toast.error("Não encontrado");
+                                  setDupOriginal({
+                                    id: data.id,
+                                    titulo: data.titulo,
+                                    cliente_id: data.cliente_id,
+                                    responsavel_id: data.responsavel_id,
+                                    setor: data.setor,
+                                    prioridade: data.prioridade,
+                                    prazo: data.prazo,
+                                    descricao: (data as any).descricao || null,
+                                    etiquetas: ((data as any).etiquetas as string[]) || [],
+                                  });
+                                  setDupOpen(true);
+                                } catch (e: any) {
+                                  console.error(e);
+                                  toast.error(e?.message || "Falha ao preparar duplicação");
+                                }
+                              }}
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Duplicar processo</p>
+                          </TooltipContent>
+                        </Tooltip>
+                        {canDelete(p) && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => openDeleteDialog(p)}
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Excluir processo</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
                      </div>
                    </TableCell>
                 </TableRow>
@@ -865,6 +945,48 @@ export default function ProcessosListar() {
           setDupOpen(false);
         }}
       />
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Processo</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. Isso excluirá permanentemente o processo
+              <strong> "{processoToDelete?.titulo}"</strong> e todos os seus movimentos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <Label htmlFor="confirm-delete">
+              Digite <strong>Excluir</strong> para confirmar:
+            </Label>
+            <Input
+              id="confirm-delete"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder="Digite 'Excluir' para confirmar"
+              className="mt-2"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              onClick={() => {
+                setDeleteOpen(false);
+                setProcessoToDelete(null);
+                setDeleteConfirmText("");
+              }}
+            >
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteProcess}
+              disabled={deleteConfirmText !== "Excluir" || deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Excluindo..." : "Excluir Processo"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
     </TooltipProvider>
   );
