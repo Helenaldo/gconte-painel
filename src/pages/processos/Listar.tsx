@@ -737,16 +737,16 @@ export default function ProcessosListar() {
                            <p>Visualizar processo</p>
                          </TooltipContent>
                        </Tooltip>
-                       <Tooltip>
-                         <TooltipTrigger asChild>
-                           <Button size="sm" variant="ghost" onClick={() => navigate(`/processos/${p.id}`)}>
-                             <Pencil className="h-4 w-4" />
-                           </Button>
-                         </TooltipTrigger>
-                         <TooltipContent>
-                           <p>Editar processo</p>
-                         </TooltipContent>
-                       </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button size="sm" variant="ghost" onClick={() => navigate(`/processos/editar/${p.id}`)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Editar processo</p>
+                          </TooltipContent>
+                        </Tooltip>
                        <Tooltip>
                          <TooltipTrigger asChild>
                            <Button size="sm" variant="ghost" onClick={() => changeStatus(p.id, "concluido")}>
