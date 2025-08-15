@@ -19,7 +19,7 @@ export function MainLayout({ children, user, onLogout }: MainLayoutProps) {
         <AppSidebar />
         <div className="flex-1 flex flex-col">
           <Header user={user} onLogout={onLogout} />
-          <main className="flex-1 overflow-y-auto">
+          <main className="flex-1 overflow-y-auto pt-6">
             <div className="max-w-[1920px] w-full mx-auto" style={{ paddingInline: 'var(--nobleui-gap)' }}>
               {children}
             </div>
