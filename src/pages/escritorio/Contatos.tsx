@@ -3,10 +3,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
-import { Plus, Search, ContactRound, Pencil, Eye, Trash2 } from "lucide-react"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import { Plus, Search, ContactRound, Pencil, Eye, Trash2, Check, ChevronsUpDown } from "lucide-react"
+import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import InputMask from "react-input-mask"
 import { supabase } from "@/integrations/supabase/client"
@@ -24,6 +26,7 @@ export function Contatos() {
   const [contatos, setContatos] = useState<Contato[]>([])
   const [clientes, setClientes] = useState<any[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isClienteComboOpen, setIsClienteComboOpen] = useState(false)
   const [editingContato, setEditingContato] = useState<Contato | null>(null)
   const [viewingContato, setViewingContato] = useState<Contato | null>(null)
   const [deletingContato, setDeletingContato] = useState<Contato | null>(null)
@@ -46,7 +49,7 @@ export function Contatos() {
     try {
       const { data, error } = await supabase
         .from('clients')
-        .select('id, nome_empresarial')
+        .select('id, nome_empresarial, nome_fantasia')
         .order('nome_empresarial')
       
       if (error) throw error
@@ -86,10 +89,10 @@ export function Contatos() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!formData.clienteId || !formData.nome || !formData.email || !formData.telefone) {
+    if (!formData.clienteId || !formData.nome || !formData.email) {
       toast({
         title: "Erro",
-        description: "Todos os campos são obrigatórios",
+        description: "Cliente, nome e e-mail são obrigatórios",
         variant: "destructive"
       })
       return
@@ -212,21 +215,54 @@ export function Contatos() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="cliente">Cliente *</Label>
-                <Select 
-                  value={formData.clienteId} 
-                  onValueChange={(value) => setFormData(prev => ({...prev, clienteId: value}))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione um cliente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {clientes.map(cliente => (
-                      <SelectItem key={cliente.id} value={cliente.id}>
-                        {cliente.nome_empresarial}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover open={isClienteComboOpen} onOpenChange={setIsClienteComboOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={isClienteComboOpen}
+                      className="w-full justify-between"
+                    >
+                      {formData.clienteId
+                        ? clientes.find((cliente) => cliente.id === formData.clienteId)?.nome_empresarial
+                        : "Selecione um cliente..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0">
+                    <Command>
+                      <CommandInput placeholder="Buscar cliente..." />
+                      <CommandList>
+                        <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
+                        <CommandGroup>
+                          {clientes.map((cliente) => (
+                            <CommandItem
+                              key={cliente.id}
+                              value={`${cliente.nome_empresarial} ${cliente.nome_fantasia || ''}`.toLowerCase()}
+                              onSelect={() => {
+                                setFormData(prev => ({...prev, clienteId: cliente.id}))
+                                setIsClienteComboOpen(false)
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  formData.clienteId === cliente.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <div>
+                                <div className="font-medium">{cliente.nome_empresarial}</div>
+                                {cliente.nome_fantasia && (
+                                  <div className="text-sm text-muted-foreground">{cliente.nome_fantasia}</div>
+                                )}
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="space-y-2">
@@ -251,7 +287,7 @@ export function Contatos() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="telefone">Telefone *</Label>
+                <Label htmlFor="telefone">Telefone</Label>
                 <InputMask
                   mask="(99) 99999-9999"
                   value={formData.telefone}
