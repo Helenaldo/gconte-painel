@@ -472,7 +472,7 @@ export function OrgaosInstituicoes() {
   };
 
   return (
-    <div className="max-w-[1920px] w-full mx-auto" style={{ paddingInline: 'var(--nobleui-gap)' }}>
+    <div className="max-w-[1920px] w-full mx-auto pt-8" style={{ paddingInline: 'var(--nobleui-gap)' }}>
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold">Órgãos/Instituições</h1>
