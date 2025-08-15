@@ -61,6 +61,10 @@ export function OrgaosInstituicoes() {
 
   const isAdmin = profile?.role === 'administrador';
   const canManage = profile?.role === 'administrador' || profile?.role === 'operador';
+  
+  // Debug logging
+  console.log('User profile role:', profile?.role);
+  console.log('Can manage:', canManage);
 
   useEffect(() => {
     document.title = "Órgãos/Instituições | GConTE";
