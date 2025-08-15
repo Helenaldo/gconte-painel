@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
-import { Plus, Search, ContactRound, Pencil, Eye, Trash2, Check, ChevronsUpDown } from "lucide-react"
+import { Plus, Search, ContactRound, Pencil, Eye, Trash2, Check, ChevronsUpDown, Building2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import InputMask from "react-input-mask"
@@ -17,6 +17,7 @@ interface Contato {
   id: string
   clienteId: string
   clienteNome: string
+  clienteNomeFantasia?: string
   nome: string
   email: string
   telefone: string
@@ -65,7 +66,7 @@ export function Contatos() {
         .from('contacts')
         .select(`
           *,
-          clients!inner(nome_empresarial)
+          clients!inner(nome_empresarial, nome_fantasia)
         `)
         .order('nome')
       
@@ -75,6 +76,7 @@ export function Contatos() {
         id: contato.id,
         clienteId: contato.client_id,
         clienteNome: contato.clients.nome_empresarial,
+        clienteNomeFantasia: contato.clients.nome_fantasia,
         nome: contato.nome,
         email: contato.email,
         telefone: contato.telefone
@@ -183,11 +185,27 @@ export function Contatos() {
   const contatosFiltrados = useMemo(() => {
     if (!searchTerm) return contatos
     
+    const termo = searchTerm.toLowerCase()
     return contatos.filter(contato => 
-      contato.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      contato.email.toLowerCase().includes(searchTerm.toLowerCase())
+      contato.nome.toLowerCase().includes(termo) ||
+      contato.email.toLowerCase().includes(termo) ||
+      contato.clienteNome.toLowerCase().includes(termo) ||
+      (contato.clienteNomeFantasia && contato.clienteNomeFantasia.toLowerCase().includes(termo))
     )
   }, [contatos, searchTerm])
+
+  const contatosAgrupados = useMemo(() => {
+    const grupos: { [clienteId: string]: Contato[] } = {}
+    
+    contatosFiltrados.forEach(contato => {
+      if (!grupos[contato.clienteId]) {
+        grupos[contato.clienteId] = []
+      }
+      grupos[contato.clienteId].push(contato)
+    })
+    
+    return grupos
+  }, [contatosFiltrados])
 
   return (
     <div className="space-y-6">
@@ -323,7 +341,7 @@ export function Contatos() {
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input 
-                  placeholder="Buscar por nome ou email..." 
+                  placeholder="Buscar por empresa, contato ou e-mail..." 
                   className="pl-10"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -351,39 +369,79 @@ export function Contatos() {
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {contatosFiltrados.map((contato) => (
-                <div key={contato.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex-1">
-                    <h4 className="font-medium">{contato.nome}</h4>
-                    <p className="text-sm text-muted-foreground">{contato.clienteNome}</p>
-                    <p className="text-sm text-muted-foreground">{contato.email} • {contato.telefone}</p>
+            <div className="space-y-6">
+              {Object.entries(contatosAgrupados).map(([clienteId, contatosCliente]) => {
+                const primeiroContato = contatosCliente[0]
+                const temMultiplosContatos = contatosCliente.length > 1
+                
+                return (
+                  <div key={clienteId} className="space-y-2">
+                    {temMultiplosContatos && (
+                      <div className="flex items-center gap-2 pb-2 border-b">
+                        <Building2 className="h-4 w-4 text-muted-foreground" />
+                        <h3 className="font-medium text-sm">
+                          {primeiroContato.clienteNome}
+                          {primeiroContato.clienteNomeFantasia && (
+                            <span className="text-muted-foreground ml-1">
+                              ({primeiroContato.clienteNomeFantasia})
+                            </span>
+                          )}
+                        </h3>
+                        <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+                          {contatosCliente.length} contato{contatosCliente.length > 1 ? 's' : ''}
+                        </span>
+                      </div>
+                    )}
+                    
+                    <div className="space-y-3">
+                      {contatosCliente.map((contato) => (
+                        <div key={contato.id} className={`flex items-center justify-between p-4 border rounded-lg ${temMultiplosContatos ? 'ml-6' : ''}`}>
+                          <div className="flex-1">
+                            <h4 className="font-medium">{contato.nome}</h4>
+                            {!temMultiplosContatos && (
+                              <p className="text-sm text-muted-foreground">
+                                {contato.clienteNome}
+                                {contato.clienteNomeFantasia && (
+                                  <span className="text-muted-foreground ml-1">
+                                    ({contato.clienteNomeFantasia})
+                                  </span>
+                                )}
+                              </p>
+                            )}
+                            <p className="text-sm text-muted-foreground">
+                              {contato.email} 
+                              {contato.telefone && <span> • {contato.telefone}</span>}
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openViewModal(contato)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openEditModal(contato)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setDeletingContato(contato)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openViewModal(contato)}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openEditModal(contato)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setDeletingContato(contato)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </CardContent>
