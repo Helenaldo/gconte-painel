@@ -252,12 +252,11 @@ export default function EditarProcesso() {
 
               <div>
                 <Label htmlFor="cliente">Cliente</Label>
-                <Select value={clienteId} onValueChange={setClienteId}>
+                <Select value={clienteId || undefined} onValueChange={(value) => setClienteId(value || "")}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione um cliente" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhum cliente</SelectItem>
                     {clientes.map((cliente) => (
                       <SelectItem key={cliente.id} value={cliente.id}>
                         {cliente.nome_fantasia || cliente.nome_empresarial}
@@ -343,12 +342,11 @@ export default function EditarProcesso() {
 
               <div>
                 <Label htmlFor="orgao">Órgão/Instituição</Label>
-                <Select value={orgaoId} onValueChange={setOrgaoId}>
+                <Select value={orgaoId || undefined} onValueChange={(value) => setOrgaoId(value || "")}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione um órgão" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhum órgão</SelectItem>
                     {orgaos.map((orgao) => (
                       <SelectItem key={orgao.id} value={orgao.id}>
                         {orgao.nome}
