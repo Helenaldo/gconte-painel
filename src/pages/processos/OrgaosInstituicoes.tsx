@@ -60,6 +60,7 @@ export function OrgaosInstituicoes() {
   });
 
   const isAdmin = profile?.role === 'administrador';
+  const canManage = profile?.role === 'administrador' || profile?.role === 'operador';
 
   useEffect(() => {
     document.title = "Órgãos/Instituições | GConTE";
@@ -476,7 +477,7 @@ export function OrgaosInstituicoes() {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold">Órgãos/Instituições</h1>
-          {isAdmin && (
+          {canManage && (
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
                 <Button onClick={openCreateDialog}>
@@ -544,7 +545,7 @@ export function OrgaosInstituicoes() {
                   </div>
 
                   {/* Documentos existentes (modo edição) */}
-                  {editingOrgao && isAdmin && (
+                  {editingOrgao && canManage && (
                     <div className="space-y-4">
                       <Label className="text-sm font-medium">Documentos Existentes</Label>
                       {documentos.length > 0 ? (
@@ -625,7 +626,7 @@ export function OrgaosInstituicoes() {
                   )}
 
                   {/* Upload de documentos */}
-                  {isAdmin && (
+                  {canManage && (
                     <div className="space-y-4">
                       <div className="flex justify-between items-center">
                         <Label>
@@ -771,7 +772,7 @@ export function OrgaosInstituicoes() {
                             </Tooltip>
                           </TooltipProvider>
                           
-                          {isAdmin && (
+                          {canManage && (
                             <>
                               <TooltipProvider>
                                 <Tooltip>
@@ -890,7 +891,7 @@ export function OrgaosInstituicoes() {
                           Baixar Todos
                         </Button>
                       )}
-                      {isAdmin && (
+                      {canManage && (
                         <div className="inline-flex">
                           <input
                             type="file"
@@ -971,7 +972,7 @@ export function OrgaosInstituicoes() {
                             </Tooltip>
                           </TooltipProvider>
                           
-                          {isAdmin && (
+                          {canManage && (
                             <AlertDialog>
                               <TooltipProvider>
                                 <Tooltip>
