@@ -158,7 +158,7 @@ export function AppSidebar() {
     setOpenGroups(prev => 
       prev.includes(title) 
         ? prev.filter(group => group !== title)
-        : [...prev, title]
+        : [title] // Abre apenas o grupo clicado, fecha todos os outros
     )
   }
 
