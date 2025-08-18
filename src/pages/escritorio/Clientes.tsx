@@ -1097,7 +1097,8 @@ export function Clientes() {
                 <SelectContent>
                   <SelectItem value="Simples Nacional">Simples Nacional</SelectItem>
                   <SelectItem value="Lucro Presumido">Lucro Presumido</SelectItem>
-                  <SelectItem value="Lucro Real">Lucro Real</SelectItem>
+                  <SelectItem value="Lucro Real Anual">Lucro Real Anual</SelectItem>
+                  <SelectItem value="Lucro Real Trimestral">Lucro Real Trimestral</SelectItem>
                   <SelectItem value="Isento/Imune">Isento/Imune</SelectItem>
                 </SelectContent>
               </Select>
