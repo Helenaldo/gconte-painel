@@ -84,11 +84,11 @@ export function Dashboard() {
       const today = new Date().toISOString().slice(0, 10)
       const empresasAtivas = clientsArr.filter((c) => !c.fim_contrato || c.fim_contrato >= today).length
 
-      // Clientes por Tributação (incluir todas as tributações)
+      // Clientes por Tributação (apenas ativas)
       const tribCounts: Record<string, number> = {}
-      ;(taxationData || []).forEach((t: any) => {
-        const status = t.status === 'ativa' ? '' : ' (Inativa)'
-        const label = (t.tipo || 'Não informado') + status
+      const activeTaxations = (taxationData || []).filter((t: any) => t.status === 'ativa')
+      activeTaxations.forEach((t: any) => {
+        const label = t.tipo || 'Não informado'
         tribCounts[label] = (tribCounts[label] || 0) + 1
       })
       
@@ -187,14 +187,19 @@ export function Dashboard() {
     labels: Object.keys(stats.clientesPorTributacao),
     datasets: [
       {
+        label: 'Clientes por Tributação',
         data: Object.values(stats.clientesPorTributacao),
         backgroundColor: [
-          'hsl(var(--primary))',
-          'hsl(var(--success))',
-          'hsl(var(--warning))',
-          'hsl(var(--destructive))',
-          'hsl(var(--info))',
-          'hsl(var(--muted))'
+          'hsl(219, 82%, 56%)',  // Azul principal
+          'hsl(142, 71%, 45%)',  // Verde
+          'hsl(38, 92%, 50%)',   // Laranja
+          'hsl(0, 84%, 60%)',    // Vermelho
+          'hsl(262, 83%, 58%)',  // Roxo
+          'hsl(198, 93%, 60%)',  // Ciano
+          'hsl(340, 82%, 52%)',  // Rosa
+          'hsl(45, 93%, 47%)',   // Amarelo
+          'hsl(120, 61%, 50%)',  // Verde claro
+          'hsl(280, 87%, 65%)'   // Violeta
         ],
         borderWidth: 2,
         borderColor: 'hsl(var(--background))'
