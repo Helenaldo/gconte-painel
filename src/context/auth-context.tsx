@@ -90,23 +90,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (session?.user) {
           // Fetch user profile
-          setTimeout(async () => {
-            try {
-              const { data: profileData } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', session.user.id)
-                .single();
-              
-              if (profileData) {
-                setProfile(profileData);
-              }
-            } catch (error) {
-              console.error('Error fetching profile:', error);
-            } finally {
-              setLoading(false);
+        setTimeout(async () => {
+          try {
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .maybeSingle();
+            
+            if (profileData) {
+              setProfile(profileData);
             }
-          }, 0);
+          } catch (error) {
+            console.error('Error fetching profile:', error);
+          } finally {
+            setLoading(false);
+          }
+        }, 0);
         } else {
           setProfile(null);
           setLoading(false);
@@ -127,7 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               .from('profiles')
               .select('*')
               .eq('id', session.user.id)
-              .single();
+              .maybeSingle();
             
             if (profileData) {
               setProfile(profileData);

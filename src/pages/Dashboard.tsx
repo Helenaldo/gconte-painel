@@ -63,7 +63,7 @@ export function Dashboard() {
           .select('id,nome_empresarial,ramo_atividade,fim_contrato')
           .order('nome_empresarial', { ascending: true }),
         supabase.from('profiles').select('id', { count: 'exact', head: true }),
-        supabase.from('taxation').select('id,client_id,tipo,status').eq('status', 'ativa'),
+        supabase.from('taxation').select('id,client_id,tipo,status'), // Remover filtro de status para mostrar todos
         supabase.from('contacts').select('id,client_id'),
       ])
 
@@ -84,12 +84,18 @@ export function Dashboard() {
       const today = new Date().toISOString().slice(0, 10)
       const empresasAtivas = clientsArr.filter((c) => !c.fim_contrato || c.fim_contrato >= today).length
 
-      // Clientes por Tributação (apenas status 'ativa')
+      // Clientes por Tributação (incluir todas as tributações)
       const tribCounts: Record<string, number> = {}
       ;(taxationData || []).forEach((t: any) => {
-        const label = t.tipo || 'Não informado'
+        const status = t.status === 'ativa' ? '' : ' (Inativa)'
+        const label = (t.tipo || 'Não informado') + status
         tribCounts[label] = (tribCounts[label] || 0) + 1
       })
+      
+      // Se não houver dados de tributação, criar indicador
+      if (Object.keys(tribCounts).length === 0) {
+        tribCounts['Sem dados de tributação'] = clientsArr.length
+      }
 
       // Clientes por Ramo
       const ramoCounts: Record<string, number> = {}
@@ -98,8 +104,9 @@ export function Dashboard() {
         ramoCounts[label] = (ramoCounts[label] || 0) + 1
       })
 
-      // Pendências
-      const taxedClientIds = new Set((taxationData || []).map((t: any) => t.client_id))
+      // Pendências - considerar apenas tributações ativas para identificar clientes sem tributação
+      const activeTaxationData = (taxationData || []).filter((t: any) => t.status === 'ativa')
+      const taxedClientIds = new Set(activeTaxationData.map((t: any) => t.client_id))
       const clientsSemTrib = clientsArr.filter((c) => !taxedClientIds.has(c.id))
       setSemTributacao(clientsSemTrib)
 
@@ -182,10 +189,12 @@ export function Dashboard() {
       {
         data: Object.values(stats.clientesPorTributacao),
         backgroundColor: [
-          'hsl(219, 82%, 56%)',
-          'hsl(142, 71%, 45%)',
-          'hsl(38, 92%, 50%)',
-          'hsl(0, 84%, 60%)'
+          'hsl(var(--primary))',
+          'hsl(var(--success))',
+          'hsl(var(--warning))',
+          'hsl(var(--destructive))',
+          'hsl(var(--info))',
+          'hsl(var(--muted))'
         ],
         borderWidth: 2,
         borderColor: 'hsl(var(--background))'
@@ -332,7 +341,16 @@ export function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="h-80">
-              <Doughnut data={tributacaoData} options={doughnutOptions} />
+              {Object.keys(stats.clientesPorTributacao).length > 0 ? (
+                <Doughnut data={tributacaoData} options={doughnutOptions} />
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  <div className="text-center">
+                    <p className="text-lg mb-2">Nenhum dado de tributação encontrado</p>
+                    <p className="text-sm">Cadastre tributações para visualizar o gráfico</p>
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
