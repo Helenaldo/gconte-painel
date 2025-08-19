@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -33,6 +33,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Sistema de logout automático
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const INACTIVITY_TIMEOUT = 2 * 60 * 60 * 1000; // 2 horas em milissegundos
+
+  // Função para resetar o timer de inatividade
+  const resetInactivityTimer = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    if (user) {
+      timeoutRef.current = setTimeout(() => {
+        console.log('Logout automático por inatividade');
+        signOut();
+      }, INACTIVITY_TIMEOUT);
+    }
+  }, [user]);
+
+  // Monitorar atividade do usuário
+  useEffect(() => {
+    if (!user) return;
+
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    
+    const resetTimer = () => resetInactivityTimer();
+    
+    // Adicionar listeners para atividade
+    events.forEach(event => {
+      document.addEventListener(event, resetTimer, true);
+    });
+    
+    // Iniciar timer
+    resetInactivityTimer();
+    
+    return () => {
+      // Remover listeners
+      events.forEach(event => {
+        document.removeEventListener(event, resetTimer, true);
+      });
+      
+      // Limpar timer
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [user, resetInactivityTimer]);
 
   useEffect(() => {
     // Set up auth state listener
