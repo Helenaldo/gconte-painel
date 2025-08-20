@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -49,6 +50,7 @@ export default function CertificadosDigitais() {
   const [uploading, setUploading] = useState(false)
   const [senha, setSenha] = useState("")
   const [showPassword, setShowPassword] = useState(false)
+  const [selectedClientId, setSelectedClientId] = useState("")
 
   const { getRootProps, getInputProps, isDragActive, acceptedFiles } = useDropzone({
     accept: {
@@ -118,6 +120,15 @@ export default function CertificadosDigitais() {
       return
     }
 
+    if (!selectedClientId) {
+      toast({
+        title: "Erro",
+        description: "Por favor, selecione o cliente proprietário do certificado.",
+        variant: "destructive",
+      })
+      return
+    }
+
     setUploading(true)
 
     try {
@@ -143,18 +154,15 @@ export default function CertificadosDigitais() {
         body: formData
       })
 
-      // Find matching client by CNPJ
-      const matchingClient = clients.find(client => 
-        client.cnpj.replace(/\D/g, '') === certInfo.cnpj_certificado.replace(/\D/g, '')
-      )
-
-      if (!matchingClient) {
-        // Clean up uploaded file
+      // Get selected client
+      const selectedClient = clients.find(client => client.id === selectedClientId)
+      
+      if (!selectedClient) {
         await supabase.storage.from('certificados-digitais').remove([fileName])
         
         toast({
           title: "Erro",
-          description: "Não foi encontrado um cliente cadastrado com o CNPJ deste certificado.",
+          description: "Cliente selecionado não encontrado.",
           variant: "destructive",
         })
         return
@@ -167,15 +175,15 @@ export default function CertificadosDigitais() {
       const { error: dbError } = await supabase
         .from('certificados_digitais')
         .insert({
-          client_id: matchingClient.id,
+          client_id: selectedClient.id,
           nome_arquivo: file.name,
           url: publicUrl,
           senha_criptografada: senhaEncriptada,
-          cnpj_certificado: certInfo.cnpj_certificado,
-          emissor: certInfo.emissor,
-          numero_serie: certInfo.numero_serie,
-          data_inicio: certInfo.data_inicio,
-          data_vencimento: certInfo.data_vencimento,
+          cnpj_certificado: selectedClient.cnpj, // Use client's CNPJ
+          emissor: certInfo?.emissor || "Emissor não identificado",
+          numero_serie: certInfo?.numero_serie || `CERT-${Date.now()}`,
+          data_inicio: certInfo?.data_inicio || new Date().toISOString(),
+          data_vencimento: certInfo?.data_vencimento || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
           tamanho: file.size,
           mime_type: file.type
         })
@@ -189,6 +197,7 @@ export default function CertificadosDigitais() {
 
       setUploadModalOpen(false)
       setSenha("")
+      setSelectedClientId("")
       fetchCertificados()
 
     } catch (error) {
@@ -332,6 +341,21 @@ export default function CertificadosDigitais() {
             </DialogHeader>
             <div className="space-y-4">
               <div>
+                <Label htmlFor="cliente">Cliente Proprietário</Label>
+                <Select value={selectedClientId} onValueChange={setSelectedClientId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o cliente" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {clients.map((client) => (
+                      <SelectItem key={client.id} value={client.id}>
+                        {client.nome_empresarial} - {client.cnpj}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
                 <Label htmlFor="senha">Senha do Certificado</Label>
                 <div className="relative">
                   <Input
@@ -386,7 +410,7 @@ export default function CertificadosDigitais() {
               {acceptedFiles.length > 0 && (
                 <Button
                   onClick={() => handleFileUpload(acceptedFiles[0])}
-                  disabled={uploading || !senha.trim()}
+                  disabled={uploading || !senha.trim() || !selectedClientId}
                   className="w-full"
                 >
                   {uploading ? "Processando..." : "Adicionar Certificado"}
