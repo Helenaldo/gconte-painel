@@ -20,7 +20,8 @@ import {
   List,
   PlusCircle,
   Tags,
-  BarChart2
+  BarChart2,
+  Shield
 } from "lucide-react"
 
 import {
@@ -77,6 +78,11 @@ const menuItems = [
         title: "Tributação",
         url: "/escritorio/tributacao",
         icon: Calculator,
+      },
+      {
+        title: "Certificados Digitais",
+        url: "/escritorio/certificados-digitais",
+        icon: Shield,
       },
       {
         title: "Configurações",

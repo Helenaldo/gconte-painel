@@ -100,6 +100,81 @@ export type Database = {
         }
         Relationships: []
       }
+      certificados_auditoria: {
+        Row: {
+          acao: string
+          certificado_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          acao: string
+          certificado_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          acao?: string
+          certificado_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      certificados_digitais: {
+        Row: {
+          client_id: string
+          cnpj_certificado: string
+          created_at: string
+          data_inicio: string
+          data_vencimento: string
+          emissor: string
+          id: string
+          mime_type: string
+          nome_arquivo: string
+          numero_serie: string
+          senha_criptografada: string
+          tamanho: number
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          client_id: string
+          cnpj_certificado: string
+          created_at?: string
+          data_inicio: string
+          data_vencimento: string
+          emissor: string
+          id?: string
+          mime_type?: string
+          nome_arquivo: string
+          numero_serie: string
+          senha_criptografada: string
+          tamanho: number
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          client_id?: string
+          cnpj_certificado?: string
+          created_at?: string
+          data_inicio?: string
+          data_vencimento?: string
+          emissor?: string
+          id?: string
+          mime_type?: string
+          nome_arquivo?: string
+          numero_serie?: string
+          senha_criptografada?: string
+          tamanho?: number
+          updated_at?: string
+          url?: string
+        }
+        Relationships: []
+      }
       clients: {
         Row: {
           bairro: string | null

@@ -18,6 +18,7 @@ import { Importar } from "@/pages/indicadores/Importar";
 import { Parametrizacao } from "@/pages/indicadores/Parametrizacao";
 import { Dados } from "@/pages/indicadores/Dados";
 import { Indicadores } from "@/pages/indicadores/Indicadores";
+import CertificadosDigitais from "@/pages/escritorio/CertificadosDigitais";
 import NotFound from "./pages/NotFound";
 import NovoProcessoModal from "@/pages/processos/Novo";
 import ProcessoDetalhes from "@/pages/processos/Detalhes";
@@ -120,6 +121,16 @@ function AppRoutes() {
           <ProtectedRoute>
             <MainLayout user={userForLayout} onLogout={logout}>
               <Tributacao />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/escritorio/certificados-digitais"
+        element={
+          <ProtectedRoute>
+            <MainLayout user={userForLayout} onLogout={logout}>
+              <CertificadosDigitais />
             </MainLayout>
           </ProtectedRoute>
         }
