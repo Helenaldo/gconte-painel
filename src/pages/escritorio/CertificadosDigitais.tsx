@@ -74,7 +74,7 @@ export default function CertificadosDigitais() {
         .from('certificados_digitais')
         .select(`
           *,
-          clients (
+          clients!certificados_digitais_client_id_fkey (
             nome_empresarial,
             cnpj
           )
@@ -135,16 +135,22 @@ export default function CertificadosDigitais() {
         .from('certificados-digitais')
         .getPublicUrl(fileName)
 
+      console.log('Uploading certificate file:', file.name, 'Size:', file.size)
+      
       // Process certificate to extract info
       const formData = new FormData()
       formData.append('file', file)
       formData.append('password', senha)
 
+      console.log('Calling process-certificate function...')
       const response = await supabase.functions.invoke('process-certificate', {
         body: formData
       })
 
+      console.log('Function response:', response)
+
       if (response.error) {
+        console.error('Function error:', response.error)
         // Clean up uploaded file
         await supabase.storage.from('certificados-digitais').remove([fileName])
         
