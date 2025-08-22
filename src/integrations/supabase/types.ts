@@ -175,6 +175,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "certificados_digitais_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "fk_certificados_digitais_client_id"
             columns: ["client_id"]
             isOneToOne: false
