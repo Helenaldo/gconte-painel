@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Plus, Search, ContactRound, Pencil, Eye, Trash2, Check, ChevronsUpDown, Building2 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useToast } from "@/components/ui/use-toast"
+import { useToast } from "@/hooks/use-toast"
 import InputMask from "react-input-mask"
 import { supabase } from "@/integrations/supabase/client"
 

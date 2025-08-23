@@ -8,7 +8,7 @@ import { Download, Mail, Phone, Calendar, FileText, Printer } from "lucide-react
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { supabase } from "@/integrations/supabase/client"
-import { useToast } from "@/components/ui/use-toast"
+import { useToast } from "@/hooks/use-toast"
 import jsPDF from 'jspdf'
 import ClientProcessosTab from "./client/ClientProcessosTab"
 
