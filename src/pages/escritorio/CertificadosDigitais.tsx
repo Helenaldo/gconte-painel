@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from "@/integrations/supabase/client"
 import { format } from "date-fns"
@@ -180,6 +181,28 @@ export default function CertificadosDigitais() {
           variant: "destructive",
         })
         return
+      }
+
+      // Check if there's an existing certificate for this client and delete it
+      const { data: existingCerts } = await supabase
+        .from('certificados_digitais')
+        .select('*')
+        .eq('client_id', matchingClient.id)
+
+      if (existingCerts && existingCerts.length > 0) {
+        for (const existingCert of existingCerts) {
+          // Delete file from storage
+          const existingFileName = existingCert.url.split('/').pop()
+          if (existingFileName) {
+            await supabase.storage.from('certificados-digitais').remove([existingFileName])
+          }
+          
+          // Delete from database
+          await supabase
+            .from('certificados_digitais')
+            .delete()
+            .eq('id', existingCert.id)
+        }
       }
 
       // Encrypt password (simple base64 for demo - use proper encryption in production)
@@ -447,7 +470,6 @@ export default function CertificadosDigitais() {
                     <TableHead>Cliente</TableHead>
                     <TableHead>CNPJ</TableHead>
                     <TableHead>Emissor</TableHead>
-                    <TableHead>Número de Série</TableHead>
                     <TableHead>Validade</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Ações</TableHead>
@@ -465,9 +487,6 @@ export default function CertificadosDigitais() {
                         </TableCell>
                         <TableCell>{certificado.cnpj_certificado}</TableCell>
                         <TableCell>{certificado.emissor}</TableCell>
-                        <TableCell className="font-mono text-sm">
-                          {certificado.numero_serie}
-                        </TableCell>
                         <TableCell>
                           <div className="text-sm">
                             <div>Início: {format(new Date(certificado.data_inicio), 'dd/MM/yyyy', { locale: ptBR })}</div>
@@ -481,46 +500,71 @@ export default function CertificadosDigitais() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleViewDetails(certificado)}
-                            >
-                              <Info className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDownload(certificado)}
-                            >
-                              <Download className="h-4 w-4" />
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="sm">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Excluir Certificado</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Tem certeza que deseja excluir este certificado digital? Esta ação não pode ser desfeita.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction 
-                                    onClick={() => handleDelete(certificado)}
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          <TooltipProvider>
+                            <div className="flex items-center justify-end gap-2">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleViewDetails(certificado)}
                                   >
-                                    Excluir
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
+                                    <Info className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Ver detalhes</p>
+                                </TooltipContent>
+                              </Tooltip>
+                              
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDownload(certificado)}
+                                  >
+                                    <Download className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Download do certificado</p>
+                                </TooltipContent>
+                              </Tooltip>
+                              
+                              <AlertDialog>
+                                <Tooltip>
+                                  <AlertDialogTrigger asChild>
+                                    <TooltipTrigger asChild>
+                                      <Button variant="ghost" size="sm">
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                  </AlertDialogTrigger>
+                                  <TooltipContent>
+                                    <p>Excluir certificado</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Excluir Certificado</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Tem certeza que deseja excluir este certificado digital? Esta ação não pode ser desfeita.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction 
+                                      onClick={() => handleDelete(certificado)}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    >
+                                      Excluir
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </TooltipProvider>
                         </TableCell>
                       </TableRow>
                     )
