@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useCallback, useRef } from "react"
 import { useDropzone } from "react-dropzone"
 import { Eye, EyeOff, Download, Edit, Trash2, Info, Upload, Shield, AlertTriangle, CheckCircle } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -42,6 +42,8 @@ interface Client {
 }
 
 export default function CertificadosDigitais() {
+  console.debug('[CertificadosDigitais] Component initializing')
+  
   const { toast } = useToast()
   const [certificados, setCertificados] = useState<CertificadoDigital[]>([])
   const [clients, setClients] = useState<Client[]>([])
@@ -52,25 +54,69 @@ export default function CertificadosDigitais() {
   const [uploading, setUploading] = useState(false)
   const [senha, setSenha] = useState("")
   const [showPassword, setShowPassword] = useState(false)
+  
+  // Component mounted flag to prevent state updates after unmount
+  const mountedRef = useRef(true)
+  
+  // Safe state updater
+  const safeSetState = useCallback((setter: () => void) => {
+    if (mountedRef.current) {
+      try {
+        setter()
+      } catch (error) {
+        console.error('[CertificadosDigitais] Error updating state:', error)
+      }
+    }
+  }, [])
 
-  const { getRootProps, getInputProps, isDragActive, acceptedFiles } = useDropzone({
+  // Safe toast function with error handling
+  const safeToast = useCallback((options: Parameters<typeof toast>[0]) => {
+    try {
+      console.debug('[CertificadosDigitais] Showing toast:', options)
+      if (toast && typeof toast === 'function') {
+        toast(options)
+      } else {
+        console.warn('[CertificadosDigitais] Toast function not available')
+      }
+    } catch (error) {
+      console.error('[CertificadosDigitais] Error showing toast:', error)
+    }
+  }, [toast])
+
+  // Dropzone with controlled initialization
+  const dropzoneConfig = {
     accept: {
       'application/x-pkcs12': ['.pfx', '.p12']
     },
     maxFiles: 1,
-    onDrop: (files) => {
+    onDrop: (files: File[]) => {
+      console.debug('[CertificadosDigitais] Files dropped:', files.length)
       if (files.length > 0) {
         handleFileUpload(files[0])
       }
     }
-  })
+  }
+
+  const dropzone = useDropzone(dropzoneConfig)
+  const { getRootProps, getInputProps, isDragActive, acceptedFiles } = dropzone
+
+  // Cleanup function
+  useEffect(() => {
+    return () => {
+      console.debug('[CertificadosDigitais] Component unmounting')
+      mountedRef.current = false
+    }
+  }, [])
 
   useEffect(() => {
+    console.debug('[CertificadosDigitais] Initial data fetch')
     fetchCertificados()
     fetchClients()
   }, [])
 
   const fetchCertificados = async () => {
+    console.debug('[CertificadosDigitais] fetchCertificados - start')
+    
     try {
       const { data, error } = await supabase
         .from('certificados_digitais')
@@ -83,37 +129,92 @@ export default function CertificadosDigitais() {
         `)
         .order('created_at', { ascending: false })
 
+      console.debug('[CertificadosDigitais] fetchCertificados - response:', { data: data?.length, error })
+
       if (error) throw error
-      setCertificados((data || []) as any)
+      
+      safeSetState(() => {
+        setCertificados((data || []) as any)
+      })
     } catch (error) {
-      console.error('Error fetching certificados:', error)
-      toast({
+      console.error('[CertificadosDigitais] fetchCertificados - error:', error)
+      safeToast({
         title: "Erro",
         description: "Não foi possível carregar os certificados digitais.",
         variant: "destructive",
       })
     } finally {
-      setLoading(false)
+      safeSetState(() => {
+        setLoading(false)
+      })
     }
   }
 
   const fetchClients = async () => {
+    console.debug('[CertificadosDigitais] fetchClients - start')
+    
     try {
       const { data, error } = await supabase
         .from('clients')
         .select('id, nome_empresarial, cnpj')
         .order('nome_empresarial')
 
+      console.debug('[CertificadosDigitais] fetchClients - response:', { data: data?.length, error })
+
       if (error) throw error
-      setClients(data || [])
+      
+      safeSetState(() => {
+        setClients(data || [])
+      })
     } catch (error) {
-      console.error('Error fetching clients:', error)
+      console.error('[CertificadosDigitais] fetchClients - error:', error)
     }
   }
 
+  const handleModalOpen = useCallback(() => {
+    console.debug('[CertificadosDigitais] handleModalOpen - opening modal')
+    
+    try {
+      safeSetState(() => {
+        setUploadModalOpen(true)
+        setSenha("")
+        setShowPassword(false)
+      })
+    } catch (error) {
+      console.error('[CertificadosDigitais] handleModalOpen - error:', error)
+    }
+  }, [safeSetState])
+
+  const handleModalClose = useCallback(() => {
+    console.debug('[CertificadosDigitais] handleModalClose - closing modal')
+    
+    try {
+      safeSetState(() => {
+        setUploadModalOpen(false)
+        setSenha("")
+        setShowPassword(false)
+        setUploading(false)
+      })
+      
+      // Clear accepted files by forcing dropzone to reset
+      if (dropzone && dropzone.inputRef && dropzone.inputRef.current) {
+        dropzone.inputRef.current.value = ''
+      }
+    } catch (error) {
+      console.error('[CertificadosDigitais] handleModalClose - error:', error)
+    }
+  }, [safeSetState, dropzone])
+
   const handleFileUpload = async (file: File) => {
+    console.debug('[CertificadosDigitais] handleFileUpload - start:', {
+      fileName: file.name,
+      fileSize: file.size,
+      hasPassword: Boolean(senha.trim())
+    })
+
     if (!senha.trim()) {
-      toast({
+      console.warn('[CertificadosDigitais] handleFileUpload - password missing')
+      safeToast({
         title: "Erro",
         description: "Por favor, informe a senha do certificado.",
         variant: "destructive",
@@ -121,42 +222,50 @@ export default function CertificadosDigitais() {
       return
     }
 
-    setUploading(true)
+    safeSetState(() => setUploading(true))
 
     try {
       // Upload file to storage
       const fileName = `${Date.now()}-${file.name}`
+      console.debug('[CertificadosDigitais] handleFileUpload - uploading file:', fileName)
+      
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('certificados-digitais')
         .upload(fileName, file)
 
-      if (uploadError) throw uploadError
+      if (uploadError) {
+        console.error('[CertificadosDigitals] handleFileUpload - upload error:', uploadError)
+        throw uploadError
+      }
+
+      console.debug('[CertificadosDigitais] handleFileUpload - file uploaded successfully')
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('certificados-digitais')
         .getPublicUrl(fileName)
 
-      console.log('Uploading certificate file:', file.name, 'Size:', file.size)
+      console.debug('[CertificadosDigitais] handleFileUpload - got public URL:', publicUrl)
       
       // Process certificate to extract info
       const formData = new FormData()
       formData.append('file', file)
       formData.append('password', senha)
 
-      console.log('Calling process-certificate function...')
+      console.debug('[CertificadosDigitais] handleFileUpload - calling process-certificate function')
       const response = await supabase.functions.invoke('process-certificate', {
         body: formData
       })
 
-      console.log('Function response:', response)
+      console.debug('[CertificadosDigitais] handleFileUpload - function response:', response)
 
       if (response.error) {
-        console.error('Function error:', response.error)
+        console.error('[CertificadosDigitais] handleFileUpload - function error:', response.error)
+        
         // Clean up uploaded file
         await supabase.storage.from('certificados-digitais').remove([fileName])
         
-        toast({
+        safeToast({
           title: "Erro",
           description: response.error.message || "Erro ao processar certificado",
           variant: "destructive",
@@ -165,17 +274,22 @@ export default function CertificadosDigitais() {
       }
 
       const certInfo = response.data
+      console.debug('[CertificadosDigitais] handleFileUpload - certificate info extracted:', certInfo)
 
       // Find matching client by CNPJ
       const matchingClient = clients.find(client => 
         client.cnpj.replace(/\D/g, '') === certInfo.cnpj_certificado.replace(/\D/g, '')
       )
 
+      console.debug('[CertificadosDigitais] handleFileUpload - matching client:', matchingClient)
+
       if (!matchingClient) {
+        console.warn('[CertificadosDigitais] handleFileUpload - client not found for CNPJ:', certInfo.cnpj_certificado)
+        
         // Clean up uploaded file
         await supabase.storage.from('certificados-digitais').remove([fileName])
         
-        toast({
+        safeToast({
           title: "Cliente não encontrado",
           description: `Não foi encontrado um cliente cadastrado com o CNPJ ${certInfo.cnpj_certificado}. Cadastre o cliente antes de adicionar o certificado.`,
           variant: "destructive",
@@ -184,24 +298,31 @@ export default function CertificadosDigitais() {
       }
 
       // Check if there's an existing certificate for this client and delete it
+      console.debug('[CertificadosDigitais] handleFileUpload - checking for existing certificates')
       const { data: existingCerts } = await supabase
         .from('certificados_digitais')
         .select('*')
         .eq('client_id', matchingClient.id)
 
       if (existingCerts && existingCerts.length > 0) {
+        console.debug('[CertificadosDigitais] handleFileUpload - replacing existing certificates:', existingCerts.length)
+        
         for (const existingCert of existingCerts) {
-          // Delete file from storage
-          const existingFileName = existingCert.url.split('/').pop()
-          if (existingFileName) {
-            await supabase.storage.from('certificados-digitais').remove([existingFileName])
+          try {
+            // Delete file from storage
+            const existingFileName = existingCert.url.split('/').pop()
+            if (existingFileName) {
+              await supabase.storage.from('certificados-digitais').remove([existingFileName])
+            }
+            
+            // Delete from database
+            await supabase
+              .from('certificados_digitais')
+              .delete()
+              .eq('id', existingCert.id)
+          } catch (error) {
+            console.error('[CertificadosDigitais] handleFileUpload - error deleting existing cert:', error)
           }
-          
-          // Delete from database
-          await supabase
-            .from('certificados_digitais')
-            .delete()
-            .eq('id', existingCert.id)
         }
       }
 
@@ -209,6 +330,7 @@ export default function CertificadosDigitais() {
       const senhaEncriptada = btoa(senha)
 
       // Save certificate info to database
+      console.debug('[CertificadosDigitais] handleFileUpload - saving to database')
       const { error: dbError } = await supabase
         .from('certificados_digitais')
         .insert({
@@ -225,51 +347,64 @@ export default function CertificadosDigitais() {
           mime_type: file.type
         })
 
-      if (dbError) throw dbError
+      if (dbError) {
+        console.error('[CertificadosDigitals] handleFileUpload - database error:', dbError)
+        throw dbError
+      }
 
-      toast({
+      console.debug('[CertificadosDigitais] handleFileUpload - success')
+      safeToast({
         title: "Sucesso",
         description: `Certificado adicionado para ${matchingClient.nome_empresarial}`,
       })
 
-      setUploadModalOpen(false)
-      setSenha("")
+      handleModalClose()
       fetchCertificados()
 
     } catch (error) {
-      console.error('Error uploading certificate:', error)
-      toast({
+      console.error('[CertificadosDigitais] handleFileUpload - unexpected error:', error)
+      safeToast({
         title: "Erro",
         description: "Não foi possível processar o certificado digital.",
         variant: "destructive",
       })
     } finally {
-      setUploading(false)
+      safeSetState(() => setUploading(false))
     }
   }
 
   const getStatusInfo = (dataVencimento: string) => {
-    const vencimento = new Date(dataVencimento)
-    const hoje = new Date()
-    const diasRestantes = Math.ceil((vencimento.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24))
+    try {
+      const vencimento = new Date(dataVencimento)
+      const hoje = new Date()
+      const diasRestantes = Math.ceil((vencimento.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24))
 
-    if (diasRestantes < 0) {
-      return { status: 'vencido', label: 'Vencido', variant: 'destructive' as const, icon: AlertTriangle }
-    } else if (diasRestantes <= 30) {
-      return { status: 'vencendo', label: 'Vencendo', variant: 'warning' as const, icon: AlertTriangle }
-    } else {
-      return { status: 'valido', label: 'Válido', variant: 'success' as const, icon: CheckCircle }
+      if (diasRestantes < 0) {
+        return { status: 'vencido', label: 'Vencido', variant: 'destructive' as const, icon: AlertTriangle }
+      } else if (diasRestantes <= 30) {
+        return { status: 'vencendo', label: 'Vencendo', variant: 'warning' as const, icon: AlertTriangle }
+      } else {
+        return { status: 'valido', label: 'Válido', variant: 'success' as const, icon: CheckCircle }
+      }
+    } catch (error) {
+      console.error('[CertificadosDigitais] getStatusInfo - error:', error)
+      return { status: 'erro', label: 'Erro', variant: 'destructive' as const, icon: AlertTriangle }
     }
   }
 
   const handleDownload = async (certificado: CertificadoDigital) => {
+    console.debug('[CertificadosDigitais] handleDownload - start:', certificado.nome_arquivo)
+    
     try {
       // Register audit
-      await supabase.from('certificados_auditoria').insert({
-        certificado_id: certificado.id,
-        user_id: (await supabase.auth.getUser()).data.user?.id,
-        acao: 'download'
-      })
+      const { data: userData } = await supabase.auth.getUser()
+      if (userData.user?.id) {
+        await supabase.from('certificados_auditoria').insert({
+          certificado_id: certificado.id,
+          user_id: userData.user.id,
+          acao: 'download'
+        })
+      }
 
       // Trigger download
       const link = document.createElement('a')
@@ -277,13 +412,14 @@ export default function CertificadosDigitais() {
       link.download = certificado.nome_arquivo
       link.click()
 
-      toast({
+      console.debug('[CertificadosDigitais] handleDownload - success')
+      safeToast({
         title: "Download iniciado",
         description: "O download do certificado foi iniciado.",
       })
     } catch (error) {
-      console.error('Error downloading certificate:', error)
-      toast({
+      console.error('[CertificadosDigitais] handleDownload - error:', error)
+      safeToast({
         title: "Erro",
         description: "Não foi possível baixar o certificado.",
         variant: "destructive",
@@ -292,30 +428,41 @@ export default function CertificadosDigitais() {
   }
 
   const handleViewDetails = async (certificado: CertificadoDigital) => {
+    console.debug('[CertificadosDigitais] handleViewDetails - start:', certificado.id)
+    
     try {
       // Register audit
-      await supabase.from('certificados_auditoria').insert({
-        certificado_id: certificado.id,
-        user_id: (await supabase.auth.getUser()).data.user?.id,
-        acao: 'visualizar'
-      })
+      const { data: userData } = await supabase.auth.getUser()
+      if (userData.user?.id) {
+        await supabase.from('certificados_auditoria').insert({
+          certificado_id: certificado.id,
+          user_id: userData.user.id,
+          acao: 'visualizar'
+        })
+      }
 
-      setSelectedCertificado(certificado)
-      setDetailsModalOpen(true)
+      safeSetState(() => {
+        setSelectedCertificado(certificado)
+        setDetailsModalOpen(true)
+      })
     } catch (error) {
-      console.error('Error viewing certificate details:', error)
+      console.error('[CertificadosDigitais] handleViewDetails - error:', error)
     }
   }
 
   const handleDelete = async (certificado: CertificadoDigital) => {
+    console.debug('[CertificadosDigitais] handleDelete - start:', certificado.id)
+    
     try {
       // Delete from storage
       const fileName = certificado.url.split('/').pop()
       if (fileName) {
+        console.debug('[CertificadosDigitais] handleDelete - removing from storage:', fileName)
         await supabase.storage.from('certificados-digitais').remove([fileName])
       }
 
       // Delete from database
+      console.debug('[CertificadosDigitais] handleDelete - removing from database')
       const { error } = await supabase
         .from('certificados_digitais')
         .delete()
@@ -323,21 +470,47 @@ export default function CertificadosDigitais() {
 
       if (error) throw error
 
-      toast({
+      console.debug('[CertificadosDigitais] handleDelete - success')
+      safeToast({
         title: "Sucesso",
         description: "Certificado digital excluído com sucesso!",
       })
 
       fetchCertificados()
     } catch (error) {
-      console.error('Error deleting certificate:', error)
-      toast({
+      console.error('[CertificadosDigitais] handleDelete - error:', error)
+      safeToast({
         title: "Erro",
         description: "Não foi possível excluir o certificado.",
         variant: "destructive",
       })
     }
   }
+
+  const togglePasswordVisibility = useCallback(() => {
+    console.debug('[CertificadosDigitais] togglePasswordVisibility')
+    
+    try {
+      safeSetState(() => {
+        setShowPassword(prev => !prev)
+      })
+      
+      // Register audit for password visibility
+      if (selectedCertificado && showPassword) {
+        supabase.auth.getUser().then(({ data: userData }) => {
+          if (userData.user?.id) {
+            supabase.from('certificados_auditoria').insert({
+              certificado_id: selectedCertificado.id,
+              user_id: userData.user.id,
+              acao: 'visualizar_senha'
+            })
+          }
+        })
+      }
+    } catch (error) {
+      console.error('[CertificadosDigitails] togglePasswordVisibility - error:', error)
+    }
+  }, [safeSetState, selectedCertificado, showPassword])
 
   if (loading) {
     return (
@@ -361,9 +534,15 @@ export default function CertificadosDigitais() {
             Gerencie os certificados digitais dos seus clientes
           </p>
         </div>
-        <Dialog open={uploadModalOpen} onOpenChange={setUploadModalOpen}>
+        <Dialog open={uploadModalOpen} onOpenChange={(open) => {
+          if (open) {
+            handleModalOpen()
+          } else {
+            handleModalClose()
+          }
+        }}>
           <DialogTrigger asChild>
-            <Button>
+            <Button onClick={handleModalOpen}>
               <Upload className="h-4 w-4 mr-2" />
               Adicionar Certificado
             </Button>
@@ -385,13 +564,15 @@ export default function CertificadosDigitais() {
                     value={senha}
                     onChange={(e) => setSenha(e.target.value)}
                     placeholder="Digite a senha do certificado"
+                    disabled={uploading}
                   />
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
                     className="absolute right-0 top-0 h-full px-3"
-                    onClick={() => setShowPassword(!showPassword)}
+                    onClick={togglePasswordVisibility}
+                    disabled={uploading}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
@@ -403,9 +584,9 @@ export default function CertificadosDigitais() {
                   isDragActive
                     ? 'border-primary bg-primary/10'
                     : 'border-muted-foreground/25 hover:border-primary hover:bg-primary/5'
-                }`}
+                } ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                <input {...getInputProps()} />
+                <input {...getInputProps()} disabled={uploading} />
                 <Shield className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                 {isDragActive ? (
                   <p>Solte o arquivo aqui...</p>
@@ -457,7 +638,7 @@ export default function CertificadosDigitais() {
               <p className="text-muted-foreground mb-4">
                 Adicione o primeiro certificado digital dos seus clientes.
               </p>
-              <Button onClick={() => setUploadModalOpen(true)}>
+              <Button onClick={handleModalOpen}>
                 <Upload className="h-4 w-4 mr-2" />
                 Adicionar Certificado
               </Button>
@@ -500,8 +681,8 @@ export default function CertificadosDigitais() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          <TooltipProvider>
-                            <div className="flex items-center justify-end gap-2">
+                          <div className="flex gap-1 justify-end">
+                            <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Button
@@ -512,11 +693,10 @@ export default function CertificadosDigitais() {
                                     <Info className="h-4 w-4" />
                                   </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Ver detalhes</p>
-                                </TooltipContent>
+                                <TooltipContent>Ver detalhes</TooltipContent>
                               </Tooltip>
-                              
+                            </TooltipProvider>
+                            <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Button
@@ -527,44 +707,42 @@ export default function CertificadosDigitais() {
                                     <Download className="h-4 w-4" />
                                   </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Download do certificado</p>
-                                </TooltipContent>
+                                <TooltipContent>Baixar certificado</TooltipContent>
                               </Tooltip>
-                              
-                              <AlertDialog>
+                            </TooltipProvider>
+                            <AlertDialog>
+                              <TooltipProvider>
                                 <Tooltip>
-                                  <AlertDialogTrigger asChild>
-                                    <TooltipTrigger asChild>
+                                  <TooltipTrigger asChild>
+                                    <AlertDialogTrigger asChild>
                                       <Button variant="ghost" size="sm">
                                         <Trash2 className="h-4 w-4" />
                                       </Button>
-                                    </TooltipTrigger>
-                                  </AlertDialogTrigger>
-                                  <TooltipContent>
-                                    <p>Excluir certificado</p>
-                                  </TooltipContent>
+                                    </AlertDialogTrigger>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Excluir certificado</TooltipContent>
                                 </Tooltip>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Excluir Certificado</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Tem certeza que deseja excluir este certificado digital? Esta ação não pode ser desfeita.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction 
-                                      onClick={() => handleDelete(certificado)}
-                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                    >
-                                      Excluir
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            </div>
-                          </TooltipProvider>
+                              </TooltipProvider>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Tem certeza que deseja excluir o certificado digital "{certificado.nome_arquivo}"? 
+                                    Esta ação não pode ser desfeita e o arquivo será removido permanentemente.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction 
+                                    onClick={() => handleDelete(certificado)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    Excluir
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
                         </TableCell>
                       </TableRow>
                     )
@@ -580,53 +758,78 @@ export default function CertificadosDigitais() {
       <Dialog open={detailsModalOpen} onOpenChange={setDetailsModalOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>Detalhes do Certificado Digital</DialogTitle>
+            <DialogTitle>Detalhes do Certificado</DialogTitle>
             <DialogDescription>
-              Informações completas do certificado selecionado
+              Informações completas do certificado digital
             </DialogDescription>
           </DialogHeader>
           {selectedCertificado && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Cliente</Label>
-                  <p className="text-sm">{selectedCertificado.clients?.nome_empresarial || 'N/A'}</p>
+                  <Label className="text-sm font-medium">Cliente</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedCertificado.clients?.nome_empresarial || 'N/A'}
+                  </p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">CNPJ</Label>
-                  <p className="text-sm font-mono">{selectedCertificado.cnpj_certificado}</p>
+                  <Label className="text-sm font-medium">CNPJ</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedCertificado.cnpj_certificado}
+                  </p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Emissor</Label>
-                  <p className="text-sm">{selectedCertificado.emissor}</p>
+                  <Label className="text-sm font-medium">Emissor</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedCertificado.emissor}
+                  </p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Número de Série</Label>
-                  <p className="text-sm font-mono">{selectedCertificado.numero_serie}</p>
+                  <Label className="text-sm font-medium">Arquivo</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedCertificado.nome_arquivo}
+                  </p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Data de Início</Label>
-                  <p className="text-sm">{format(new Date(selectedCertificado.data_inicio), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</p>
+                  <Label className="text-sm font-medium">Data de Início</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {format(new Date(selectedCertificado.data_inicio), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                  </p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Data de Vencimento</Label>
-                  <p className="text-sm">{format(new Date(selectedCertificado.data_vencimento), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</p>
+                  <Label className="text-sm font-medium">Data de Vencimento</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {format(new Date(selectedCertificado.data_vencimento), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                  </p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Arquivo</Label>
-                  <p className="text-sm">{selectedCertificado.nome_arquivo}</p>
+                  <Label className="text-sm font-medium">Tamanho</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {(selectedCertificado.tamanho / 1024).toFixed(1)} KB
+                  </p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Tamanho</Label>
-                  <p className="text-sm">{(selectedCertificado.tamanho / 1024).toFixed(1)} KB</p>
+                  <Label className="text-sm font-medium">Status</Label>
+                  <div className="mt-1">
+                    {(() => {
+                      const statusInfo = getStatusInfo(selectedCertificado.data_vencimento)
+                      const StatusIcon = statusInfo.icon
+                      return (
+                        <Badge variant={statusInfo.variant} className="flex items-center gap-1 w-fit">
+                          <StatusIcon className="h-3 w-3" />
+                          {statusInfo.label}
+                        </Badge>
+                      )
+                    })()}
+                  </div>
                 </div>
               </div>
               <div>
-                <Label className="text-sm font-medium text-muted-foreground">Senha</Label>
-                <div className="relative">
+                <Label className="text-sm font-medium">Senha</Label>
+                <div className="relative mt-1">
                   <Input
                     type={showPassword ? "text" : "password"}
-                    value={atob(selectedCertificado.senha_criptografada)}
+                    value={selectedCertificado.senha_criptografada ? atob(selectedCertificado.senha_criptografada) : ''}
                     readOnly
                     className="pr-10"
                   />
@@ -635,20 +838,11 @@ export default function CertificadosDigitais() {
                     variant="ghost"
                     size="sm"
                     className="absolute right-0 top-0 h-full px-3"
-                    onClick={() => setShowPassword(!showPassword)}
+                    onClick={togglePasswordVisibility}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
                 </div>
-              </div>
-              <div className="flex justify-end gap-2 pt-4">
-                <Button variant="outline" onClick={() => handleDownload(selectedCertificado)}>
-                  <Download className="h-4 w-4 mr-2" />
-                  Download
-                </Button>
-                <Button onClick={() => setDetailsModalOpen(false)}>
-                  Fechar
-                </Button>
               </div>
             </div>
           )}

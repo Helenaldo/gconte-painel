@@ -129,40 +129,78 @@ const listeners: Array<(state: State) => void> = []
 let memoryState: State = { toasts: [] }
 
 function dispatch(action: Action) {
-  memoryState = reducer(memoryState, action)
-  listeners.forEach((listener) => {
-    listener(memoryState)
-  })
+  try {
+    console.debug('[useToast] Dispatching action:', action.type)
+    memoryState = reducer(memoryState, action)
+    
+    // Guard against undefined listeners
+    if (Array.isArray(listeners)) {
+      listeners.forEach((listener) => {
+        try {
+          if (typeof listener === 'function') {
+            listener(memoryState)
+          }
+        } catch (error) {
+          console.error('[useToast] Error in listener:', error)
+        }
+      })
+    }
+  } catch (error) {
+    console.error('[useToast] Error in dispatch:', error)
+  }
 }
 
 type Toast = Omit<ToasterToast, "id">
 
 function toast({ ...props }: Toast) {
-  const id = genId()
+  try {
+    console.debug('[useToast] Creating toast:', props)
+    const id = genId()
 
-  const update = (props: ToasterToast) =>
+    const update = (props: ToasterToast) => {
+      try {
+        dispatch({
+          type: "UPDATE_TOAST",
+          toast: { ...props, id },
+        })
+      } catch (error) {
+        console.error('[useToast] Error updating toast:', error)
+      }
+    }
+    
+    const dismiss = () => {
+      try {
+        dispatch({ type: "DISMISS_TOAST", toastId: id })
+      } catch (error) {
+        console.error('[useToast] Error dismissing toast:', error)
+      }
+    }
+
     dispatch({
-      type: "UPDATE_TOAST",
-      toast: { ...props, id },
-    })
-  const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id })
-
-  dispatch({
-    type: "ADD_TOAST",
-    toast: {
-      ...props,
-      id,
-      open: true,
-      onOpenChange: (open) => {
-        if (!open) dismiss()
+      type: "ADD_TOAST",
+      toast: {
+        ...props,
+        id,
+        open: true,
+        onOpenChange: (open) => {
+          if (!open) dismiss()
+        },
       },
-    },
-  })
+    })
 
-  return {
-    id: id,
-    dismiss,
-    update,
+    return {
+      id: id,
+      dismiss,
+      update,
+    }
+  } catch (error) {
+    console.error('[useToast] Error creating toast:', error)
+    // Return a safe fallback
+    return {
+      id: 'error',
+      dismiss: () => {},
+      update: () => {},
+    }
   }
 }
 
@@ -170,24 +208,49 @@ function useToast() {
   const [state, setState] = React.useState<State>(memoryState)
 
   React.useEffect(() => {
+    console.debug('[useToast] Initializing hook')
+    
     const listener = (newState: State) => {
-      setState(newState)
+      try {
+        if (newState && typeof newState === 'object') {
+          setState(newState)
+        }
+      } catch (error) {
+        console.error('[useToast] Error setting state:', error)
+      }
     }
     
-    listeners.push(listener)
+    // Guard against undefined listeners array
+    if (Array.isArray(listeners)) {
+      listeners.push(listener)
+    }
     
     return () => {
-      const index = listeners.indexOf(listener)
-      if (index > -1) {
-        listeners.splice(index, 1)
+      try {
+        if (Array.isArray(listeners)) {
+          const index = listeners.indexOf(listener)
+          if (index > -1) {
+            listeners.splice(index, 1)
+          }
+        }
+      } catch (error) {
+        console.error('[useToast] Error cleaning up listener:', error)
       }
     }
   }, [])
 
+  const safeDismiss = (toastId?: string) => {
+    try {
+      dispatch({ type: "DISMISS_TOAST", toastId })
+    } catch (error) {
+      console.error('[useToast] Error dismissing:', error)
+    }
+  }
+
   return {
     ...state,
     toast,
-    dismiss: (toastId?: string) => dispatch({ type: "DISMISS_TOAST", toastId }),
+    dismiss: safeDismiss,
   }
 }
 
