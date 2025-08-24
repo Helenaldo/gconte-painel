@@ -109,7 +109,7 @@ serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Build query for all documents with user name (any user can see any document)
+    // Build query for all documents (any user can see any document)
     let queryBuilder = supabase
       .from('obligations_documents')
       .select(`
@@ -121,8 +121,7 @@ serve(async (req: Request) => {
         mime_type,
         uploaded_at,
         created_at,
-        uploaded_by,
-        profiles:uploaded_by(nome)
+        uploaded_by
       `, { count: 'exact' });
 
     // Apply text search filter
@@ -158,6 +157,17 @@ serve(async (req: Request) => {
       );
     }
 
+    // Get unique user IDs to fetch their names
+    const uniqueUserIds = [...new Set(documents?.map(doc => doc.uploaded_by) || [])];
+    
+    // Fetch user names in batch
+    const { data: users } = await supabase
+      .from('profiles')
+      .select('id, nome')
+      .in('id', uniqueUserIds);
+    
+    const userNamesMap = new Map(users?.map(user => [user.id, user.nome]) || []);
+
     // Format response
     const formattedDocuments = documents?.map(doc => ({
       id: doc.id,
@@ -169,7 +179,7 @@ serve(async (req: Request) => {
       url_download: `/api/obrigacoes/${doc.id}/download`,
       enviado_em: doc.uploaded_at,
       criado_em: doc.created_at,
-      enviado_por: doc.profiles?.nome || 'Usuário não encontrado'
+      enviado_por: userNamesMap.get(doc.uploaded_by) || 'Usuário não encontrado'
     })) || [];
 
     const totalPages = Math.ceil((count || 0) / perPage);
