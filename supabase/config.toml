@@ -48,3 +48,15 @@ verify_jwt = true
 
 [functions.manage-password]
 verify_jwt = true
+
+[functions.api-obrigacoes-upload]
+verify_jwt = false
+
+[functions.api-obrigacoes-list]
+verify_jwt = false
+
+[functions.api-obrigacoes-download]
+verify_jwt = false
+
+[functions.api-obrigacoes-delete]
+verify_jwt = false
