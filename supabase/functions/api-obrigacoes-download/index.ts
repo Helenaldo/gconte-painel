@@ -110,7 +110,7 @@ serve(async (req: Request) => {
       .from('obligations_documents')
       .select('*')
       .eq('id', documentId)
-      .eq('uploaded_by', user.id) // Ensure same user uploaded it
+      .eq('uploaded_by', user.id) // Only allow access to own documents
       .single();
 
     if (dbError || !document) {
