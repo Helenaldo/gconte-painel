@@ -14,30 +14,22 @@ interface AuthUser {
   role: string;
 }
 
-async function validateBasicAuth(authHeader: string | null): Promise<AuthUser | null> {
-  if (!authHeader || !authHeader.startsWith('Basic ')) {
+async function validateSessionAuth(authHeader: string | null): Promise<AuthUser | null> {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return null;
   }
 
-  const credentials = atob(authHeader.replace('Basic ', ''));
-  const [email, password] = credentials.split(':');
-
-  if (!email || !password) {
-    return null;
-  }
+  const token = authHeader.replace('Bearer ', '');
 
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    Deno.env.get('SUPABASE_ANON_KEY') ?? ''
   );
 
-  // Authenticate with Supabase
-  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+  // Validate session token
+  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
-  if (authError || !authData.user) {
+  if (authError || !user) {
     return null;
   }
 
@@ -45,7 +37,7 @@ async function validateBasicAuth(authHeader: string | null): Promise<AuthUser | 
   const { data: profile } = await supabase
     .from('profiles')
     .select('*')
-    .eq('id', authData.user.id)
+    .eq('id', user.id)
     .single();
 
   if (!profile) {
@@ -53,8 +45,8 @@ async function validateBasicAuth(authHeader: string | null): Promise<AuthUser | 
   }
 
   return {
-    id: authData.user.id,
-    email: authData.user.email || '',
+    id: user.id,
+    email: user.email || '',
     nome: profile.nome,
     role: profile.role
   };
@@ -75,11 +67,11 @@ serve(async (req: Request) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
-    const user = await validateBasicAuth(authHeader);
+    const user = await validateSessionAuth(authHeader);
     
     if (!user) {
       return new Response(
-        JSON.stringify({ error: 'Unauthorized - Valid email/password required via Basic Auth' }), 
+        JSON.stringify({ error: 'Unauthorized - Valid session token required' }), 
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
