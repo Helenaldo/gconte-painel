@@ -106,7 +106,7 @@ async function validateBearerAuth(authHeader: string | null, requiredScopes: str
     }
 
     const userScopes = payload.scopes || [];
-    const hasRequiredScopes = requiredScopes.every(scope => userScopes.includes(scope) || userScopes.includes('admin'));
+    const hasRequiredScopes = requiredScopes.some(scope => userScopes.includes(scope) || userScopes.includes('admin'));
     
     if (!hasRequiredScopes) {
       return null;
@@ -145,11 +145,11 @@ serve(async (req: Request) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
-    const user = await validateBearerAuth(authHeader, ['obrigacoes.read']);
+    const user = await validateBearerAuth(authHeader, ['obrigacoes.read', 'obrigacoes.write']);
     
     if (!user) {
       return new Response(
-        JSON.stringify({ error: 'Unauthorized - Bearer token with obrigacoes.read scope required' }), 
+        JSON.stringify({ error: 'Unauthorized - Bearer token with obrigacoes.read or obrigacoes.write scope required' }), 
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -171,7 +171,7 @@ serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Build query
+    // Build query  
     let queryBuilder = supabase
       .from('obligations_documents')
       .select(`
@@ -183,9 +183,11 @@ serve(async (req: Request) => {
         mime_type,
         uploaded_at,
         created_at,
-        profiles!obligations_documents_uploaded_by_fkey(nome)
-      `, { count: 'exact' })
-      .eq('uploaded_by', user.id); // Filter by tenant (user)
+        uploaded_by
+      `, { count: 'exact' });
+    
+    // Filter by user who uploaded (maintain data isolation)
+    queryBuilder = queryBuilder.eq('uploaded_by', user.id);
 
     // Apply text search filter
     if (query) {
@@ -231,7 +233,7 @@ serve(async (req: Request) => {
       url_download: `/api/obrigacoes/${doc.id}/download`,
       enviado_em: doc.uploaded_at,
       criado_em: doc.created_at,
-      enviado_por: doc.profiles?.nome
+      enviado_por: user.id
     })) || [];
 
     const totalPages = Math.ceil((count || 0) / perPage);
