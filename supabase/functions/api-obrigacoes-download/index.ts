@@ -105,12 +105,11 @@ serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Get document metadata and validate user access
+    // Get document metadata (any user can download any document)
     const { data: document, error: dbError } = await supabase
       .from('obligations_documents')
       .select('*')
       .eq('id', documentId)
-      .eq('uploaded_by', user.id) // Only allow access to own documents
       .single();
 
     if (dbError || !document) {

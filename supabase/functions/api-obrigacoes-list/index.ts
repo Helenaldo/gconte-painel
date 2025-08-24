@@ -93,7 +93,7 @@ serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Build query filtered by current user
+    // Build query for all documents (any user can see any document)
     let queryBuilder = supabase
       .from('obligations_documents')
       .select(`
@@ -106,8 +106,7 @@ serve(async (req: Request) => {
         uploaded_at,
         created_at,
         uploaded_by
-      `, { count: 'exact' })
-      .eq('uploaded_by', user.id); // Only show documents uploaded by current user
+      `, { count: 'exact' });
 
     // Apply text search filter
     if (query) {
