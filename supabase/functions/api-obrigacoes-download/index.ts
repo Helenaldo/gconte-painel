@@ -33,12 +33,17 @@ async function validateSessionAuth(authHeader: string | null): Promise<AuthUser 
     return null;
   }
 
-  // Get user profile
-  const { data: profile } = await supabase
+  // Get user profile with service role to avoid RLS issues
+  const supabaseService = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
+
+  const { data: profile } = await supabaseService
     .from('profiles')
     .select('*')
     .eq('id', user.id)
-    .single();
+    .maybeSingle();
 
   if (!profile) {
     return null;

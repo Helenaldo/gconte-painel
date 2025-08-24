@@ -232,7 +232,7 @@ export default function Obrigacoes() {
     if (!session?.access_token) return;
     
     // Criar link de download com autenticação via query param ou abrir em nova aba
-    const downloadUrl = `https://heeqpvphsgnyqwpnqpgt.supabase.co/functions/v1/api-obrigacoes-download/${document.id}`;
+    const downloadUrl = `https://heeqpvphsgnyqwpnqpgt.supabase.co/functions/v1/api-obrigacoes-download/${document.id}/download`;
     
     // Abrir em nova aba com header de autenticação
     const newWindow = window.open();
