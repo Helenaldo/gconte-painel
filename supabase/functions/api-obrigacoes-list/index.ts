@@ -54,7 +54,7 @@ async function validateSessionAuth(authHeader: string | null): Promise<AuthUser 
     .from('profiles')
     .select('*')
     .eq('id', user.id)
-    .single();
+    .maybeSingle();
 
   if (!profile) {
     return null;
@@ -109,7 +109,7 @@ serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Build query for all documents (any user can see any document)
+    // Build query for all documents with user name (any user can see any document)
     let queryBuilder = supabase
       .from('obligations_documents')
       .select(`
@@ -121,7 +121,8 @@ serve(async (req: Request) => {
         mime_type,
         uploaded_at,
         created_at,
-        uploaded_by
+        uploaded_by,
+        profiles:uploaded_by(nome)
       `, { count: 'exact' });
 
     // Apply text search filter
@@ -168,7 +169,7 @@ serve(async (req: Request) => {
       url_download: `/api/obrigacoes/${doc.id}/download`,
       enviado_em: doc.uploaded_at,
       criado_em: doc.created_at,
-      enviado_por: user.id
+      enviado_por: doc.profiles?.nome || 'Usuário não encontrado'
     })) || [];
 
     const totalPages = Math.ceil((count || 0) / perPage);
