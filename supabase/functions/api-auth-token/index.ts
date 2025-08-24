@@ -43,6 +43,37 @@ async function hashToken(token: string): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+function parseExpiration(expiresIn: string | number): number {
+  if (typeof expiresIn === 'number') {
+    return expiresIn;
+  }
+  
+  const str = expiresIn.toString().toLowerCase().trim();
+  
+  // Check for numeric hours
+  const numericMatch = str.match(/^(\d+)$/);
+  if (numericMatch) {
+    return parseInt(numericMatch[1]);
+  }
+  
+  // Check for time format (e.g., "24h", "7d", "30m")
+  const timeMatch = str.match(/^(\d+)([hmwd])$/);
+  if (timeMatch) {
+    const value = parseInt(timeMatch[1]);
+    const unit = timeMatch[2];
+    
+    switch (unit) {
+      case 'm': return Math.max(1, Math.floor(value / 60)); // Convert minutes to hours (minimum 1)
+      case 'h': return value;
+      case 'd': return value * 24;
+      case 'w': return value * 24 * 7;
+      default: throw new Error(`Invalid time unit: ${unit}`);
+    }
+  }
+  
+  throw new Error(`Invalid expiration format: ${expiresIn}. Use formats like: 24, "24h", "7d", "30m"`);
+}
+
 async function validateSessionAuth(authHeader: string | null): Promise<AuthUser | null> {
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return null;
@@ -115,9 +146,24 @@ serve(async (req: Request) => {
 
     const { nome, expira_em, scopes } = await req.json();
 
-    if (!nome || !expira_em || !scopes || !Array.isArray(scopes)) {
+    if (!nome || expira_em === undefined || expira_em === null || !scopes || !Array.isArray(scopes)) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields: nome, expira_em, scopes' }), 
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Parse and validate expiration
+    let expiresInHours: number;
+    try {
+      expiresInHours = parseExpiration(expira_em);
+      if (expiresInHours <= 0 || expiresInHours > 8760) { // Max 1 year
+        throw new Error('Expiration must be between 1 hour and 1 year');
+      }
+    } catch (error) {
+      console.error('Expiration parsing error:', error.message);
+      return new Response(
+        JSON.stringify({ error: `Invalid expiration format: ${error.message}` }), 
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -139,8 +185,17 @@ serve(async (req: Request) => {
 
     // Generate token payload
     const now = Math.floor(Date.now() / 1000);
-    const expiresInSeconds = expira_em * 3600; // Convert hours to seconds
+    const expiresInSeconds = expiresInHours * 3600; // Convert hours to seconds
     const exp = now + expiresInSeconds;
+    
+    // Validate expiration timestamp
+    if (exp <= now || !Number.isFinite(exp)) {
+      console.error('Invalid expiration timestamp:', { now, expiresInHours, expiresInSeconds, exp });
+      return new Response(
+        JSON.stringify({ error: 'Invalid expiration calculation' }), 
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     const jti = crypto.randomUUID();
 
     const payload = {
