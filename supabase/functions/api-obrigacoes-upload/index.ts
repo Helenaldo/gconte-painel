@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { decode } from "https://deno.land/std@0.182.0/encoding/base64.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,36 +11,136 @@ const corsHeaders = {
 interface AuthUser {
   id: string;
   role?: string;
+  tenant?: string;
+  scopes?: string[];
 }
 
-async function validateAdminAuth(authHeader: string | null): Promise<AuthUser | null> {
+// JWT utility functions
+async function verifyJWT(token: string, secret: string): Promise<any> {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      throw new Error('Invalid token format');
+    }
+
+    const [headerB64, payloadB64, signatureB64] = parts;
+    
+    // Decode payload
+    const payloadPadded = payloadB64.replace(/-/g, '+').replace(/_/g, '/').padEnd(payloadB64.length + (4 - payloadB64.length % 4) % 4, '=');
+    const payload = JSON.parse(new TextDecoder().decode(decode(payloadPadded)));
+
+    // Check expiration
+    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
+      throw new Error('Token expired');
+    }
+
+    // Verify signature
+    const message = `${headerB64}.${payloadB64}`;
+    const key = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['verify']
+    );
+
+    const signaturePadded = signatureB64.replace(/-/g, '+').replace(/_/g, '/').padEnd(signatureB64.length + (4 - signatureB64.length % 4) % 4, '=');
+    const signature = decode(signaturePadded);
+
+    const isValid = await crypto.subtle.verify(
+      'HMAC',
+      key,
+      signature,
+      new TextEncoder().encode(message)
+    );
+
+    if (!isValid) {
+      throw new Error('Invalid signature');
+    }
+
+    return payload;
+  } catch (error) {
+    throw new Error(`JWT verification failed: ${error.message}`);
+  }
+}
+
+async function hashToken(token: string): Promise<string> {
+  const msgUint8 = new TextEncoder().encode(token);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function validateBearerAuth(authHeader: string | null, requiredScopes: string[]): Promise<AuthUser | null> {
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return null;
   }
 
   const token = authHeader.replace('Bearer ', '');
   
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-  );
+  const jwtSecret = Deno.env.get('JWT_SECRET');
+  if (!jwtSecret) {
+    return null;
+  }
 
   try {
-    const { data: { user }, error } = await supabase.auth.getUser(token);
-    if (error || !user) return null;
+    // Verify JWT signature and expiration
+    const payload = await verifyJWT(token, jwtSecret);
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Check if token exists in database and is not revoked
+    const tokenHash = await hashToken(token);
+    const { data: tokenRecord, error: dbError } = await supabase
+      .from('access_tokens')
+      .select('*')
+      .eq('jti', payload.jti)
+      .eq('token_hash', tokenHash)
+      .eq('status', 'active')
       .single();
 
-    if (!profile || profile.role !== 'administrador') {
+    if (dbError || !tokenRecord) {
       return null;
     }
 
-    return { id: user.id, role: profile.role };
-  } catch {
+    // Check if token is expired
+    if (new Date(tokenRecord.expires_at) < new Date()) {
+      return null;
+    }
+
+    // Check required scopes
+    const userScopes = payload.scopes || [];
+    const hasRequiredScopes = requiredScopes.every(scope => userScopes.includes(scope) || userScopes.includes('admin'));
+    
+    if (!hasRequiredScopes) {
+      return null;
+    }
+
+    // Check role for admin endpoints
+    if (requiredScopes.includes('obrigacoes.write') || requiredScopes.includes('obrigacoes.delete')) {
+      if (payload.role !== 'admin') {
+        return null;
+      }
+    }
+
+    // Update last used timestamp (fire and forget)
+    supabase
+      .from('access_tokens')
+      .update({ last_used_at: new Date().toISOString() })
+      .eq('jti', payload.jti)
+      .then(() => {});
+
+    return { 
+      id: payload.sub, 
+      role: payload.role,
+      tenant: payload.tenant,
+      scopes: userScopes
+    };
+  } catch (error) {
+    console.error('JWT validation error:', error);
     return null;
   }
 }
@@ -61,7 +162,7 @@ async function checkDuplicate(supabase: any, checksum: string, userId: string): 
   return !!data;
 }
 
-async function logAuditAction(supabase: any, userId: string, action: string, documentId?: string, details?: any) {
+async function logAuditAction(supabase: any, userId: string, action: string, documentId?: string, details?: any, ip?: string, userAgent?: string) {
   await supabase
     .from('obligations_audit_log')
     .insert({
@@ -88,11 +189,11 @@ serve(async (req: Request) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
-    const user = await validateAdminAuth(authHeader);
+    const user = await validateBearerAuth(authHeader, ['obrigacoes.write']);
     
     if (!user) {
       return new Response(
-        JSON.stringify({ error: 'Unauthorized - Administrator access required' }), 
+        JSON.stringify({ error: 'Unauthorized - Bearer token with obrigacoes.write scope and admin role required' }), 
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -177,11 +278,14 @@ serve(async (req: Request) => {
       );
     }
 
+    // Generate file path with tenant-specific directory
+    const fileName = `${crypto.randomUUID()}_${pdfFile.name}`;
+    const filePath = `${user.tenant}/${fileName}`;
+    
     // Upload to storage with tenant segregation
-    const fileName = `${user.id}/${Date.now()}-${pdfFile.name}`;
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('obligations-documents')
-      .upload(fileName, fileBuffer, {
+      .upload(filePath, fileBuffer, {
         contentType: 'application/pdf',
         cacheControl: '3600',
       });
@@ -214,7 +318,7 @@ serve(async (req: Request) => {
     if (dbError) {
       console.error('Database error:', dbError);
       // Cleanup uploaded file
-      await supabase.storage.from('obligations-documents').remove([fileName]);
+      await supabase.storage.from('obligations-documents').remove([filePath]);
       return new Response(
         JSON.stringify({ error: 'Failed to save document metadata' }), 
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

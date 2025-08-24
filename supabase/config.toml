@@ -60,3 +60,18 @@ verify_jwt = false
 
 [functions.api-obrigacoes-delete]
 verify_jwt = false
+
+[functions.api-auth-token]
+verify_jwt = false
+
+[functions.api-auth-tokens]
+verify_jwt = false
+
+[functions.api-auth-token-revoke]
+verify_jwt = false
+
+[functions.api-auth-token-rotate]
+verify_jwt = false
+
+[functions.api-auth-token-verify]
+verify_jwt = false

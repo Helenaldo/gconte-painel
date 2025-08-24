@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { decode } from "https://deno.land/std@0.182.0/encoding/base64.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,36 +11,121 @@ const corsHeaders = {
 interface AuthUser {
   id: string;
   role?: string;
+  tenant?: string;
+  scopes?: string[];
 }
 
-async function validateAdminAuth(authHeader: string | null): Promise<AuthUser | null> {
+// JWT utility functions (same as in other functions)
+async function verifyJWT(token: string, secret: string): Promise<any> {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      throw new Error('Invalid token format');
+    }
+
+    const [headerB64, payloadB64, signatureB64] = parts;
+    
+    const payloadPadded = payloadB64.replace(/-/g, '+').replace(/_/g, '/').padEnd(payloadB64.length + (4 - payloadB64.length % 4) % 4, '=');
+    const payload = JSON.parse(new TextDecoder().decode(decode(payloadPadded)));
+
+    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
+      throw new Error('Token expired');
+    }
+
+    const message = `${headerB64}.${payloadB64}`;
+    const key = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['verify']
+    );
+
+    const signaturePadded = signatureB64.replace(/-/g, '+').replace(/_/g, '/').padEnd(signatureB64.length + (4 - signatureB64.length % 4) % 4, '=');
+    const signature = decode(signaturePadded);
+
+    const isValid = await crypto.subtle.verify(
+      'HMAC',
+      key,
+      signature,
+      new TextEncoder().encode(message)
+    );
+
+    if (!isValid) {
+      throw new Error('Invalid signature');
+    }
+
+    return payload;
+  } catch (error) {
+    throw new Error(`JWT verification failed: ${error.message}`);
+  }
+}
+
+async function hashToken(token: string): Promise<string> {
+  const msgUint8 = new TextEncoder().encode(token);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function validateBearerAuth(authHeader: string | null, requiredScopes: string[]): Promise<AuthUser | null> {
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return null;
   }
 
   const token = authHeader.replace('Bearer ', '');
   
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-  );
+  const jwtSecret = Deno.env.get('JWT_SECRET');
+  if (!jwtSecret) {
+    return null;
+  }
 
   try {
-    const { data: { user }, error } = await supabase.auth.getUser(token);
-    if (error || !user) return null;
+    const payload = await verifyJWT(token, jwtSecret);
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const tokenHash = await hashToken(token);
+    const { data: tokenRecord, error: dbError } = await supabase
+      .from('access_tokens')
+      .select('*')
+      .eq('jti', payload.jti)
+      .eq('token_hash', tokenHash)
+      .eq('status', 'active')
       .single();
 
-    if (!profile || profile.role !== 'administrador') {
+    if (dbError || !tokenRecord) {
       return null;
     }
 
-    return { id: user.id, role: profile.role };
-  } catch {
+    if (new Date(tokenRecord.expires_at) < new Date()) {
+      return null;
+    }
+
+    const userScopes = payload.scopes || [];
+    const hasRequiredScopes = requiredScopes.every(scope => userScopes.includes(scope) || userScopes.includes('admin'));
+    
+    if (!hasRequiredScopes) {
+      return null;
+    }
+
+    supabase
+      .from('access_tokens')
+      .update({ last_used_at: new Date().toISOString() })
+      .eq('jti', payload.jti)
+      .then(() => {});
+
+    return { 
+      id: payload.sub, 
+      role: payload.role,
+      tenant: payload.tenant,
+      scopes: userScopes
+    };
+  } catch (error) {
+    console.error('JWT validation error:', error);
     return null;
   }
 }
@@ -59,11 +145,11 @@ serve(async (req: Request) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
-    const user = await validateAdminAuth(authHeader);
+    const user = await validateBearerAuth(authHeader, ['obrigacoes.read']);
     
     if (!user) {
       return new Response(
-        JSON.stringify({ error: 'Unauthorized - Administrator access required' }), 
+        JSON.stringify({ error: 'Unauthorized - Bearer token with obrigacoes.read scope required' }), 
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
