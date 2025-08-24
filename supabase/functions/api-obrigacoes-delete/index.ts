@@ -15,11 +15,22 @@ interface AuthUser {
 }
 
 async function validateSessionAuth(authHeader: string | null): Promise<AuthUser | null> {
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  // Check if auth header exists
+  if (!authHeader) {
+    return null;
+  }
+
+  // Check if it starts with Bearer
+  if (!authHeader.startsWith('Bearer ')) {
     return null;
   }
 
   const token = authHeader.replace('Bearer ', '');
+  
+  // Check if token exists after Bearer
+  if (!token || token.trim() === '') {
+    return null;
+  }
 
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
@@ -33,12 +44,17 @@ async function validateSessionAuth(authHeader: string | null): Promise<AuthUser 
     return null;
   }
 
-  // Get user profile
-  const { data: profile } = await supabase
+  // Get user profile with service role to avoid RLS issues
+  const supabaseService = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
+
+  const { data: profile } = await supabaseService
     .from('profiles')
     .select('*')
     .eq('id', user.id)
-    .single();
+    .maybeSingle();
 
   if (!profile) {
     return null;
@@ -111,7 +127,7 @@ serve(async (req: Request) => {
       .select('*')
       .eq('id', documentId)
       .eq('uploaded_by', user.id) // Only allow deletion of own documents
-      .single();
+      .maybeSingle();
 
     if (dbError || !document) {
       return new Response(
