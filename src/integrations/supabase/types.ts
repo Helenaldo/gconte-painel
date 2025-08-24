@@ -463,14 +463,43 @@ export type Database = {
           },
         ]
       }
+      obligations_audit_log: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          document_id: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          document_id?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          document_id?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       obligations_documents: {
         Row: {
+          checksum: string | null
           created_at: string
           description: string | null
           file_name: string
           file_size: number
           file_url: string
           id: string
+          idempotency_key: string | null
           mime_type: string
           title: string
           updated_at: string
@@ -478,12 +507,14 @@ export type Database = {
           uploaded_by: string
         }
         Insert: {
+          checksum?: string | null
           created_at?: string
           description?: string | null
           file_name: string
           file_size: number
           file_url: string
           id?: string
+          idempotency_key?: string | null
           mime_type?: string
           title: string
           updated_at?: string
@@ -491,12 +522,14 @@ export type Database = {
           uploaded_by: string
         }
         Update: {
+          checksum?: string | null
           created_at?: string
           description?: string | null
           file_name?: string
           file_size?: number
           file_url?: string
           id?: string
+          idempotency_key?: string | null
           mime_type?: string
           title?: string
           updated_at?: string
