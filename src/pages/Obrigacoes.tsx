@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Search, Download, Trash2, Eye, Upload, RefreshCw, Calendar, FileText, AlertCircle, X, Key, Settings } from 'lucide-react';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -628,59 +629,82 @@ export default function Obrigacoes() {
                       <TableCell>{document.enviado_por || 'Sistema'}</TableCell>
                       <TableCell>{formatFileSize(document.tamanho_bytes)}</TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => setSelectedPdf(document.url_download)}
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-4xl max-h-[90vh]">
-                              <DialogHeader>
-                                <DialogTitle className="flex items-center justify-between">
-                                  {document.titulo}
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setSelectedPdf(null)}
-                                  >
-                                    <X className="h-4 w-4" />
-                                  </Button>
-                                </DialogTitle>
-                              </DialogHeader>
-                              <div className="w-full h-[70vh]">
-                                {selectedPdf && (
-                                  <iframe
-                                    src={`${selectedPdf}#toolbar=1`}
-                                    className="w-full h-full border-0 rounded"
-                                    title="Visualizador de PDF"
-                                  />
-                                )}
-                              </div>
-                            </DialogContent>
-                          </Dialog>
-                          
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleDownload(document)}
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
-                          
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleDelete(document)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        <TooltipProvider>
+                          <div className="flex items-center gap-2">
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm"
+                                      onClick={() => setSelectedPdf(document.url_download)}
+                                    >
+                                      <Eye className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Visualizar documento</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </DialogTrigger>
+                              <DialogContent className="max-w-4xl max-h-[90vh]">
+                                <DialogHeader>
+                                  <DialogTitle className="flex items-center justify-between">
+                                    {document.titulo}
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => setSelectedPdf(null)}
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </Button>
+                                  </DialogTitle>
+                                </DialogHeader>
+                                <div className="w-full h-[70vh]">
+                                  {selectedPdf && (
+                                    <iframe
+                                      src={`${selectedPdf}#toolbar=1`}
+                                      className="w-full h-full border-0 rounded"
+                                      title="Visualizador de PDF"
+                                    />
+                                  )}
+                                </div>
+                              </DialogContent>
+                            </Dialog>
+                            
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => handleDownload(document)}
+                                >
+                                  <Download className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Baixar documento</p>
+                              </TooltipContent>
+                            </Tooltip>
+                            
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => handleDelete(document)}
+                                  className="text-red-600 hover:text-red-700"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Excluir documento</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </TooltipProvider>
                       </TableCell>
                     </TableRow>
                   ))
