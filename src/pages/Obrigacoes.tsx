@@ -6,12 +6,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
-import { Search, Download, Trash2, Eye, Upload, RefreshCw, Calendar, FileText, AlertCircle, X } from 'lucide-react';
+import { Search, Download, Trash2, Eye, Upload, RefreshCw, Calendar, FileText, AlertCircle, X, Key, Settings } from 'lucide-react';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/auth-context";
 import { useToast } from "@/hooks/use-toast";
@@ -63,6 +64,11 @@ export default function Obrigacoes() {
   const [uploadDescription, setUploadDescription] = useState('');
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  
+  // JWT Token states
+  const [apiToken, setApiToken] = useState<string>('');
+  const [tokenModalOpen, setTokenModalOpen] = useState(false);
+  const [showTokenGuide, setShowTokenGuide] = useState(false);
 
   // Verificar se não é administrador e redirecionar
   if (!isAdmin) {
@@ -81,7 +87,12 @@ export default function Obrigacoes() {
 
   // Função para carregar documentos via API
   const loadDocuments = async () => {
-    if (!isAdmin || !session?.access_token) return;
+    if (!isAdmin || !apiToken) {
+      if (!apiToken && !showTokenGuide) {
+        setShowTokenGuide(true);
+      }
+      return;
+    }
     
     setLoading(true);
     try {
@@ -98,7 +109,7 @@ export default function Obrigacoes() {
 
       const response = await fetch(`https://heeqpvphsgnyqwpnqpgt.supabase.co/functions/v1/api-obrigacoes-list?${params}`, {
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${apiToken}`,
           'Content-Type': 'application/json'
         }
       });
@@ -111,6 +122,7 @@ export default function Obrigacoes() {
       const data = await response.json();
       setDocuments(data.data || []);
       setPagination(data.pagination);
+      setShowTokenGuide(false);
     } catch (error) {
       console.error('Erro ao carregar documentos:', error);
       toast({
@@ -118,6 +130,11 @@ export default function Obrigacoes() {
         description: error instanceof Error ? error.message : "Falha ao carregar documentos",
         variant: "destructive"
       });
+      
+      // Se erro de autenticação, mostrar guia do token
+      if (error instanceof Error && error.message.includes('Unauthorized')) {
+        setShowTokenGuide(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -125,7 +142,7 @@ export default function Obrigacoes() {
 
   // Função para upload de documento
   const handleUpload = async () => {
-    if (!uploadFile || !session?.access_token) return;
+    if (!uploadFile || !apiToken) return;
 
     setUploading(true);
     setUploadProgress(0);
@@ -144,7 +161,7 @@ export default function Obrigacoes() {
       const response = await fetch(`https://heeqpvphsgnyqwpnqpgt.supabase.co/functions/v1/api-obrigacoes-upload`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`
+          'Authorization': `Bearer ${apiToken}`
         },
         body: formData
       });
@@ -189,13 +206,13 @@ export default function Obrigacoes() {
       return;
     }
 
-    if (!session?.access_token) return;
+    if (!apiToken) return;
 
     try {
       const response = await fetch(`https://heeqpvphsgnyqwpnqpgt.supabase.co/functions/v1/api-obrigacoes-delete/${document.id}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${apiToken}`,
           'Content-Type': 'application/json'
         }
       });
@@ -224,7 +241,7 @@ export default function Obrigacoes() {
 
   // Função para fazer download do documento
   const handleDownload = (document: ObligationDocument) => {
-    if (!session?.access_token) return;
+    if (!apiToken) return;
     
     // Criar link de download com autenticação via query param ou abrir em nova aba
     const downloadUrl = `https://heeqpvphsgnyqwpnqpgt.supabase.co/functions/v1/api-obrigacoes-download/${document.id}`;
@@ -234,7 +251,7 @@ export default function Obrigacoes() {
     if (newWindow) {
       fetch(downloadUrl, {
         headers: {
-          'Authorization': `Bearer ${session.access_token}`
+          'Authorization': `Bearer ${apiToken}`
         }
       })
       .then(response => response.blob())
@@ -327,10 +344,10 @@ export default function Obrigacoes() {
 
   // Effect para carregar dados
   useEffect(() => {
-    if (user && isAdmin && session?.access_token) {
+    if (user && isAdmin && apiToken) {
       loadDocuments();
     }
-  }, [user, isAdmin, session, currentPage, sortColumn, sortDirection, searchTerm, startDate, endDate]);
+  }, [user, isAdmin, apiToken, currentPage, sortColumn, sortDirection, searchTerm, startDate, endDate]);
 
   // Debounce para busca
   useEffect(() => {
@@ -368,20 +385,126 @@ export default function Obrigacoes() {
         </p>
       </div>
 
+      {/* Token Guide Card */}
+      {showTokenGuide && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardHeader>
+            <CardTitle className="text-orange-800 flex items-center gap-2">
+              <Key className="h-5 w-5" />
+              Token de API Necessário
+            </CardTitle>
+            <CardDescription className="text-orange-700">
+              Para acessar os documentos de obrigações, você precisa configurar um token de API.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <p className="text-sm text-orange-700">
+                <strong>Como obter um token:</strong>
+              </p>
+              <ol className="list-decimal list-inside text-sm text-orange-700 space-y-1">
+                <li>Acesse a página <strong>Tokens de Acesso</strong> no menu</li>
+                <li>Crie um novo token com o escopo <strong>obrigacoes.write</strong></li>
+                <li>Copie o token gerado e cole no campo abaixo</li>
+              </ol>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setTokenModalOpen(true)}
+                  className="text-orange-700 border-orange-300 hover:bg-orange-100"
+                >
+                  <Key className="h-4 w-4 mr-2" />
+                  Configurar Token
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setShowTokenGuide(false)}
+                >
+                  Fechar
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Token Configuration Modal */}
+      <Dialog open={tokenModalOpen} onOpenChange={setTokenModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Configurar Token de API</DialogTitle>
+            <DialogDescription>
+              Cole o token JWT obtido na página de Tokens de Acesso.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="api-token">Token JWT</Label>
+              <Textarea
+                id="api-token"
+                value={apiToken}
+                onChange={(e) => setApiToken(e.target.value)}
+                placeholder="Cole aqui o token JWT começando com eyJ..."
+                rows={4}
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                O token deve ter o escopo obrigacoes.read ou obrigacoes.write
+              </p>
+            </div>
+            
+            <div className="flex justify-end gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => setTokenModalOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button 
+                onClick={() => {
+                  setTokenModalOpen(false);
+                  if (apiToken) {
+                    loadDocuments();
+                  }
+                }}
+                disabled={!apiToken.trim()}
+              >
+                Salvar Token
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Actions Card */}
       <Card>
         <CardContent className="p-6">
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-            <Button 
-              onClick={loadDocuments} 
-              variant="outline" 
-              size="sm"
-              className="gap-2"
-              disabled={loading}
-            >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              Atualizar
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                onClick={loadDocuments} 
+                variant="outline" 
+                size="sm"
+                className="gap-2"
+                disabled={loading || !apiToken}
+              >
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                Atualizar
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setTokenModalOpen(true)}
+                className="gap-2"
+              >
+                <Settings className="h-4 w-4" />
+                Token
+              </Button>
+            </div>
             
             <Dialog open={uploadModalOpen} onOpenChange={setUploadModalOpen}>
               <DialogTrigger asChild>
@@ -389,6 +512,7 @@ export default function Obrigacoes() {
                   variant="default" 
                   size="sm"
                   className="gap-2"
+                  disabled={!apiToken}
                 >
                   <Upload className="h-4 w-4" />
                   Enviar PDF
