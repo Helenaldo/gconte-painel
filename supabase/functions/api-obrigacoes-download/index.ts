@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { decode } from "https://deno.land/std@0.182.0/encoding/base64.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,127 +9,58 @@ const corsHeaders = {
 
 interface AuthUser {
   id: string;
-  role?: string;
-  tenant?: string;
-  scopes?: string[];
+  email: string;
+  nome: string;
+  role: string;
 }
 
-// JWT utility functions (same as in other functions)
-async function verifyJWT(token: string, secret: string): Promise<any> {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) {
-      throw new Error('Invalid token format');
-    }
-
-    const [headerB64, payloadB64, signatureB64] = parts;
-    
-    const payloadPadded = payloadB64.replace(/-/g, '+').replace(/_/g, '/').padEnd(payloadB64.length + (4 - payloadB64.length % 4) % 4, '=');
-    const payload = JSON.parse(new TextDecoder().decode(decode(payloadPadded)));
-
-    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
-      throw new Error('Token expired');
-    }
-
-    const message = `${headerB64}.${payloadB64}`;
-    const key = await crypto.subtle.importKey(
-      'raw',
-      new TextEncoder().encode(secret),
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['verify']
-    );
-
-    const signaturePadded = signatureB64.replace(/-/g, '+').replace(/_/g, '/').padEnd(signatureB64.length + (4 - signatureB64.length % 4) % 4, '=');
-    const signature = decode(signaturePadded);
-
-    const isValid = await crypto.subtle.verify(
-      'HMAC',
-      key,
-      signature,
-      new TextEncoder().encode(message)
-    );
-
-    if (!isValid) {
-      throw new Error('Invalid signature');
-    }
-
-    return payload;
-  } catch (error) {
-    throw new Error(`JWT verification failed: ${error.message}`);
-  }
-}
-
-async function hashToken(token: string): Promise<string> {
-  const msgUint8 = new TextEncoder().encode(token);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-async function validateBearerAuth(authHeader: string | null, requiredScopes: string[]): Promise<AuthUser | null> {
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+async function validateBasicAuth(authHeader: string | null): Promise<AuthUser | null> {
+  if (!authHeader || !authHeader.startsWith('Basic ')) {
     return null;
   }
 
-  const token = authHeader.replace('Bearer ', '');
-  
-  const jwtSecret = Deno.env.get('JWT_SECRET');
-  if (!jwtSecret) {
+  const credentials = atob(authHeader.replace('Basic ', ''));
+  const [email, password] = credentials.split(':');
+
+  if (!email || !password) {
     return null;
   }
 
-  try {
-    const payload = await verifyJWT(token, jwtSecret);
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+  // Authenticate with Supabase
+  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
 
-    const tokenHash = await hashToken(token);
-    const { data: tokenRecord, error: dbError } = await supabase
-      .from('access_tokens')
-      .select('*')
-      .eq('jti', payload.jti)
-      .eq('token_hash', tokenHash)
-      .eq('status', 'active')
-      .single();
-
-    if (dbError || !tokenRecord) {
-      return null;
-    }
-
-    if (new Date(tokenRecord.expires_at) < new Date()) {
-      return null;
-    }
-
-    const userScopes = payload.scopes || [];
-    const hasRequiredScopes = requiredScopes.every(scope => userScopes.includes(scope) || userScopes.includes('admin'));
-    
-    if (!hasRequiredScopes) {
-      return null;
-    }
-
-    supabase
-      .from('access_tokens')
-      .update({ last_used_at: new Date().toISOString() })
-      .eq('jti', payload.jti)
-      .then(() => {});
-
-    return { 
-      id: payload.sub, 
-      role: payload.role,
-      tenant: payload.tenant,
-      scopes: userScopes
-    };
-  } catch (error) {
-    console.error('JWT validation error:', error);
+  if (authError || !authData.user) {
     return null;
   }
+
+  // Get user profile
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', authData.user.id)
+    .single();
+
+  if (!profile) {
+    return null;
+  }
+
+  return {
+    id: authData.user.id,
+    email: authData.user.email || '',
+    nome: profile.nome,
+    role: profile.role
+  };
 }
 
-async function logAuditAction(supabase: any, userId: string, action: string, documentId?: string, details?: any, ip?: string, userAgent?: string) {
+async function logAuditAction(supabase: any, userId: string, action: string, documentId?: string, details?: any) {
   await supabase
     .from('obligations_audit_log')
     .insert({
@@ -157,11 +87,11 @@ serve(async (req: Request) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
-    const user = await validateBearerAuth(authHeader, ['obrigacoes.read']);
+    const user = await validateBasicAuth(authHeader);
     
     if (!user) {
       return new Response(
-        JSON.stringify({ error: 'Unauthorized - Bearer token with obrigacoes.read scope required' }), 
+        JSON.stringify({ error: 'Unauthorized - Valid email/password required via Basic Auth' }), 
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -183,7 +113,7 @@ serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Get document metadata and validate tenant access
+    // Get document metadata and validate user access
     const { data: document, error: dbError } = await supabase
       .from('obligations_documents')
       .select('*')
@@ -216,7 +146,7 @@ serve(async (req: Request) => {
       file_name: document.file_name,
       file_size: document.file_size,
       ip: req.headers.get('cf-connecting-ip') || req.headers.get('x-forwarded-for') || 'unknown'
-    }, req.headers.get('cf-connecting-ip') || req.headers.get('x-forwarded-for') || 'unknown', req.headers.get('user-agent') || 'unknown');
+    });
 
     // Return file with appropriate headers
     return new Response(fileData, {

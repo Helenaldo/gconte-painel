@@ -65,10 +65,10 @@ export default function Obrigacoes() {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   
-  // JWT Token states
-  const [apiToken, setApiToken] = useState<string>('');
-  const [tokenModalOpen, setTokenModalOpen] = useState(false);
-  const [showTokenGuide, setShowTokenGuide] = useState(false);
+  // Credenciais de autenticação
+  const [credentials, setCredentials] = useState({ email: '', password: '' });
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const [showLoginGuide, setShowLoginGuide] = useState(false);
 
   // Verificar se não é administrador e redirecionar
   if (!isAdmin) {
@@ -87,9 +87,9 @@ export default function Obrigacoes() {
 
   // Função para carregar documentos via API
   const loadDocuments = async () => {
-    if (!isAdmin || !apiToken) {
-      if (!apiToken && !showTokenGuide) {
-        setShowTokenGuide(true);
+    if (!isAdmin || !credentials.email || !credentials.password) {
+      if ((!credentials.email || !credentials.password) && !showLoginGuide) {
+        setShowLoginGuide(true);
       }
       return;
     }
@@ -107,9 +107,11 @@ export default function Obrigacoes() {
       if (startDate) params.append('data_ini', startDate);
       if (endDate) params.append('data_fim', endDate);
 
+      const authHeader = 'Basic ' + btoa(`${credentials.email}:${credentials.password}`);
+      
       const response = await fetch(`https://heeqpvphsgnyqwpnqpgt.supabase.co/functions/v1/api-obrigacoes-list?${params}`, {
         headers: {
-          'Authorization': `Bearer ${apiToken}`,
+          'Authorization': authHeader,
           'Content-Type': 'application/json'
         }
       });
@@ -122,7 +124,7 @@ export default function Obrigacoes() {
       const data = await response.json();
       setDocuments(data.data || []);
       setPagination(data.pagination);
-      setShowTokenGuide(false);
+      setShowLoginGuide(false);
     } catch (error) {
       console.error('Erro ao carregar documentos:', error);
       toast({
@@ -131,9 +133,9 @@ export default function Obrigacoes() {
         variant: "destructive"
       });
       
-      // Se erro de autenticação, mostrar guia do token
+      // Se erro de autenticação, mostrar guia do login
       if (error instanceof Error && error.message.includes('Unauthorized')) {
-        setShowTokenGuide(true);
+        setShowLoginGuide(true);
       }
     } finally {
       setLoading(false);
@@ -142,7 +144,7 @@ export default function Obrigacoes() {
 
   // Função para upload de documento
   const handleUpload = async () => {
-    if (!uploadFile || !apiToken) return;
+    if (!uploadFile || !credentials.email || !credentials.password) return;
 
     setUploading(true);
     setUploadProgress(0);
@@ -158,10 +160,12 @@ export default function Obrigacoes() {
         setUploadProgress(prev => Math.min(prev + 10, 90));
       }, 200);
 
+      const authHeader = 'Basic ' + btoa(`${credentials.email}:${credentials.password}`);
+      
       const response = await fetch(`https://heeqpvphsgnyqwpnqpgt.supabase.co/functions/v1/api-obrigacoes-upload`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${apiToken}`
+          'Authorization': authHeader
         },
         body: formData
       });
@@ -206,13 +210,15 @@ export default function Obrigacoes() {
       return;
     }
 
-    if (!apiToken) return;
+    if (!credentials.email || !credentials.password) return;
 
     try {
+      const authHeader = 'Basic ' + btoa(`${credentials.email}:${credentials.password}`);
+      
       const response = await fetch(`https://heeqpvphsgnyqwpnqpgt.supabase.co/functions/v1/api-obrigacoes-delete/${document.id}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${apiToken}`,
+          'Authorization': authHeader,
           'Content-Type': 'application/json'
         }
       });
@@ -241,17 +247,18 @@ export default function Obrigacoes() {
 
   // Função para fazer download do documento
   const handleDownload = (document: ObligationDocument) => {
-    if (!apiToken) return;
+    if (!credentials.email || !credentials.password) return;
     
     // Criar link de download com autenticação via query param ou abrir em nova aba
     const downloadUrl = `https://heeqpvphsgnyqwpnqpgt.supabase.co/functions/v1/api-obrigacoes-download/${document.id}`;
     
     // Abrir em nova aba com header de autenticação
+    const authHeader = 'Basic ' + btoa(`${credentials.email}:${credentials.password}`);
     const newWindow = window.open();
     if (newWindow) {
       fetch(downloadUrl, {
         headers: {
-          'Authorization': `Bearer ${apiToken}`
+          'Authorization': authHeader
         }
       })
       .then(response => response.blob())
@@ -344,10 +351,10 @@ export default function Obrigacoes() {
 
   // Effect para carregar dados
   useEffect(() => {
-    if (user && isAdmin && apiToken) {
+    if (user && isAdmin && credentials.email && credentials.password) {
       loadDocuments();
     }
-  }, [user, isAdmin, apiToken, currentPage, sortColumn, sortDirection, searchTerm, startDate, endDate]);
+  }, [user, isAdmin, credentials.email, credentials.password, currentPage, sortColumn, sortDirection, searchTerm, startDate, endDate]);
 
   // Debounce para busca
   useEffect(() => {
@@ -385,42 +392,42 @@ export default function Obrigacoes() {
         </p>
       </div>
 
-      {/* Token Guide Card */}
-      {showTokenGuide && (
+      {/* Login Guide Card */}
+      {showLoginGuide && (
         <Card className="border-orange-200 bg-orange-50">
           <CardHeader>
             <CardTitle className="text-orange-800 flex items-center gap-2">
               <Key className="h-5 w-5" />
-              Token de API Necessário
+              Autenticação Necessária
             </CardTitle>
             <CardDescription className="text-orange-700">
-              Para acessar os documentos de obrigações, você precisa configurar um token de API.
+              Para acessar os documentos de obrigações, você precisa se autenticar com suas credenciais.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               <p className="text-sm text-orange-700">
-                <strong>Como obter um token:</strong>
+                <strong>Para acessar:</strong>
               </p>
-              <ol className="list-decimal list-inside text-sm text-orange-700 space-y-1">
-                <li>Acesse a página <strong>Tokens de Acesso</strong> no menu</li>
-                <li>Crie um novo token com o escopo <strong>obrigacoes.write</strong></li>
-                <li>Copie o token gerado e cole no campo abaixo</li>
-              </ol>
+              <ul className="list-disc list-inside text-sm text-orange-700 space-y-1">
+                <li>Use seu <strong>email e senha</strong> do sistema</li>
+                <li>As mesmas credenciais que você usa para entrar no aplicativo</li>
+                <li>Seus dados são seguros e criptografados</li>
+              </ul>
               <div className="flex gap-2">
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  onClick={() => setTokenModalOpen(true)}
+                  onClick={() => setLoginModalOpen(true)}
                   className="text-orange-700 border-orange-300 hover:bg-orange-100"
                 >
                   <Key className="h-4 w-4 mr-2" />
-                  Configurar Token
+                  Configurar Credenciais
                 </Button>
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  onClick={() => setShowTokenGuide(false)}
+                  onClick={() => setShowLoginGuide(false)}
                 >
                   Fechar
                 </Button>
@@ -430,49 +437,59 @@ export default function Obrigacoes() {
         </Card>
       )}
 
-      {/* Token Configuration Modal */}
-      <Dialog open={tokenModalOpen} onOpenChange={setTokenModalOpen}>
+      {/* Login Configuration Modal */}
+      <Dialog open={loginModalOpen} onOpenChange={setLoginModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Configurar Token de API</DialogTitle>
+            <DialogTitle>Configurar Credenciais</DialogTitle>
             <DialogDescription>
-              Cole o token JWT obtido na página de Tokens de Acesso.
+              Digite seu email e senha para acessar os documentos.
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4">
             <div>
-              <Label htmlFor="api-token">Token JWT</Label>
-              <Textarea
-                id="api-token"
-                value={apiToken}
-                onChange={(e) => setApiToken(e.target.value)}
-                placeholder="Cole aqui o token JWT começando com eyJ..."
-                rows={4}
-                className="font-mono text-sm"
+              <Label htmlFor="login-email">Email</Label>
+              <Input
+                id="login-email"
+                type="email"
+                value={credentials.email}
+                onChange={(e) => setCredentials(prev => ({ ...prev, email: e.target.value }))}
+                placeholder="seu@email.com"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="login-password">Senha</Label>
+              <Input
+                id="login-password"
+                type="password"
+                value={credentials.password}
+                onChange={(e) => setCredentials(prev => ({ ...prev, password: e.target.value }))}
+                placeholder="Sua senha"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                O token deve ter o escopo obrigacoes.read ou obrigacoes.write
+                Use as mesmas credenciais do aplicativo
               </p>
             </div>
             
             <div className="flex justify-end gap-2">
               <Button 
                 variant="outline" 
-                onClick={() => setTokenModalOpen(false)}
+                onClick={() => setLoginModalOpen(false)}
               >
                 Cancelar
               </Button>
               <Button 
                 onClick={() => {
-                  setTokenModalOpen(false);
-                  if (apiToken) {
+                  setLoginModalOpen(false);
+                  if (credentials.email && credentials.password) {
                     loadDocuments();
                   }
                 }}
-                disabled={!apiToken.trim()}
+                disabled={!credentials.email.trim() || !credentials.password.trim()}
               >
-                Salvar Token
+                Salvar Credenciais
               </Button>
             </div>
           </div>
@@ -489,7 +506,7 @@ export default function Obrigacoes() {
                 variant="outline" 
                 size="sm"
                 className="gap-2"
-                disabled={loading || !apiToken}
+                disabled={loading || !credentials.email || !credentials.password}
               >
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                 Atualizar
@@ -498,11 +515,11 @@ export default function Obrigacoes() {
               <Button 
                 variant="outline" 
                 size="sm"
-                onClick={() => setTokenModalOpen(true)}
+                onClick={() => setLoginModalOpen(true)}
                 className="gap-2"
               >
                 <Settings className="h-4 w-4" />
-                Token
+                Credenciais
               </Button>
             </div>
             
@@ -512,7 +529,7 @@ export default function Obrigacoes() {
                   variant="default" 
                   size="sm"
                   className="gap-2"
-                  disabled={!apiToken}
+                  disabled={!credentials.email || !credentials.password}
                 >
                   <Upload className="h-4 w-4" />
                   Enviar PDF
