@@ -15,15 +15,22 @@ interface AuthUser {
 }
 
 async function validateSessionAuth(authHeader: string | null): Promise<AuthUser | null> {
-  console.log('Authorization header:', authHeader);
-  
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    console.log('Invalid authorization header format');
+  // Check if auth header exists
+  if (!authHeader) {
+    return null;
+  }
+
+  // Check if it starts with Bearer
+  if (!authHeader.startsWith('Bearer ')) {
     return null;
   }
 
   const token = authHeader.replace('Bearer ', '');
-  console.log('Token extracted:', token ? 'Token present' : 'No token');
+  
+  // Check if token exists after Bearer
+  if (!token || token.trim() === '') {
+    return null;
+  }
 
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
@@ -32,30 +39,27 @@ async function validateSessionAuth(authHeader: string | null): Promise<AuthUser 
 
   // Validate session token
   const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-  
-  console.log('Auth validation result:', { user: user ? 'User found' : 'No user', error: authError });
 
   if (authError || !user) {
-    console.log('Auth error:', authError);
     return null;
   }
 
-  // Get user profile
-  const { data: profile, error: profileError } = await supabase
+  // Get user profile with service role to avoid RLS issues
+  const supabaseService = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
+
+  const { data: profile } = await supabaseService
     .from('profiles')
     .select('*')
     .eq('id', user.id)
     .single();
 
-  console.log('Profile query result:', { profile: profile ? 'Profile found' : 'No profile', error: profileError });
-
   if (!profile) {
-    console.log('No profile found for user:', user.id);
     return null;
   }
 
-  console.log('User validated successfully:', user.id);
-  
   return {
     id: user.id,
     email: user.email || '',
