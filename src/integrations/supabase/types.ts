@@ -14,6 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_tokens: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          jti: string
+          last_used_at: string | null
+          nome: string
+          revoked_at: string | null
+          revoked_by: string | null
+          role: string
+          scopes: string[]
+          status: string
+          tenant: string
+          token_hash: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          jti: string
+          last_used_at?: string | null
+          nome: string
+          revoked_at?: string | null
+          revoked_by?: string | null
+          role?: string
+          scopes?: string[]
+          status?: string
+          tenant: string
+          token_hash: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          jti?: string
+          last_used_at?: string | null
+          nome?: string
+          revoked_at?: string | null
+          revoked_by?: string | null
+          role?: string
+          scopes?: string[]
+          status?: string
+          tenant?: string
+          token_hash?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       anexos: {
         Row: {
           created_at: string
@@ -1011,6 +1065,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      token_audit_log: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          endpoint: string | null
+          id: string
+          ip_address: string | null
+          token_jti: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          endpoint?: string | null
+          id?: string
+          ip_address?: string | null
+          token_jti: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          endpoint?: string | null
+          id?: string
+          ip_address?: string | null
+          token_jti?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
