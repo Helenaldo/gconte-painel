@@ -1,227 +1,349 @@
-import { useState, useEffect } from "react"
-import { FileText, Download, Eye, Trash2, Upload, Search, Calendar, RefreshCw, Plus } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
-import { useToast } from "@/hooks/use-toast"
-import { supabase } from "@/integrations/supabase/client"
-import { useAuth } from "@/context/auth-context"
-import { format } from "date-fns"
-import { ptBR } from "date-fns/locale"
+import React, { useState, useEffect } from 'react';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
+import { Search, Download, Trash2, Eye, Upload, RefreshCw, Calendar, FileText, AlertCircle, X } from 'lucide-react';
+import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/auth-context";
+import { useToast } from "@/hooks/use-toast";
+import { format, isAfter, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 interface ObligationDocument {
-  id: string
-  title: string
-  description?: string
-  file_url: string
-  file_name: string
-  file_size: number
-  mime_type: string
-  uploaded_by: string
-  uploaded_at: string
-  created_at: string
-  updated_at: string
-  uploader_name?: string
+  id: string;
+  titulo: string;
+  descricao?: string;
+  arquivo_nome: string;
+  tamanho_bytes: number;
+  mime: string;
+  url_download: string;
+  enviado_em: string;
+  criado_em: string;
+  enviado_por?: string;
 }
 
-export function Obrigacoes() {
-  const { toast } = useToast()
-  const { profile } = useAuth()
-  const [documents, setDocuments] = useState<ObligationDocument[]>([])
-  const [loading, setLoading] = useState(false)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [startDate, setStartDate] = useState("")
-  const [endDate, setEndDate] = useState("")
-  const [selectedDocument, setSelectedDocument] = useState<ObligationDocument | null>(null)
-  const [showPdfViewer, setShowPdfViewer] = useState(false)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [sortColumn, setSortColumn] = useState<keyof ObligationDocument>("uploaded_at")
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
+interface PaginationInfo {
+  page: number;
+  per_page: number;
+  total: number;
+  total_pages: number;
+  has_next: boolean;
+  has_prev: boolean;
+}
 
-  const itemsPerPage = 10
+export default function Obrigacoes() {
+  const { user, isAdmin, session } = useAuth();
+  const { toast } = useToast();
+  const [documents, setDocuments] = useState<ObligationDocument[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortColumn, setSortColumn] = useState<keyof ObligationDocument>('criado_em');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [selectedPdf, setSelectedPdf] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  const [dateFilter, setDateFilter] = useState<string>('');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const [pagination, setPagination] = useState<PaginationInfo | null>(null);
+  
+  // Upload modal states
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadTitle, setUploadTitle] = useState('');
+  const [uploadDescription, setUploadDescription] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
-  // Verificar se é administrador
-  const isAdmin = profile?.role === 'administrador'
-
-  const loadDocuments = async () => {
-    console.debug('[Obrigacoes] Loading documents...')
-    setLoading(true)
-    try {
-      let query = supabase
-        .from('obligations_documents')
-        .select(`
-          id,
-          title,
-          description,
-          file_url,
-          file_name,
-          file_size,
-          mime_type,
-          uploaded_by,
-          uploaded_at,
-          created_at,
-          updated_at
-        `)
-
-      // Aplicar filtros de data se definidos
-      if (startDate) {
-        query = query.gte('uploaded_at', startDate)
-      }
-      if (endDate) {
-        query = query.lte('uploaded_at', endDate + 'T23:59:59.999Z')
-      }
-
-      // Aplicar ordenação
-      query = query.order(sortColumn, { ascending: sortDirection === 'asc' })
-
-      const { data, error } = await query
-
-      if (error) throw error
-
-      // Buscar nomes dos uploaders separadamente
-      const uploaderIds = Array.from(new Set(data?.map(doc => doc.uploaded_by)))
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, nome')
-        .in('id', uploaderIds)
-
-      const profilesMap = new Map(profiles?.map(p => [p.id, p.nome]) || [])
-
-      // Processar dados para incluir nome do uploader
-      const processedData = data?.map(doc => ({
-        ...doc,
-        uploader_name: profilesMap.get(doc.uploaded_by) || 'Usuário removido'
-      })) || []
-
-      setDocuments(processedData)
-      console.debug('[Obrigacoes] Documents loaded successfully:', processedData.length)
-    } catch (error: any) {
-      console.error('[Obrigacoes] Error loading documents:', error)
-      toast({
-        title: "Erro ao carregar documentos",
-        description: error.message,
-        variant: "destructive"
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleDelete = async (document: ObligationDocument) => {
-    console.debug('[Obrigacoes] Deleting document:', document.id)
-    try {
-      const { error } = await supabase
-        .from('obligations_documents')
-        .delete()
-        .eq('id', document.id)
-
-      if (error) throw error
-
-      toast({
-        title: "Documento excluído",
-        description: "O documento foi removido com sucesso."
-      })
-
-      loadDocuments()
-    } catch (error: any) {
-      console.error('[Obrigacoes] Error deleting document:', error)
-      toast({
-        title: "Erro ao excluir documento",
-        description: error.message,
-        variant: "destructive"
-      })
-    }
-  }
-
-  const handleDownload = async (document: ObligationDocument) => {
-    console.debug('[Obrigacoes] Downloading document:', document.file_name)
-    try {
-      // Criar link temporário para download
-      const link = window.document.createElement('a')
-      link.href = document.file_url
-      link.download = document.file_name
-      link.target = '_blank'
-      window.document.body.appendChild(link)
-      link.click()
-      window.document.body.removeChild(link)
-
-      toast({
-        title: "Download iniciado",
-        description: `Baixando ${document.file_name}`
-      })
-    } catch (error: any) {
-      console.error('[Obrigacoes] Error downloading document:', error)
-      toast({
-        title: "Erro no download",
-        description: "Não foi possível baixar o documento",
-        variant: "destructive"
-      })
-    }
-  }
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes'
-    const k = 1024
-    const sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-  }
-
-  const isRecentDocument = (uploadedAt: string) => {
-    const uploadDate = new Date(uploadedAt)
-    const now = new Date()
-    const diffHours = (now.getTime() - uploadDate.getTime()) / (1000 * 60 * 60)
-    return diffHours < 24
-  }
-
-  const handleSort = (column: keyof ObligationDocument) => {
-    if (sortColumn === column) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
-    } else {
-      setSortColumn(column)
-      setSortDirection('desc')
-    }
-  }
-
-  const filteredDocuments = documents.filter(doc => {
-    const matchesSearch = doc.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         doc.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         doc.file_name.toLowerCase().includes(searchTerm.toLowerCase())
-    return matchesSearch
-  })
-
-  const totalPages = Math.ceil(filteredDocuments.length / itemsPerPage)
-  const paginatedDocuments = filteredDocuments.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  )
-
-  useEffect(() => {
-    if (isAdmin) {
-      loadDocuments()
-    }
-  }, [isAdmin, sortColumn, sortDirection])
-
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [searchTerm, startDate, endDate])
-
-  // Redirecionar se não for administrador
+  // Verificar se não é administrador e redirecionar
   if (!isAdmin) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Acesso Restrito</h2>
-          <p className="text-muted-foreground">Esta seção é acessível apenas para administradores.</p>
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center space-y-4">
+          <AlertCircle className="h-16 w-16 text-red-500 mx-auto" />
+          <h2 className="text-2xl font-bold">Acesso Restrito</h2>
+          <p className="text-muted-foreground">
+            Esta seção é acessível apenas para administradores.
+          </p>
         </div>
       </div>
-    )
+    );
   }
+
+  // Função para carregar documentos via API
+  const loadDocuments = async () => {
+    if (!isAdmin || !session?.access_token) return;
+    
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        per_page: itemsPerPage.toString(),
+        order_by: sortColumn,
+        order: sortDirection
+      });
+
+      if (searchTerm) params.append('q', searchTerm);
+      if (startDate) params.append('data_ini', startDate);
+      if (endDate) params.append('data_fim', endDate);
+
+      const response = await fetch(`https://heeqpvphsgnyqwpnqpgt.supabase.co/functions/v1/api-obrigacoes-list?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Erro ao carregar documentos');
+      }
+
+      const data = await response.json();
+      setDocuments(data.data || []);
+      setPagination(data.pagination);
+    } catch (error) {
+      console.error('Erro ao carregar documentos:', error);
+      toast({
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Falha ao carregar documentos",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Função para upload de documento
+  const handleUpload = async () => {
+    if (!uploadFile || !session?.access_token) return;
+
+    setUploading(true);
+    setUploadProgress(0);
+
+    try {
+      const formData = new FormData();
+      formData.append('pdf', uploadFile);
+      if (uploadTitle) formData.append('titulo', uploadTitle);
+      if (uploadDescription) formData.append('descricao', uploadDescription);
+
+      // Simular progresso
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => Math.min(prev + 10, 90));
+      }, 200);
+
+      const response = await fetch(`https://heeqpvphsgnyqwpnqpgt.supabase.co/functions/v1/api-obrigacoes-upload`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: formData
+      });
+
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Erro no upload');
+      }
+
+      const result = await response.json();
+      
+      toast({
+        title: "Sucesso",
+        description: "Documento enviado com sucesso!"
+      });
+
+      // Resetar modal e recarregar lista
+      setUploadModalOpen(false);
+      setUploadFile(null);
+      setUploadTitle('');
+      setUploadDescription('');
+      setUploadProgress(0);
+      loadDocuments();
+    } catch (error) {
+      console.error('Erro no upload:', error);
+      toast({
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Falha no upload",
+        variant: "destructive"
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Função para deletar documento
+  const handleDelete = async (document: ObligationDocument) => {
+    if (!window.confirm(`Tem certeza que deseja excluir "${document.titulo}"?`)) {
+      return;
+    }
+
+    if (!session?.access_token) return;
+
+    try {
+      const response = await fetch(`https://heeqpvphsgnyqwpnqpgt.supabase.co/functions/v1/api-obrigacoes-delete/${document.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Erro ao excluir documento');
+      }
+
+      toast({
+        title: "Sucesso",
+        description: "Documento excluído com sucesso!"
+      });
+
+      // Recarregar a lista
+      loadDocuments();
+    } catch (error) {
+      console.error('Erro ao deletar documento:', error);
+      toast({
+        title: "Erro",
+        description: error instanceof Error ? error.message : "Falha ao excluir documento",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Função para fazer download do documento
+  const handleDownload = (document: ObligationDocument) => {
+    if (!session?.access_token) return;
+    
+    // Criar link de download com autenticação via query param ou abrir em nova aba
+    const downloadUrl = `https://heeqpvphsgnyqwpnqpgt.supabase.co/functions/v1/api-obrigacoes-download/${document.id}`;
+    
+    // Abrir em nova aba com header de autenticação
+    const newWindow = window.open();
+    if (newWindow) {
+      fetch(downloadUrl, {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      })
+      .then(response => response.blob())
+      .then(blob => {
+        const url = URL.createObjectURL(blob);
+        const link = window.document.createElement('a');
+        link.href = url;
+        link.download = document.arquivo_nome;
+        window.document.body.appendChild(link);
+        link.click();
+        window.document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        newWindow.close();
+      })
+      .catch(error => {
+        console.error('Erro no download:', error);
+        toast({
+          title: "Erro",
+          description: "Falha no download do documento",
+          variant: "destructive"
+        });
+        newWindow.close();
+      });
+    }
+  };
+
+  // Função para formatar tamanho do arquivo
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  // Função para verificar se é documento recente (últimas 24h)
+  const isRecentDocument = (uploadedAt: string): boolean => {
+    const uploadDate = parseISO(uploadedAt);
+    const twentyFourHoursAgo = new Date();
+    twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
+    return isAfter(uploadDate, twentyFourHoursAgo);
+  };
+
+  // Função para validar arquivo
+  const validateFile = (file: File): string | null => {
+    if (file.type !== 'application/pdf') {
+      return 'Apenas arquivos PDF são permitidos';
+    }
+    
+    const maxSize = 20 * 1024 * 1024; // 20MB
+    if (file.size > maxSize) {
+      return 'Arquivo muito grande. Máximo permitido: 20MB';
+    }
+    
+    return null;
+  };
+
+  // Handler para seleção de arquivo
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const error = validateFile(file);
+    if (error) {
+      toast({
+        title: "Erro",
+        description: error,
+        variant: "destructive"
+      });
+      e.target.value = '';
+      return;
+    }
+
+    setUploadFile(file);
+    if (!uploadTitle) {
+      setUploadTitle(file.name.replace('.pdf', ''));
+    }
+  };
+
+  // Função para lidar com ordenação
+  const handleSort = (column: keyof ObligationDocument) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+    setCurrentPage(1); // Reset para primeira página
+  };
+
+  // Effect para carregar dados
+  useEffect(() => {
+    if (user && isAdmin && session?.access_token) {
+      loadDocuments();
+    }
+  }, [user, isAdmin, session, currentPage, sortColumn, sortDirection, searchTerm, startDate, endDate]);
+
+  // Debounce para busca
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (currentPage !== 1) {
+        setCurrentPage(1);
+      } else {
+        loadDocuments();
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   return (
     <div className="space-y-6">
@@ -238,23 +360,125 @@ export function Obrigacoes() {
         </BreadcrumbList>
       </Breadcrumb>
 
-      {/* Cabeçalho */}
+      {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Obrigações (PDFs)</h1>
-        <p className="text-muted-foreground mt-2">
+        <h1 className="text-3xl font-bold tracking-tight">Obrigações (PDFs)</h1>
+        <p className="text-muted-foreground">
           Gerencie documentos PDF de obrigações tributárias e legais
         </p>
       </div>
 
-      {/* Barra de ações */}
+      {/* Actions Card */}
       <Card>
-        <CardContent className="pt-6">
-          <div className="flex flex-col lg:flex-row gap-4 items-end">
-            <div className="flex-1 space-y-2">
-              <label className="text-sm font-medium">Buscar</label>
+        <CardContent className="p-6">
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <Button 
+              onClick={loadDocuments} 
+              variant="outline" 
+              size="sm"
+              className="gap-2"
+              disabled={loading}
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              Atualizar
+            </Button>
+            
+            <Dialog open={uploadModalOpen} onOpenChange={setUploadModalOpen}>
+              <DialogTrigger asChild>
+                <Button 
+                  variant="default" 
+                  size="sm"
+                  className="gap-2"
+                >
+                  <Upload className="h-4 w-4" />
+                  Enviar PDF
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Enviar Documento PDF</DialogTitle>
+                  <DialogDescription>
+                    Selecione um arquivo PDF e preencha as informações do documento.
+                  </DialogDescription>
+                </DialogHeader>
+                
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="pdf-file">Arquivo PDF *</Label>
+                    <Input
+                      id="pdf-file"
+                      type="file"
+                      accept=".pdf,application/pdf"
+                      onChange={handleFileSelect}
+                      disabled={uploading}
+                    />
+                    {uploadFile && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {uploadFile.name} ({formatFileSize(uploadFile.size)})
+                      </p>
+                    )}
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="upload-title">Título</Label>
+                    <Input
+                      id="upload-title"
+                      value={uploadTitle}
+                      onChange={(e) => setUploadTitle(e.target.value)}
+                      placeholder="Digite o título do documento"
+                      disabled={uploading}
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="upload-description">Descrição (opcional)</Label>
+                    <Textarea
+                      id="upload-description"
+                      value={uploadDescription}
+                      onChange={(e) => setUploadDescription(e.target.value)}
+                      placeholder="Digite uma descrição para o documento"
+                      disabled={uploading}
+                      rows={3}
+                    />
+                  </div>
+                  
+                  {uploading && (
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Enviando...</span>
+                        <span>{uploadProgress}%</span>
+                      </div>
+                      <Progress value={uploadProgress} />
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-end gap-2">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setUploadModalOpen(false)}
+                      disabled={uploading}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button 
+                      onClick={handleUpload}
+                      disabled={!uploadFile || uploading}
+                    >
+                      {uploading ? 'Enviando...' : 'Enviar'}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end mt-6">
+            <div className="flex-1">
+              <Label htmlFor="search">Buscar documentos</Label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
+                  id="search"
                   placeholder="Buscar por título, descrição ou nome do arquivo..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -262,184 +486,190 @@ export function Obrigacoes() {
                 />
               </div>
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Data inicial</label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            
+            <div className="grid grid-cols-2 gap-4 sm:flex sm:gap-2">
+              <div>
+                <Label htmlFor="start-date">Data inicial</Label>
                 <Input
+                  id="start-date"
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="pl-10 w-40"
+                  className="w-full sm:w-auto"
                 />
               </div>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Data final</label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              
+              <div>
+                <Label htmlFor="end-date">Data final</Label>
                 <Input
+                  id="end-date"
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="pl-10 w-40"
+                  className="w-full sm:w-auto"
                 />
               </div>
-            </div>
-            <div className="flex gap-2">
-              <Button 
-                onClick={loadDocuments} 
-                disabled={loading}
-                className="shrink-0"
-              >
-                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                Atualizar
-              </Button>
-              <Button variant="outline" className="shrink-0">
-                <Plus className="h-4 w-4 mr-2" />
-                Upload manual
-              </Button>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Tabela */}
+      {/* Table Card */}
       <Card>
         <CardHeader>
-          <CardTitle>Documentos ({filteredDocuments.length})</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Documentos
+            {pagination && (
+              <Badge variant="secondary">
+                {pagination.total}
+              </Badge>
+            )}
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
+          <div className="border rounded-lg overflow-hidden">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12">Tipo</TableHead>
-                  <TableHead 
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => handleSort('title')}
-                  >
-                    Título {sortColumn === 'title' && (sortDirection === 'asc' ? '↑' : '↓')}
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="w-16">Tipo</TableHead>
+                  <TableHead className="cursor-pointer" onClick={() => handleSort('titulo')}>
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      Título
+                      {sortColumn === 'titulo' && (
+                        <span className="text-xs">
+                          {sortDirection === 'asc' ? '↑' : '↓'}
+                        </span>
+                      )}
+                    </div>
                   </TableHead>
-                  <TableHead 
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => handleSort('uploaded_at')}
-                  >
-                    Enviado em {sortColumn === 'uploaded_at' && (sortDirection === 'asc' ? '↑' : '↓')}
+                  <TableHead className="cursor-pointer" onClick={() => handleSort('enviado_em')}>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      Data de Envio
+                      {sortColumn === 'enviado_em' && (
+                        <span className="text-xs">
+                          {sortDirection === 'asc' ? '↑' : '↓'}
+                        </span>
+                      )}
+                    </div>
                   </TableHead>
                   <TableHead>Enviado por</TableHead>
-                  <TableHead 
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => handleSort('file_size')}
-                  >
-                    Tamanho {sortColumn === 'file_size' && (sortDirection === 'asc' ? '↑' : '↓')}
-                  </TableHead>
+                  <TableHead>Tamanho</TableHead>
                   <TableHead className="w-32">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
+                  Array.from({ length: 3 }).map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell><Skeleton className="h-4 w-8" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-48" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                      <TableCell><Skeleton className="h-8 w-24" /></TableCell>
+                    </TableRow>
+                  ))
+                ) : documents.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-8">
-                      <div className="flex items-center justify-center">
-                        <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-                        Carregando...
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : paginatedDocuments.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
-                      <div className="text-muted-foreground">
-                        {filteredDocuments.length === 0 && searchTerm ? 
-                          "Nenhum documento encontrado para a busca." :
-                          "Nenhum documento encontrado."
-                        }
+                      <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                        <FileText className="h-8 w-8" />
+                        <span>Nenhum documento encontrado</span>
+                        {searchTerm && (
+                          <span className="text-sm">
+                            Tente ajustar os filtros de busca
+                          </span>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
                 ) : (
-                  paginatedDocuments.map((document) => (
+                  documents.map((document) => (
                     <TableRow key={document.id}>
                       <TableCell>
-                        <FileText className="h-5 w-5 text-destructive" />
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-red-500" />
+                          <span className="text-sm">PDF</span>
+                        </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{document.title}</span>
-                          {isRecentDocument(document.uploaded_at) && (
-                            <Badge variant="secondary" className="text-xs">
-                              Novo
-                            </Badge>
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{document.titulo}</span>
+                            {isRecentDocument(document.enviado_em) && (
+                              <Badge variant="secondary" className="text-xs">
+                                Novo
+                              </Badge>
+                            )}
+                          </div>
+                          {document.descricao && (
+                            <span className="text-xs text-muted-foreground">
+                              {document.descricao}
+                            </span>
                           )}
                         </div>
-                        {document.description && (
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {document.description}
-                          </p>
-                        )}
                       </TableCell>
                       <TableCell>
-                        <div className="text-sm">
-                          {format(new Date(document.uploaded_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                        </div>
+                        {format(parseISO(document.enviado_em), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
                       </TableCell>
+                      <TableCell>{document.enviado_por || 'Sistema'}</TableCell>
+                      <TableCell>{formatFileSize(document.tamanho_bytes)}</TableCell>
                       <TableCell>
-                        <span className="text-sm">{document.uploader_name}</span>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm">{formatFileSize(document.file_size)}</span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedDocument(document)
-                              setShowPdfViewer(true)
-                            }}
-                            title="Visualizar PDF"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
+                        <div className="flex items-center gap-2">
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => setSelectedPdf(document.url_download)}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-4xl max-h-[90vh]">
+                              <DialogHeader>
+                                <DialogTitle className="flex items-center justify-between">
+                                  {document.titulo}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setSelectedPdf(null)}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </DialogTitle>
+                              </DialogHeader>
+                              <div className="w-full h-[70vh]">
+                                {selectedPdf && (
+                                  <iframe
+                                    src={`${selectedPdf}#toolbar=1`}
+                                    className="w-full h-full border-0 rounded"
+                                    title="Visualizador de PDF"
+                                  />
+                                )}
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                          
+                          <Button 
+                            variant="outline" 
                             size="sm"
                             onClick={() => handleDownload(document)}
-                            title="Baixar PDF"
                           >
                             <Download className="h-4 w-4" />
                           </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                title="Excluir documento"
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Excluir documento</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Tem certeza que deseja excluir o documento "{document.title}"? 
-                                  Esta ação não pode ser desfeita.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDelete(document)}
-                                  className="bg-destructive hover:bg-destructive/90"
-                                >
-                                  Excluir
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                          
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleDelete(document)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -450,68 +680,55 @@ export function Obrigacoes() {
           </div>
 
           {/* Paginação */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-4">
+          {pagination && pagination.total > 0 && (
+            <div className="flex flex-col sm:flex-row gap-4 items-center justify-between mt-6">
               <div className="text-sm text-muted-foreground">
-                Mostrando {(currentPage - 1) * itemsPerPage + 1} a{' '}
-                {Math.min(currentPage * itemsPerPage, filteredDocuments.length)} de{' '}
-                {filteredDocuments.length} documento(s)
+                Mostrando {((pagination.page - 1) * pagination.per_page) + 1} a {Math.min(pagination.page * pagination.per_page, pagination.total)} de {pagination.total} documentos
               </div>
+              
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={!pagination.has_prev || loading}
                 >
                   Anterior
                 </Button>
-                <span className="text-sm px-3 py-2">
-                  {currentPage} de {totalPages}
-                </span>
+                
+                <div className="flex items-center gap-2">
+                  {Array.from({ length: Math.min(5, pagination.total_pages) }, (_, i) => {
+                    const startPage = Math.max(1, pagination.page - 2);
+                    return startPage + i;
+                  })
+                    .filter(page => page <= pagination.total_pages)
+                    .map(page => (
+                      <Button
+                        key={page}
+                        variant={page === pagination.page ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setCurrentPage(page)}
+                        className="w-8 h-8 p-0"
+                        disabled={loading}
+                      >
+                        {page}
+                      </Button>
+                    ))}
+                </div>
+                
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(prev => prev + 1)}
+                  disabled={!pagination.has_next || loading}
                 >
-                  Próximo
+                  Próxima
                 </Button>
               </div>
             </div>
           )}
         </CardContent>
       </Card>
-
-      {/* Modal de visualização do PDF */}
-      <Dialog open={showPdfViewer} onOpenChange={setShowPdfViewer}>
-        <DialogContent className="max-w-6xl h-[90vh]">
-          <DialogHeader>
-            <DialogTitle>{selectedDocument?.title}</DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 min-h-0">
-            {selectedDocument && (
-              <iframe
-                src={selectedDocument.file_url}
-                className="w-full h-full border-0 rounded-lg"
-                title={selectedDocument.title}
-              />
-            )}
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => selectedDocument && handleDownload(selectedDocument)}
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Baixar
-            </Button>
-            <Button onClick={() => setShowPdfViewer(false)}>
-              Fechar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
-  )
+  );
 }

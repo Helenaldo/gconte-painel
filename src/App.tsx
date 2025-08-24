@@ -29,7 +29,7 @@ import Tipos from "@/pages/processos/Tipos";
 import RelatoriosProcessos from "@/pages/processos/Relatorios";
 import { OrgaosInstituicoes } from "@/pages/processos/OrgaosInstituicoes";
 import EditarProcesso from "@/pages/processos/Editar";
-import { Obrigacoes } from "@/pages/Obrigacoes";
+import Obrigacoes from "@/pages/Obrigacoes";
 
 const queryClient = new QueryClient();
 
