@@ -463,6 +463,48 @@ export type Database = {
           },
         ]
       }
+      obligations_documents: {
+        Row: {
+          created_at: string
+          description: string | null
+          file_name: string
+          file_size: number
+          file_url: string
+          id: string
+          mime_type: string
+          title: string
+          updated_at: string
+          uploaded_at: string
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          file_name: string
+          file_size: number
+          file_url: string
+          id?: string
+          mime_type?: string
+          title: string
+          updated_at?: string
+          uploaded_at?: string
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          file_name?: string
+          file_size?: number
+          file_url?: string
+          id?: string
+          mime_type?: string
+          title?: string
+          updated_at?: string
+          uploaded_at?: string
+          uploaded_by?: string
+        }
+        Relationships: []
+      }
       office: {
         Row: {
           bairro: string | null

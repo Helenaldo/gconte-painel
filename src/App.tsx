@@ -29,6 +29,7 @@ import Tipos from "@/pages/processos/Tipos";
 import RelatoriosProcessos from "@/pages/processos/Relatorios";
 import { OrgaosInstituicoes } from "@/pages/processos/OrgaosInstituicoes";
 import EditarProcesso from "@/pages/processos/Editar";
+import { Obrigacoes } from "@/pages/Obrigacoes";
 
 const queryClient = new QueryClient();
 
@@ -197,6 +198,16 @@ function AppRoutes() {
                   <p className="text-muted-foreground">Esta seção está sendo desenvolvida</p>
                 </div>
               </div>
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/obrigacoes"
+        element={
+          <ProtectedRoute>
+            <MainLayout user={userForLayout} onLogout={logout}>
+              <Obrigacoes />
             </MainLayout>
           </ProtectedRoute>
         }

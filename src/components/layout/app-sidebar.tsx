@@ -15,6 +15,7 @@ import {
   BarChart3, 
   TestTube, 
   DollarSign,
+  FileText,
   ChevronDown,
   Briefcase,
   List,
@@ -23,6 +24,8 @@ import {
   BarChart2,
   Shield
 } from "lucide-react"
+
+import { useAuth } from "@/context/auth-context"
 
 import {
   Sidebar,
@@ -44,7 +47,16 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 
-const menuItems = [
+interface MenuItem {
+  title: string
+  url?: string
+  icon: any
+  items?: MenuItem[]
+  disabled?: boolean
+  adminOnly?: boolean
+}
+
+const menuItems: MenuItem[] = [
   {
     title: "Dashboard",
     url: "/dashboard",
@@ -140,6 +152,12 @@ const menuItems = [
     ],
   },
   {
+    title: "Obrigações",
+    url: "/obrigacoes",
+    icon: FileText,
+    adminOnly: true,
+  },
+  {
     title: "Honorários",
     url: "/honorarios",
     icon: DollarSign,
@@ -152,6 +170,7 @@ export function AppSidebar() {
   const location = useLocation()
   const [searchParams] = useSearchParams()
   const [openGroups, setOpenGroups] = useState<string[]>([])
+  const { profile } = useAuth()
 
   const isCollapsed = state === "collapsed"
   const currentPath = location.pathname
@@ -178,6 +197,11 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => {
+                // Verificar se é admin-only e se o usuário é admin
+                if (item.adminOnly && profile?.role !== 'administrador') {
+                  return null
+                }
+                
                 if (item.items) {
                   const isGroupOpen = openGroups.includes(item.title)
                   const hasActiveItem = isGroupActive(item.items)
