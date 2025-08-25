@@ -135,7 +135,7 @@ export function Indicadores() {
   const descricaoIndicadores: { [key: string]: string } = {
     "Liquidez Corrente": "Mede a capacidade da empresa pagar suas obrigações de curto prazo utilizando todos os ativos de curto prazo disponíveis. Um índice saudável indica maior segurança financeira para honrar compromissos imediatos.",
     "Liquidez Seca": "Avalia a capacidade de pagamento das dívidas de curto prazo sem depender da venda de estoques, o que fornece uma visão mais conservadora da liquidez.",
-    "Liquidez Geral": "Analisa a capacidade de a empresa quitar todas as suas obrigações, de curto e longo prazo, utilizando seus ativos realizáveis em qualquer prazo.",
+    "Liquidez Geral": "Analisa a capacidade da empresa quitar todas as suas obrigações, de curto e longo prazo, utilizando seus ativos realizáveis em qualquer prazo.",
     "Participação de Capitais de Terceiros (PCT)": "Mostra o grau de dependência de capital de terceiros em relação ao patrimônio líquido. Índices altos indicam maior alavancagem financeira e potencial aumento de risco.",
     "Composição do Endividamento (CE)": "Indica a proporção das dívidas de curto prazo sobre o total do endividamento. Percentuais mais altos sinalizam maior pressão sobre o caixa no curto prazo.",
     "Imobilização do Patrimônio Líquido (IPL)": "Avalia quanto do patrimônio líquido está aplicado em ativos imobilizados, como máquinas, equipamentos e imóveis, reduzindo a disponibilidade para capital de giro.",
