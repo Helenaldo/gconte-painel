@@ -393,13 +393,27 @@ export default function CertificadosDigitais() {
         setUploading(false)
       })
       
-      // Clear accepted files by forcing dropzone to reset
-      if (dropzone && dropzone.inputRef && dropzone.inputRef.current) {
-        dropzone.inputRef.current.value = ''
+      // Reset dropzone state completely
+      if (dropzone) {
+        // Reset input file value
+        if (dropzone.inputRef && dropzone.inputRef.current) {
+          dropzone.inputRef.current.value = ''
+          dropzone.inputRef.current.files = null
+        }
+        
+        // Force re-render of dropzone props with fresh state
+        setDropzoneProps({
+          getRootProps: dropzone.getRootProps,
+          getInputProps: dropzone.getInputProps,
+          isDragActive: false,
+          acceptedFiles: []
+        })
+      } else {
+        // Fallback: reset dropzone props to empty state
+        setDropzoneProps({})
       }
       
-      // Reset dropzone props
-      setDropzoneProps({})
+      console.debug('[CertificadosDigitais] handleModalClose - dropzone reset complete')
     } catch (error) {
       console.error('[CertificadosDigitais] handleModalClose - error:', error)
     }
