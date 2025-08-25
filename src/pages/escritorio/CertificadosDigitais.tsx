@@ -652,11 +652,11 @@ export default function CertificadosDigitais() {
         <CardHeader>
           <CardTitle>Lista de Certificados</CardTitle>
           <CardDescription>
-            {certificados.length} certificado{certificados.length !== 1 ? 's' : ''} cadastrado{certificados.length !== 1 ? 's' : ''}
+            {(certificados?.length || 0)} certificado{(certificados?.length || 0) !== 1 ? 's' : ''} cadastrado{(certificados?.length || 0) !== 1 ? 's' : ''}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {certificados.length === 0 ? (
+          {!certificados || certificados.length === 0 ? (
             <div className="text-center py-8">
               <Shield className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-lg font-semibold mb-2">Nenhum certificado cadastrado</h3>
@@ -682,7 +682,7 @@ export default function CertificadosDigitais() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {certificados.map((certificado) => {
+                  {(certificados || []).map((certificado) => {
                     const statusInfo = getStatusInfo(certificado.data_vencimento)
                     const StatusIcon = statusInfo.icon
 
