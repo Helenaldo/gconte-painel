@@ -140,8 +140,8 @@ const menuItems: MenuItem[] = [
         icon: BarChart3,
       },
       {
-        title: "Dashboard",
-        url: "/indicadores/dashboard",
+        title: "Dashboards",
+        url: "/indicadores/dashboards",
         icon: LayoutDashboard,
       },
       {
