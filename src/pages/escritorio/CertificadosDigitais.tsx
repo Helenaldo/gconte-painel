@@ -250,44 +250,34 @@ export default function CertificadosDigitais() {
     }
   }, [senha, clients, safeToast, safeSetState])
 
-  // Dropzone with controlled initialization - moved to useEffect to prevent subscription issues
-  const [dropzoneConfig, setDropzoneConfig] = useState<any>(null)
+  // Dropzone configuration with safe initialization
   const [dropzoneProps, setDropzoneProps] = useState<any>({})
 
-  useEffect(() => {
-    try {
-      const config = {
-        accept: {
-          'application/x-pkcs12': ['.pfx', '.p12']
-        },
-        maxFiles: 1,
-        onDrop: (files: File[]) => {
-          console.debug('[CertificadosDigitais] Files dropped:', files.length)
-          if (files.length > 0) {
-            handleFileUpload(files[0])
-          }
-        }
+  // Initialize dropzone hook once with safe defaults
+  const dropzone = useDropzone({
+    accept: {
+      'application/x-pkcs12': ['.pfx', '.p12']
+    },
+    maxFiles: 1,
+    onDrop: (files: File[]) => {
+      console.debug('[CertificadosDigitais] Files dropped:', files.length)
+      if (files.length > 0) {
+        handleFileUpload(files[0])
       }
-
-      setDropzoneConfig(config)
-    } catch (error) {
-      console.error('[CertificadosDigitais] Error initializing dropzone config:', error)
     }
-  }, [handleFileUpload])
+  })
 
-  // Initialize dropzone after config is ready
-  const dropzone = dropzoneConfig ? useDropzone(dropzoneConfig) : null
-  
   useEffect(() => {
+    // Set dropzone props after initialization
     if (dropzone) {
       setDropzoneProps({
         getRootProps: dropzone.getRootProps,
         getInputProps: dropzone.getInputProps,
         isDragActive: dropzone.isDragActive,
-        acceptedFiles: dropzone.acceptedFiles
+        acceptedFiles: dropzone.acceptedFiles || []
       })
     }
-  }, [dropzone])
+  }, [dropzone, dropzone.isDragActive, dropzone.acceptedFiles])
 
   // Cleanup function
   useEffect(() => {
@@ -625,18 +615,18 @@ export default function CertificadosDigitais() {
                     </p>
                   </div>
                 )}
-                {dropzoneProps.acceptedFiles && dropzoneProps.acceptedFiles.length > 0 && (
+                {(dropzoneProps.acceptedFiles || []).length > 0 && (
                   <div className="mt-4 p-2 bg-muted rounded">
-                    <p className="text-sm font-medium">{dropzoneProps.acceptedFiles[0].name}</p>
+                    <p className="text-sm font-medium">{(dropzoneProps.acceptedFiles || [])[0]?.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {(dropzoneProps.acceptedFiles[0].size / 1024).toFixed(1)} KB
+                      {((dropzoneProps.acceptedFiles || [])[0]?.size / 1024)?.toFixed(1)} KB
                     </p>
                   </div>
                 )}
               </div>
-              {dropzoneProps.acceptedFiles && dropzoneProps.acceptedFiles.length > 0 && (
+              {(dropzoneProps.acceptedFiles || []).length > 0 && (
                 <Button
-                  onClick={() => handleFileUpload(dropzoneProps.acceptedFiles[0])}
+                  onClick={() => handleFileUpload((dropzoneProps.acceptedFiles || [])[0])}
                   disabled={uploading || !senha.trim()}
                   className="w-full"
                 >
