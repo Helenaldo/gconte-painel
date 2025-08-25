@@ -1,9 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { X509Certificate } from "node:crypto"
-import { createRequire } from "node:module"
-
-const require = createRequire(import.meta.url)
-const { pkcs12 } = require("node-forge")
+import * as forge from "https://esm.sh/node-forge@1.3.1"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,10 +15,9 @@ interface CertificateData {
 }
 
 function extractCNPJFromSAN(certificate: X509Certificate): string | null {
-  console.log('Searching for CNPJ in Subject Alternative Name extension...')
+  console.log('Extracting CNPJ from Subject Alternative Name...')
   
   try {
-    const extensions = certificate.ca ? [] : []
     const sanExtension = certificate.subjectAltName
     
     if (!sanExtension) {
@@ -31,8 +27,7 @@ function extractCNPJFromSAN(certificate: X509Certificate): string | null {
     
     console.log('SAN Extension:', sanExtension)
     
-    // ICP-Brasil CNPJ is typically stored as otherName with OID 2.16.76.1.3.3
-    // The SAN might contain it in various formats, we need to extract the CNPJ digits
+    // Look for CNPJ pattern in SAN (ICP-Brasil uses OID 2.16.76.1.3.3)
     const cnpjMatch = sanExtension.match(/(\d{14}|\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})/g)
     
     if (cnpjMatch) {
@@ -46,9 +41,8 @@ function extractCNPJFromSAN(certificate: X509Certificate): string | null {
       }
     }
     
-    // If not found in standard format, try to extract from raw extension data
-    const rawData = certificate.raw
-    return extractCNPJFromRawData(rawData)
+    // Try to extract from raw certificate data
+    return extractCNPJFromRawData(certificate.raw)
     
   } catch (error) {
     console.error('Error extracting CNPJ from SAN:', error)
@@ -60,34 +54,8 @@ function extractCNPJFromRawData(rawData: Buffer): string | null {
   console.log('Searching for CNPJ in raw certificate data...')
   
   try {
-    // Convert to Uint8Array for easier manipulation
-    const data = new Uint8Array(rawData)
-    
-    // Look for ICP-Brasil CNPJ OID: 2.16.76.1.3.3 = [0x60, 0x84, 0x4C, 0x01, 0x03, 0x03]
-    const cnpjOID = [0x60, 0x84, 0x4C, 0x01, 0x03, 0x03]
-    
-    for (let i = 0; i <= data.length - cnpjOID.length; i++) {
-      let matches = true
-      for (let j = 0; j < cnpjOID.length; j++) {
-        if (data[i + j] !== cnpjOID[j]) {
-          matches = false
-          break
-        }
-      }
-      
-      if (matches) {
-        console.log(`Found CNPJ OID at position: ${i}`)
-        
-        // Try to extract CNPJ value after the OID
-        const cnpj = extractCNPJValueFromPosition(data, i + cnpjOID.length)
-        if (cnpj) {
-          return cnpj
-        }
-      }
-    }
-    
-    // Fallback: Look for any 14-digit sequence that could be a CNPJ
-    const dataStr = new TextDecoder('utf-8', { fatal: false }).decode(data)
+    // Convert raw data to string and search for CNPJ patterns
+    const dataStr = new TextDecoder('utf-8', { fatal: false }).decode(rawData)
     const cnpjMatch = dataStr.match(/(\d{14})/g)
     
     if (cnpjMatch) {
@@ -106,47 +74,6 @@ function extractCNPJFromRawData(rawData: Buffer): string | null {
   return null
 }
 
-function extractCNPJValueFromPosition(data: Uint8Array, startPos: number): string | null {
-  // Look for possible encodings after the OID
-  const possibleTags = [0x04, 0x0C, 0x13, 0x16, 0x1E] // OCTET STRING, UTF8String, PrintableString, etc.
-  
-  for (let i = startPos; i < Math.min(startPos + 50, data.length - 14); i++) {
-    if (possibleTags.includes(data[i])) {
-      // Try to extract length and data
-      let length = data[i + 1]
-      let dataStart = i + 2
-      
-      // Handle multi-byte length encoding
-      if (length & 0x80) {
-        const lengthBytes = length & 0x7F
-        if (lengthBytes <= 2 && dataStart + lengthBytes < data.length) {
-          length = 0
-          for (let j = 0; j < lengthBytes; j++) {
-            length = (length << 8) | data[dataStart + j]
-          }
-          dataStart += lengthBytes
-        }
-      }
-      
-      if (length > 0 && length <= 50 && dataStart + length <= data.length) {
-        const content = data.slice(dataStart, dataStart + length)
-        const contentStr = new TextDecoder('utf-8', { fatal: false }).decode(content)
-        
-        // Extract 14 digits for CNPJ
-        const digits = contentStr.replace(/\D/g, '')
-        if (digits.length >= 14) {
-          const cnpj = digits.substring(0, 14)
-          if (isValidCNPJFormat(cnpj)) {
-            return formatCNPJ(cnpj)
-          }
-        }
-      }
-    }
-  }
-  
-  return null
-}
-
 function isValidCNPJFormat(cnpj: string): boolean {
   if (cnpj.length !== 14) return false
   if (/^0+$/.test(cnpj)) return false // All zeros
@@ -160,28 +87,22 @@ function formatCNPJ(cnpj: string): string {
 
 function processPKCS12Certificate(certBuffer: Uint8Array, password: string): CertificateData {
   console.log('Processing PKCS#12 certificate with password authentication...')
-  console.log('Password length:', password ? password.length : 0)
   
   try {
-    // Convert Uint8Array to Buffer for node-forge
-    const p12Buffer = Buffer.from(certBuffer)
+    // Convert Uint8Array to binary string for node-forge
+    const p12Buffer = Array.from(certBuffer).map(byte => String.fromCharCode(byte)).join('')
     
-    console.log('Attempting to decrypt PKCS#12 with node-forge...')
+    console.log('Parsing PKCS#12 ASN.1 structure...')
     
-    // Decrypt PKCS#12 using node-forge
-    const p12Der = p12Buffer.toString('binary')
-    const p12Asn1 = pkcs12.pkcs12FromAsn1(pkcs12.asn1.fromDer(p12Der))
-    
-    console.log('PKCS#12 loaded, attempting to decrypt with password...')
-    
-    // Decrypt with password
-    const p12 = pkcs12.pkcs12FromAsn1(p12Asn1, password)
+    // Parse the PKCS#12 structure
+    const p12Asn1 = forge.asn1.fromDer(p12Buffer)
+    const p12 = forge.pkcs12.pkcs12FromAsn1(p12Asn1, password)
     
     console.log('PKCS#12 decrypted successfully!')
     
     // Get certificate bags
-    const certBags = p12.getBags({ bagType: pkcs12.oids.certBag })
-    const bags = certBags[pkcs12.oids.certBag]
+    const certBags = p12.getBags({ bagType: forge.pkcs12.oids.certBag })
+    const bags = certBags[forge.pkcs12.oids.certBag]
     
     if (!bags || bags.length === 0) {
       throw new Error('Nenhum certificado encontrado no arquivo PKCS#12')
@@ -199,7 +120,7 @@ function processPKCS12Certificate(certBuffer: Uint8Array, password: string): Cer
     console.log('Certificate extracted from PKCS#12, converting to X509Certificate...')
     
     // Convert to PEM format
-    const certPem = pkcs12.pki.certificateToPem(cert)
+    const certPem = forge.pki.certificateToPem(cert)
     console.log('Certificate converted to PEM format')
     
     // Create X509Certificate instance using node:crypto
@@ -271,7 +192,7 @@ function processPKCS12Certificate(certBuffer: Uint8Array, password: string): Cer
     console.error('Error processing PKCS#12 certificate:', error)
     
     // Check for specific error types
-    if (error.message?.includes('Invalid password') || error.message?.includes('MAC verify error')) {
+    if (error.message?.includes('Invalid password') || error.message?.includes('MAC verify error') || error.message?.includes('HMAC verify failure')) {
       throw new Error('Senha incorreta para o certificado PKCS#12.')
     }
     
@@ -316,7 +237,6 @@ serve(async (req) => {
     }
 
     console.log(`Processing certificate: ${file.name} (${file.size} bytes)`)
-    console.log(`Password provided: ${password ? 'Yes' : 'No'}`)
 
     // Read the certificate file
     const arrayBuffer = await file.arrayBuffer()
