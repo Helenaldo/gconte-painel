@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Enhanced PKCS#12 and ASN.1 parsing utilities
+// Enhanced PKCS#12 and ASN.1 parsing utilities for ICP-Brasil certificates
 interface ASN1Length {
   length: number
   nextOffset: number
@@ -19,9 +19,15 @@ interface ASN1Tag {
   nextOffset: number
 }
 
+interface ICPBrasilData {
+  cnpj?: string
+  cpf?: string
+  responsavelData?: string
+}
+
 interface CertificateData {
   subject: { cn?: string; o?: string }
-  cnpj?: string
+  icpBrasilData: ICPBrasilData
   validity: { notBefore?: string; notAfter?: string }
   serialNumber?: string
 }
@@ -110,8 +116,18 @@ function findOID(data: Uint8Array, oid: number[]): number[] {
   return positions
 }
 
+// ICP-Brasil specific OIDs (encoded as bytes)
+// Subject Alternative Name OID: 2.5.29.17 = 0x55 0x1D 0x11
+const SAN_OID = [0x55, 0x1D, 0x11]
+
 // ICP-Brasil CNPJ OID: 2.16.76.1.3.3 = 0x60 0x84 0x4C 0x01 0x03 0x03
 const CNPJ_OID = [0x60, 0x84, 0x4C, 0x01, 0x03, 0x03]
+
+// ICP-Brasil CPF OID: 2.16.76.1.3.1 = 0x60 0x84 0x4C 0x01 0x03 0x01
+const CPF_OID = [0x60, 0x84, 0x4C, 0x01, 0x03, 0x01]
+
+// ICP-Brasil Responsible Person OID: 2.16.76.1.3.4 = 0x60 0x84 0x4C 0x01 0x03 0x04
+const RESPONSAVEL_OID = [0x60, 0x84, 0x4C, 0x01, 0x03, 0x04]
 
 // Common Name OID: 2.5.4.3 = 0x55 0x04 0x03
 const CN_OID = [0x55, 0x04, 0x03]
@@ -180,97 +196,162 @@ function extractStringAfterOID(data: Uint8Array, startOffset: number): string | 
   return null
 }
 
-function extractCNPJFromSAN(certData: Uint8Array): string | null {
-  console.log('Starting enhanced CNPJ extraction from SAN...')
+function extractICPBrasilData(certData: Uint8Array): ICPBrasilData {
+  console.log('=== Extracting ICP-Brasil specific data ===')
+  const result: ICPBrasilData = {}
   
   try {
-    // Look for Subject Alternative Name extension (OID 2.5.29.17)
-    const sanOID = [0x55, 0x1D, 0x11]
-    const sanPositions = findOID(certData, sanOID)
-    console.log('Found SAN extension at positions:', sanPositions)
+    // First, find all Subject Alternative Name extensions
+    const sanPositions = findOID(certData, SAN_OID)
+    console.log('Found SAN extensions at positions:', sanPositions)
     
     for (const sanPos of sanPositions) {
-      console.log('Processing SAN at position:', sanPos)
+      console.log(`Processing SAN extension at position: ${sanPos}`)
       
-      // Search for CNPJ OID within SAN extension
-      const searchStart = Math.max(0, sanPos - 100)
-      const searchEnd = Math.min(certData.length, sanPos + 500)
-      const sanData = certData.slice(searchStart, searchEnd)
+      // Define search area around SAN extension
+      const searchStart = Math.max(0, sanPos - 50)
+      const searchEnd = Math.min(certData.length, sanPos + 1000)
       
-      const cnpjPositions = findOID(sanData, CNPJ_OID)
-      console.log('Found CNPJ OID at relative positions:', cnpjPositions)
+      console.log(`Searching in range: ${searchStart} to ${searchEnd}`)
       
-      for (const cnpjPos of cnpjPositions) {
-        const absolutePos = searchStart + cnpjPos
-        console.log('Processing CNPJ OID at absolute position:', absolutePos)
-        
-        // Look for CNPJ value after the OID
-        const cnpj = extractCNPJValue(certData, absolutePos + CNPJ_OID.length + 2)
-        if (cnpj) {
-          console.log('Successfully extracted CNPJ:', cnpj)
-          return cnpj
-        }
+      // Search for ICP-Brasil OIDs within the SAN area
+      const sanArea = certData.slice(searchStart, searchEnd)
+      
+      // Look for CNPJ (2.16.76.1.3.3)
+      if (!result.cnpj) {
+        result.cnpj = searchForICPBrasilOID(sanArea, CNPJ_OID, 'CNPJ', searchStart)
       }
+      
+      // Look for CPF (2.16.76.1.3.1) 
+      if (!result.cpf) {
+        result.cpf = searchForICPBrasilOID(sanArea, CPF_OID, 'CPF', searchStart)
+      }
+      
+      // Look for Responsible Person data (2.16.76.1.3.4)
+      if (!result.responsavelData) {
+        result.responsavelData = searchForICPBrasilOID(sanArea, RESPONSAVEL_OID, 'Responsável', searchStart)
+      }
+      
+      // If we found CNPJ, we can stop searching
+      if (result.cnpj) break
     }
     
-    // Fallback: search for CNPJ pattern in the entire certificate
-    console.log('Fallback: searching for CNPJ pattern in entire certificate...')
-    const cnpjPattern = extractCNPJPattern(certData)
-    if (cnpjPattern) {
-      console.log('Found CNPJ pattern:', cnpjPattern)
-      return cnpjPattern
+    // Additional comprehensive search if nothing found in SAN
+    if (!result.cnpj && !result.cpf) {
+      console.log('No ICP-Brasil data found in SAN, performing comprehensive search...')
+      result.cnpj = comprehensiveICPBrasilSearch(certData)
     }
     
   } catch (error) {
-    console.error('Error in CNPJ extraction:', error)
+    console.error('Error extracting ICP-Brasil data:', error)
   }
   
-  console.log('No CNPJ found in certificate')
+  console.log('ICP-Brasil extraction result:', result)
+  return result
+}
+
+function searchForICPBrasilOID(data: Uint8Array, targetOID: number[], type: string, baseOffset: number = 0): string | null {
+  console.log(`Searching for ${type} OID:`, targetOID.map(b => '0x' + b.toString(16)).join(' '))
+  
+  // Search for the exact OID sequence
+  for (let i = 0; i <= data.length - targetOID.length; i++) {
+    let matches = true
+    for (let j = 0; j < targetOID.length; j++) {
+      if (data[i + j] !== targetOID[j]) {
+        matches = false
+        break
+      }
+    }
+    
+    if (matches) {
+      const absolutePos = baseOffset + i
+      console.log(`Found ${type} OID at absolute position: ${absolutePos}`)
+      
+      // Try to extract the value after this OID
+      const value = extractICPBrasilValue(data, i + targetOID.length, type)
+      if (value) {
+        console.log(`Successfully extracted ${type}:`, value)
+        return value
+      }
+    }
+  }
+  
   return null
 }
 
-function extractCNPJValue(data: Uint8Array, startOffset: number): string | null {
-  // Search for different ASN.1 structures that might contain CNPJ
-  for (let i = startOffset; i < Math.min(startOffset + 100, data.length - 14); i++) {
-    // Look for various ASN.1 tags that might contain CNPJ
+function extractICPBrasilValue(data: Uint8Array, startOffset: number, type: string): string | null {
+  console.log(`Extracting ${type} value starting at offset:`, startOffset)
+  
+  // Try different patterns common in ICP-Brasil certificates
+  for (let i = startOffset; i < Math.min(startOffset + 200, data.length - 8); i++) {
     const tag = data[i]
     
-    if ([0x04, 0x0C, 0x13, 0x16, 0x1E, 0x1F, 0x80, 0x81, 0x82].includes(tag)) {
+    // Check various ASN.1 tags that might contain the value
+    const possibleTags = [
+      0x04, // OCTET STRING
+      0x0C, // UTF8String  
+      0x13, // PrintableString
+      0x16, // IA5String
+      0x1E, // BMPString
+      0x80, 0x81, 0x82, 0x83, 0x84, // Context-specific tags
+      0xA0, 0xA1, 0xA2, 0xA3, 0xA4  // Context-specific constructed
+    ]
+    
+    if (possibleTags.includes(tag)) {
       try {
         let length: number
         let contentStart: number
         
-        if (tag >= 0x80 && tag <= 0x82) {
-          // Context-specific tags (common in SAN)
-          if (tag === 0x80) {
-            length = data[i + 1]
+        // Handle context-specific tags differently
+        if ((tag >= 0x80 && tag <= 0x84) || (tag >= 0xA0 && tag <= 0xA4)) {
+          if (i + 1 >= data.length) continue
+          
+          const nextByte = data[i + 1]
+          if (nextByte < 0x80) {
+            // Short form length
+            length = nextByte
             contentStart = i + 2
           } else {
-            const lengthInfo = parseASN1Length(data, i + 1)
-            length = lengthInfo.length
-            contentStart = lengthInfo.nextOffset
+            // Long form length
+            const lengthOfLength = nextByte & 0x7F
+            if (lengthOfLength > 4 || i + 2 + lengthOfLength >= data.length) continue
+            
+            length = 0
+            for (let k = 0; k < lengthOfLength; k++) {
+              length = (length << 8) | data[i + 2 + k]
+            }
+            contentStart = i + 2 + lengthOfLength
           }
         } else {
+          // Standard ASN.1 tags
+          if (i + 1 >= data.length) continue
           const lengthInfo = parseASN1Length(data, i + 1)
           length = lengthInfo.length
           contentStart = lengthInfo.nextOffset
         }
         
-        if (length >= 14 && length <= 30 && contentStart + length <= data.length) {
-          const content = data.slice(contentStart, contentStart + length)
-          const contentStr = new TextDecoder('utf-8', { fatal: false }).decode(content)
-          
-          console.log(`Found potential CNPJ content at offset ${i}:`, contentStr)
-          
-          // Extract digits and check if it's a valid CNPJ format
-          const digits = contentStr.replace(/\D/g, '')
-          if (digits.length >= 14) {
-            const cnpj = digits.substring(0, 14)
-            if (isValidCNPJDigits(cnpj)) {
-              return formatCNPJ(cnpj)
-            }
-          }
+        // Validate bounds
+        if (length <= 0 || length > 100 || contentStart + length > data.length) {
+          continue
         }
+        
+        const content = data.slice(contentStart, contentStart + length)
+        const contentStr = new TextDecoder('utf-8', { fatal: false }).decode(content)
+        
+        console.log(`Found potential ${type} content at offset ${i} (tag: 0x${tag.toString(16)}):`, contentStr)
+        
+        // Process based on type
+        if (type === 'CNPJ') {
+          const cnpjValue = processCNPJContent(contentStr)
+          if (cnpjValue) return cnpjValue
+        } else if (type === 'CPF') {
+          const cpfValue = processCPFContent(contentStr)
+          if (cpfValue) return cpfValue
+        } else if (type === 'Responsável') {
+          const responsavelValue = processResponsavelContent(contentStr)
+          if (responsavelValue) return responsavelValue
+        }
+        
       } catch (error) {
         continue
       }
@@ -280,18 +361,90 @@ function extractCNPJValue(data: Uint8Array, startOffset: number): string | null 
   return null
 }
 
-function extractCNPJPattern(data: Uint8Array): string | null {
-  // Convert to string and look for CNPJ patterns
-  const dataStr = new TextDecoder('utf-8', { fatal: false }).decode(data)
+function processCNPJContent(content: string): string | null {
+  // Extract only digits
+  const digits = content.replace(/\D/g, '')
   
-  // Look for 14 consecutive digits
+  // Check if it looks like a CNPJ (14 digits)
+  if (digits.length >= 14) {
+    const cnpj = digits.substring(0, 14)
+    
+    // Basic validation
+    if (isValidCNPJDigits(cnpj)) {
+      return formatCNPJ(cnpj)
+    }
+  }
+  
+  return null
+}
+
+function processCPFContent(content: string): string | null {
+  // Extract only digits
+  const digits = content.replace(/\D/g, '')
+  
+  // Check if it looks like a CPF (11 digits)
+  if (digits.length >= 11) {
+    const cpf = digits.substring(0, 11)
+    
+    // Basic validation - not all same digit
+    if (!/^(\d)\1{10}$/.test(cpf)) {
+      return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+    }
+  }
+  
+  return null
+}
+
+function processResponsavelContent(content: string): string | null {
+  // For responsible person data, just return the clean content if it looks reasonable
+  const cleaned = content.trim()
+  if (cleaned.length > 3 && cleaned.length < 200) {
+    return cleaned
+  }
+  
+  return null
+}
+
+function comprehensiveICPBrasilSearch(certData: Uint8Array): string | null {
+  console.log('Performing comprehensive CNPJ search across entire certificate...')
+  
+  // Convert entire certificate to string and search for digit patterns
+  const dataStr = new TextDecoder('utf-8', { fatal: false }).decode(certData)
+  
+  // Look for 14-digit sequences that could be CNPJ
   const digitMatches = dataStr.match(/\d{14,}/g)
-  if (digitMatches) {
+  if (digitMatches && digitMatches.length > 0) {
+    console.log('Found digit sequences:', digitMatches)
+    
     for (const match of digitMatches) {
       const cnpj = match.substring(0, 14)
       if (isValidCNPJDigits(cnpj)) {
+        console.log('Valid CNPJ found in comprehensive search:', cnpj)
         return formatCNPJ(cnpj)
       }
+    }
+  }
+  
+  // Also try to find patterns in the raw bytes
+  for (let i = 0; i < certData.length - 14; i++) {
+    // Look for sequences that might be CNPJ in different encodings
+    let potentialCNPJ = ''
+    let digitCount = 0
+    
+    for (let j = i; j < Math.min(i + 50, certData.length) && digitCount < 14; j++) {
+      const byte = certData[j]
+      if (byte >= 0x30 && byte <= 0x39) { // ASCII digits
+        potentialCNPJ += String.fromCharCode(byte)
+        digitCount++
+      } else if (potentialCNPJ.length > 0 && byte !== 0x2E && byte !== 0x2F && byte !== 0x2D) {
+        // Stop if we hit a non-digit, non-separator
+        break
+      }
+    }
+    
+    if (potentialCNPJ.length === 14 && isValidCNPJDigits(potentialCNPJ)) {
+      console.log('Valid CNPJ found in byte search:', potentialCNPJ)
+      return formatCNPJ(potentialCNPJ)
     }
   }
   
@@ -422,6 +575,7 @@ function extractSerialNumber(certData: Uint8Array): string {
 
 function processPKCS12Certificate(certBuffer: Uint8Array, password: string): CertificateData {
   console.log('Processing PKCS#12 certificate with password authentication...')
+  console.log('Password length:', password ? password.length : 0)
   
   // Note: This is still a simplified parser. In production, you'd use a full PKCS#12 library
   // For now, we'll look for the X.509 certificate data within the PKCS#12 structure
@@ -448,15 +602,23 @@ function processPKCS12Certificate(certBuffer: Uint8Array, password: string): Cer
     throw new Error('No X.509 certificate found in PKCS#12 file')
   }
   
-  // Extract certificate information
+  console.log('=== Starting detailed certificate analysis ===')
+  
+  // Extract certificate information using ICP-Brasil specific methods
   const subject = extractSubjectInfo(certData)
-  const cnpj = extractCNPJFromSAN(certData)
+  const icpBrasilData = extractICPBrasilData(certData)
   const validity = extractValidityDates(certData)
   const serialNumber = extractSerialNumber(certData)
   
+  console.log('=== Certificate Analysis Results ===')
+  console.log('Subject:', subject)
+  console.log('ICP-Brasil Data:', icpBrasilData)
+  console.log('Validity:', validity)
+  console.log('Serial Number:', serialNumber)
+  
   return {
     subject,
-    cnpj,
+    icpBrasilData,
     validity,
     serialNumber
   }
@@ -518,7 +680,7 @@ serve(async (req) => {
       }
       
       // Use extracted CNPJ or fallback to filename extraction
-      let cnpj = certData.cnpj
+      let cnpj = certData.icpBrasilData.cnpj
       if (!cnpj) {
         console.log('No CNPJ found in certificate, trying filename extraction...')
         const filenameMatch = file.name.match(/(\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})/g)
