@@ -21,8 +21,7 @@ import {
   List,
   PlusCircle,
   Tags,
-  BarChart2,
-  Shield
+  BarChart2
 } from "lucide-react"
 
 import { useAuth } from "@/context/auth-context"
@@ -90,11 +89,6 @@ const menuItems: MenuItem[] = [
         title: "Tributação",
         url: "/escritorio/tributacao",
         icon: Calculator,
-      },
-      {
-        title: "Certificados Digitais",
-        url: "/escritorio/certificados-digitais",
-        icon: Shield,
       },
       {
         title: "Configurações",
