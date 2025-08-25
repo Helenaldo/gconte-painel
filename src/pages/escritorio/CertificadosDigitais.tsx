@@ -130,27 +130,45 @@ export default function CertificadosDigitais() {
       formData.append('password', senha)
 
       console.debug('[CertificadosDigitais] handleFileUpload - calling process-certificate function')
-      const response = await supabase.functions.invoke('process-certificate', {
+      
+      // Use fetch to ensure proper multipart/form-data handling
+      const { data: { session } } = await supabase.auth.getSession()
+      const response = await fetch('https://heeqpvphsgnyqwpnqpgt.supabase.co/functions/v1/process-certificate', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session?.access_token}`,
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhlZXFwdnBoc2dueXF3cG5xcGd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM4ODA1NDYsImV4cCI6MjA2OTQ1NjU0Nn0.ycheHGEGUTjMbiShhI10josr4AvfyENb5Hs2V5Cqd58',
+          // Don't set Content-Type manually - let the browser set it for multipart/form-data
+        },
         body: formData
       })
 
-      console.debug('[CertificadosDigitais] handleFileUpload - function response:', response)
+      console.debug('[CertificadosDigitais] handleFileUpload - function response status:', response.status)
 
-      if (response.error) {
-        console.error('[CertificadosDigitais] handleFileUpload - function error:', response.error)
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('[CertificadosDigitais] handleFileUpload - function error:', errorText)
         
         // Clean up uploaded file
         await supabase.storage.from('certificados-digitais').remove([fileName])
         
+        let errorMessage = "Erro ao processar certificado"
+        try {
+          const errorData = JSON.parse(errorText)
+          errorMessage = errorData.error || errorMessage
+        } catch {
+          errorMessage = errorText || errorMessage
+        }
+        
         safeToast({
           title: "Erro",
-          description: response.error.message || "Erro ao processar certificado",
+          description: errorMessage,
           variant: "destructive",
         })
         return
       }
 
-      const certInfo = response.data
+      const certInfo = await response.json()
       console.debug('[CertificadosDigitais] handleFileUpload - certificate info extracted:', certInfo)
 
       // Find matching client by CNPJ
