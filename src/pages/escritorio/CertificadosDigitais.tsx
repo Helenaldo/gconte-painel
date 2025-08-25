@@ -71,141 +71,18 @@ export default function CertificadosDigitais() {
 
   // Safe toast function with error handling
   const safeToast = useCallback((options: Parameters<typeof toast>[0]) => {
-    try {
-      console.debug('[CertificadosDigitais] Showing toast:', options)
-      if (toast && typeof toast === 'function') {
+    if (mountedRef.current) {
+      try {
+        console.debug('[CertificadosDigitais] Showing toast:', options)
         toast(options)
-      } else {
-        console.warn('[CertificadosDigitais] Toast function not available')
+      } catch (error) {
+        console.error('[CertificadosDigitais] Error showing toast:', error)
       }
-    } catch (error) {
-      console.error('[CertificadosDigitais] Error showing toast:', error)
     }
   }, [toast])
 
-  // Dropzone with controlled initialization
-  const dropzoneConfig = {
-    accept: {
-      'application/x-pkcs12': ['.pfx', '.p12']
-    },
-    maxFiles: 1,
-    onDrop: (files: File[]) => {
-      console.debug('[CertificadosDigitais] Files dropped:', files.length)
-      if (files.length > 0) {
-        handleFileUpload(files[0])
-      }
-    }
-  }
-
-  const dropzone = useDropzone(dropzoneConfig)
-  const { getRootProps, getInputProps, isDragActive, acceptedFiles } = dropzone
-
-  // Cleanup function
-  useEffect(() => {
-    return () => {
-      console.debug('[CertificadosDigitais] Component unmounting')
-      mountedRef.current = false
-    }
-  }, [])
-
-  useEffect(() => {
-    console.debug('[CertificadosDigitais] Initial data fetch')
-    fetchCertificados()
-    fetchClients()
-  }, [])
-
-  const fetchCertificados = async () => {
-    console.debug('[CertificadosDigitais] fetchCertificados - start')
-    
-    try {
-      const { data, error } = await supabase
-        .from('certificados_digitais')
-        .select(`
-          *,
-          clients!certificados_digitais_client_id_fkey (
-            nome_empresarial,
-            cnpj
-          )
-        `)
-        .order('created_at', { ascending: false })
-
-      console.debug('[CertificadosDigitais] fetchCertificados - response:', { data: data?.length, error })
-
-      if (error) throw error
-      
-      safeSetState(() => {
-        setCertificados((data || []) as any)
-      })
-    } catch (error) {
-      console.error('[CertificadosDigitais] fetchCertificados - error:', error)
-      safeToast({
-        title: "Erro",
-        description: "Não foi possível carregar os certificados digitais.",
-        variant: "destructive",
-      })
-    } finally {
-      safeSetState(() => {
-        setLoading(false)
-      })
-    }
-  }
-
-  const fetchClients = async () => {
-    console.debug('[CertificadosDigitais] fetchClients - start')
-    
-    try {
-      const { data, error } = await supabase
-        .from('clients')
-        .select('id, nome_empresarial, cnpj')
-        .order('nome_empresarial')
-
-      console.debug('[CertificadosDigitais] fetchClients - response:', { data: data?.length, error })
-
-      if (error) throw error
-      
-      safeSetState(() => {
-        setClients(data || [])
-      })
-    } catch (error) {
-      console.error('[CertificadosDigitais] fetchClients - error:', error)
-    }
-  }
-
-  const handleModalOpen = useCallback(() => {
-    console.debug('[CertificadosDigitais] handleModalOpen - opening modal')
-    
-    try {
-      safeSetState(() => {
-        setUploadModalOpen(true)
-        setSenha("")
-        setShowPassword(false)
-      })
-    } catch (error) {
-      console.error('[CertificadosDigitais] handleModalOpen - error:', error)
-    }
-  }, [safeSetState])
-
-  const handleModalClose = useCallback(() => {
-    console.debug('[CertificadosDigitais] handleModalClose - closing modal')
-    
-    try {
-      safeSetState(() => {
-        setUploadModalOpen(false)
-        setSenha("")
-        setShowPassword(false)
-        setUploading(false)
-      })
-      
-      // Clear accepted files by forcing dropzone to reset
-      if (dropzone && dropzone.inputRef && dropzone.inputRef.current) {
-        dropzone.inputRef.current.value = ''
-      }
-    } catch (error) {
-      console.error('[CertificadosDigitais] handleModalClose - error:', error)
-    }
-  }, [safeSetState, dropzone])
-
-  const handleFileUpload = async (file: File) => {
+  // File upload handler - moved here to prevent dropzone initialization issues
+  const handleFileUpload = useCallback(async (file: File) => {
     console.debug('[CertificadosDigitais] handleFileUpload - start:', {
       fileName: file.name,
       fileSize: file.size,
@@ -371,7 +248,155 @@ export default function CertificadosDigitais() {
     } finally {
       safeSetState(() => setUploading(false))
     }
+  }, [senha, clients, safeToast, safeSetState])
+
+  // Dropzone with controlled initialization - moved to useEffect to prevent subscription issues
+  const [dropzoneConfig, setDropzoneConfig] = useState<any>(null)
+  const [dropzoneProps, setDropzoneProps] = useState<any>({})
+
+  useEffect(() => {
+    try {
+      const config = {
+        accept: {
+          'application/x-pkcs12': ['.pfx', '.p12']
+        },
+        maxFiles: 1,
+        onDrop: (files: File[]) => {
+          console.debug('[CertificadosDigitais] Files dropped:', files.length)
+          if (files.length > 0) {
+            handleFileUpload(files[0])
+          }
+        }
+      }
+
+      setDropzoneConfig(config)
+    } catch (error) {
+      console.error('[CertificadosDigitais] Error initializing dropzone config:', error)
+    }
+  }, [handleFileUpload])
+
+  // Initialize dropzone after config is ready
+  const dropzone = dropzoneConfig ? useDropzone(dropzoneConfig) : null
+  
+  useEffect(() => {
+    if (dropzone) {
+      setDropzoneProps({
+        getRootProps: dropzone.getRootProps,
+        getInputProps: dropzone.getInputProps,
+        isDragActive: dropzone.isDragActive,
+        acceptedFiles: dropzone.acceptedFiles
+      })
+    }
+  }, [dropzone])
+
+  // Cleanup function
+  useEffect(() => {
+    return () => {
+      console.debug('[CertificadosDigitais] Component unmounting')
+      mountedRef.current = false
+    }
+  }, [])
+
+  const fetchCertificados = async () => {
+    console.debug('[CertificadosDigitais] fetchCertificados - start')
+    
+    try {
+      const { data, error } = await supabase
+        .from('certificados_digitais')
+        .select(`
+          *,
+          clients!certificados_digitais_client_id_fkey (
+            nome_empresarial,
+            cnpj
+          )
+        `)
+        .order('created_at', { ascending: false })
+
+      console.debug('[CertificadosDigitais] fetchCertificados - response:', { data: data?.length, error })
+
+      if (error) throw error
+      
+      safeSetState(() => {
+        setCertificados((data || []) as any)
+      })
+    } catch (error) {
+      console.error('[CertificadosDigitais] fetchCertificados - error:', error)
+      safeToast({
+        title: "Erro",
+        description: "Não foi possível carregar os certificados digitais.",
+        variant: "destructive",
+      })
+    } finally {
+      safeSetState(() => {
+        setLoading(false)
+      })
+    }
   }
+
+  const fetchClients = async () => {
+    console.debug('[CertificadosDigitais] fetchClients - start')
+    
+    try {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('id, nome_empresarial, cnpj')
+        .order('nome_empresarial')
+
+      console.debug('[CertificadosDigitais] fetchClients - response:', { data: data?.length, error })
+
+      if (error) throw error
+      
+      safeSetState(() => {
+        setClients(data || [])
+      })
+    } catch (error) {
+      console.error('[CertificadosDigitais] fetchClients - error:', error)
+    }
+  }
+
+  useEffect(() => {
+    console.debug('[CertificadosDigitais] Initial data fetch')
+    fetchCertificados()
+    fetchClients()
+  }, [])
+
+  const handleModalOpen = useCallback(() => {
+    console.debug('[CertificadosDigitais] handleModalOpen - opening modal')
+    
+    try {
+      safeSetState(() => {
+        setUploadModalOpen(true)
+        setSenha("")
+        setShowPassword(false)
+      })
+    } catch (error) {
+      console.error('[CertificadosDigitais] handleModalOpen - error:', error)
+    }
+  }, [safeSetState])
+
+  const handleModalClose = useCallback(() => {
+    console.debug('[CertificadosDigitais] handleModalClose - closing modal')
+    
+    try {
+      safeSetState(() => {
+        setUploadModalOpen(false)
+        setSenha("")
+        setShowPassword(false)
+        setUploading(false)
+      })
+      
+      // Clear accepted files by forcing dropzone to reset
+      if (dropzone && dropzone.inputRef && dropzone.inputRef.current) {
+        dropzone.inputRef.current.value = ''
+      }
+      
+      // Reset dropzone props
+      setDropzoneProps({})
+    } catch (error) {
+      console.error('[CertificadosDigitais] handleModalClose - error:', error)
+    }
+  }, [safeSetState, dropzone])
+
 
   const getStatusInfo = (dataVencimento: string) => {
     try {
@@ -579,16 +604,16 @@ export default function CertificadosDigitais() {
                 </div>
               </div>
               <div
-                {...getRootProps()}
+                {...(dropzoneProps.getRootProps ? dropzoneProps.getRootProps() : {})}
                 className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-                  isDragActive
+                  dropzoneProps.isDragActive
                     ? 'border-primary bg-primary/10'
                     : 'border-muted-foreground/25 hover:border-primary hover:bg-primary/5'
                 } ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                <input {...getInputProps()} disabled={uploading} />
+                <input {...(dropzoneProps.getInputProps ? dropzoneProps.getInputProps() : {})} disabled={uploading} />
                 <Shield className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                {isDragActive ? (
+                {dropzoneProps.isDragActive ? (
                   <p>Solte o arquivo aqui...</p>
                 ) : (
                   <div>
@@ -600,18 +625,18 @@ export default function CertificadosDigitais() {
                     </p>
                   </div>
                 )}
-                {acceptedFiles.length > 0 && (
+                {dropzoneProps.acceptedFiles && dropzoneProps.acceptedFiles.length > 0 && (
                   <div className="mt-4 p-2 bg-muted rounded">
-                    <p className="text-sm font-medium">{acceptedFiles[0].name}</p>
+                    <p className="text-sm font-medium">{dropzoneProps.acceptedFiles[0].name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {(acceptedFiles[0].size / 1024).toFixed(1)} KB
+                      {(dropzoneProps.acceptedFiles[0].size / 1024).toFixed(1)} KB
                     </p>
                   </div>
                 )}
               </div>
-              {acceptedFiles.length > 0 && (
+              {dropzoneProps.acceptedFiles && dropzoneProps.acceptedFiles.length > 0 && (
                 <Button
-                  onClick={() => handleFileUpload(acceptedFiles[0])}
+                  onClick={() => handleFileUpload(dropzoneProps.acceptedFiles[0])}
                   disabled={uploading || !senha.trim()}
                   className="w-full"
                 >
