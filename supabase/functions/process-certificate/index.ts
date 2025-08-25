@@ -1,5 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { X509Certificate } from "node:crypto"
+import { createRequire } from "node:module"
+
+const require = createRequire(import.meta.url)
+const { pkcs12 } = require("node-forge")
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -159,43 +163,56 @@ function processPKCS12Certificate(certBuffer: Uint8Array, password: string): Cer
   console.log('Password length:', password ? password.length : 0)
   
   try {
-    // First, try to extract the X.509 certificate from PKCS#12
-    // For now, we'll look for the DER-encoded certificate within the PKCS#12 structure
-    let certData: Uint8Array | null = null
+    // Convert Uint8Array to Buffer for node-forge
+    const p12Buffer = Buffer.from(certBuffer)
     
-    // Look for DER-encoded X.509 certificate (starts with 0x30 0x82)
-    for (let i = 0; i < certBuffer.length - 100; i++) {
-      if (certBuffer[i] === 0x30 && certBuffer[i + 1] === 0x82) {
-        try {
-          const length = (certBuffer[i + 2] << 8) | certBuffer[i + 3]
-          if (length > 500 && length < 8000 && i + 4 + length <= certBuffer.length) {
-            certData = certBuffer.slice(i, i + 4 + length)
-            console.log(`Found X.509 certificate at offset ${i}, length: ${length}`)
-            break
-          }
-        } catch (error) {
-          continue
-        }
-      }
+    console.log('Attempting to decrypt PKCS#12 with node-forge...')
+    
+    // Decrypt PKCS#12 using node-forge
+    const p12Der = p12Buffer.toString('binary')
+    const p12Asn1 = pkcs12.pkcs12FromAsn1(pkcs12.asn1.fromDer(p12Der))
+    
+    console.log('PKCS#12 loaded, attempting to decrypt with password...')
+    
+    // Decrypt with password
+    const p12 = pkcs12.pkcs12FromAsn1(p12Asn1, password)
+    
+    console.log('PKCS#12 decrypted successfully!')
+    
+    // Get certificate bags
+    const certBags = p12.getBags({ bagType: pkcs12.oids.certBag })
+    const bags = certBags[pkcs12.oids.certBag]
+    
+    if (!bags || bags.length === 0) {
+      throw new Error('Nenhum certificado encontrado no arquivo PKCS#12')
     }
     
-    if (!certData) {
-      throw new Error('Não foi possível extrair o certificado X.509 do arquivo PKCS#12. Verifique se o arquivo e a senha estão corretos.')
+    console.log(`Found ${bags.length} certificate(s) in PKCS#12`)
+    
+    // Get the first certificate
+    const cert = bags[0].cert
+    
+    if (!cert) {
+      throw new Error('Certificado não encontrado ou corrompido no PKCS#12')
     }
     
-    console.log('=== Starting certificate analysis using node:crypto ===')
+    console.log('Certificate extracted from PKCS#12, converting to X509Certificate...')
     
-    // Create X509Certificate instance
-    const certificate = new X509Certificate(Buffer.from(certData))
+    // Convert to PEM format
+    const certPem = pkcs12.pki.certificateToPem(cert)
+    console.log('Certificate converted to PEM format')
     
+    // Create X509Certificate instance using node:crypto
+    const certificate = new X509Certificate(certPem)
+    
+    console.log('=== Certificate analysis using node:crypto ===')
     console.log('Certificate subject:', certificate.subject)
     console.log('Certificate issuer:', certificate.issuer)
     console.log('Certificate valid from:', certificate.validFrom)
     console.log('Certificate valid to:', certificate.validTo)
     console.log('Certificate serial number:', certificate.serialNumber)
-    console.log('Certificate fingerprint:', certificate.fingerprint)
     
-    // Extract subject information
+    // Extract subject information using native methods
     const subject: { cn?: string; o?: string } = {}
     
     // Parse subject string to extract CN and O
@@ -210,7 +227,7 @@ function processPKCS12Certificate(certBuffer: Uint8Array, password: string): Cer
     
     console.log('Extracted subject:', subject)
     
-    // Extract validity dates (already in proper format from node:crypto)
+    // Extract validity dates using native properties
     const validity = {
       notBefore: certificate.validFrom,
       notAfter: certificate.validTo
@@ -218,7 +235,7 @@ function processPKCS12Certificate(certBuffer: Uint8Array, password: string): Cer
     
     console.log('Extracted validity:', validity)
     
-    // Extract serial number (already formatted from node:crypto)
+    // Extract serial number using native property
     const serialNumber = certificate.serialNumber
     
     console.log('Extracted serial number:', serialNumber)
@@ -232,12 +249,14 @@ function processPKCS12Certificate(certBuffer: Uint8Array, password: string): Cer
     console.log('Validity:', validity)
     console.log('Serial Number:', serialNumber)
     
-    // Check if we have essential data
+    // Validation - ensure we have essential data
     if (!subject.cn && !subject.o) {
+      console.error('No subject information found')
       throw new Error('Não foi possível extrair informações do subject do certificado.')
     }
     
     if (!validity.notBefore || !validity.notAfter) {
+      console.error('No validity dates found')
       throw new Error('Não foi possível extrair datas de validade do certificado.')
     }
     
@@ -249,8 +268,18 @@ function processPKCS12Certificate(certBuffer: Uint8Array, password: string): Cer
     }
     
   } catch (error) {
-    console.error('Error processing certificate with node:crypto:', error)
-    throw new Error('Não foi possível extrair os dados necessários do certificado. O certificado pode estar corrompido ou em um formato não suportado.')
+    console.error('Error processing PKCS#12 certificate:', error)
+    
+    // Check for specific error types
+    if (error.message?.includes('Invalid password') || error.message?.includes('MAC verify error')) {
+      throw new Error('Senha incorreta para o certificado PKCS#12.')
+    }
+    
+    if (error.message?.includes('Invalid PKCS#12') || error.message?.includes('not a PKCS#12')) {
+      throw new Error('Arquivo não é um certificado PKCS#12 válido.')
+    }
+    
+    throw new Error(`Erro ao processar certificado PKCS#12: ${error.message}`)
   }
 }
 
