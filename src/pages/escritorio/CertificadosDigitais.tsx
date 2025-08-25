@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react"
-import { useDropzone } from "react-dropzone"
-import { Eye, EyeOff, Download, Edit, Trash2, Info, Upload, Shield, AlertTriangle, CheckCircle } from "lucide-react"
+import { Eye, EyeOff, Download, Edit, Trash2, Info, Upload, Shield, AlertTriangle, CheckCircle, FileText } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -41,6 +40,15 @@ interface Client {
   cnpj: string
 }
 
+interface CertificateData {
+  cnpj_certificado: string
+  razao_social: string
+  emissor: string
+  numero_serie: string
+  data_inicio: string
+  data_vencimento: string
+}
+
 export default function CertificadosDigitais() {
   console.debug('[CertificadosDigitais] Component initializing')
   
@@ -54,6 +62,13 @@ export default function CertificadosDigitais() {
   const [uploading, setUploading] = useState(false)
   const [senha, setSenha] = useState("")
   const [showPassword, setShowPassword] = useState(false)
+  
+  // New states for certificate processing
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [certificateData, setCertificateData] = useState<CertificateData | null>(null)
+  const [showPreview, setShowPreview] = useState(false)
+  const [selectedClientId, setSelectedClientId] = useState<string>("")
+  const [processing, setProcessing] = useState(false)
   
   // Component mounted flag to prevent state updates after unmount
   const mountedRef = useRef(true)
@@ -81,55 +96,22 @@ export default function CertificadosDigitais() {
     }
   }, [toast])
 
-  // File upload handler - moved here to prevent dropzone initialization issues
-  const handleFileUpload = useCallback(async (file: File) => {
-    console.debug('[CertificadosDigitais] handleFileUpload - start:', {
+  // Process certificate to extract data without saving
+  const processCertificate = useCallback(async (file: File, password: string) => {
+    console.debug('[CertificadosDigitais] processCertificate - start:', {
       fileName: file.name,
-      fileSize: file.size,
-      hasPassword: Boolean(senha.trim())
+      fileSize: file.size
     })
 
-    if (!senha.trim()) {
-      console.warn('[CertificadosDigitais] handleFileUpload - password missing')
-      safeToast({
-        title: "Erro",
-        description: "Por favor, informe a senha do certificado.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    safeSetState(() => setUploading(true))
+    setProcessing(true)
 
     try {
-      // Upload file to storage
-      const fileName = `${Date.now()}-${file.name}`
-      console.debug('[CertificadosDigitais] handleFileUpload - uploading file:', fileName)
-      
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('certificados-digitais')
-        .upload(fileName, file)
-
-      if (uploadError) {
-        console.error('[CertificadosDigitals] handleFileUpload - upload error:', uploadError)
-        throw uploadError
-      }
-
-      console.debug('[CertificadosDigitais] handleFileUpload - file uploaded successfully')
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('certificados-digitais')
-        .getPublicUrl(fileName)
-
-      console.debug('[CertificadosDigitais] handleFileUpload - got public URL:', publicUrl)
-      
       // Process certificate to extract info
       const formData = new FormData()
       formData.append('file', file)
-      formData.append('password', senha)
+      formData.append('password', password)
 
-      console.debug('[CertificadosDigitais] handleFileUpload - calling process-certificate function')
+      console.debug('[CertificadosDigitais] processCertificate - calling process-certificate function')
       
       // Use fetch to ensure proper multipart/form-data handling
       const { data: { session } } = await supabase.auth.getSession()
@@ -143,14 +125,11 @@ export default function CertificadosDigitais() {
         body: formData
       })
 
-      console.debug('[CertificadosDigitais] handleFileUpload - function response status:', response.status)
+      console.debug('[CertificadosDigitais] processCertificate - function response status:', response.status)
 
       if (!response.ok) {
         const errorText = await response.text()
-        console.error('[CertificadosDigitais] handleFileUpload - function error:', errorText)
-        
-        // Clean up uploaded file
-        await supabase.storage.from('certificados-digitais').remove([fileName])
+        console.error('[CertificadosDigitais] processCertificate - function error:', errorText)
         
         let errorMessage = "Erro ao processar certificado"
         try {
@@ -165,42 +144,119 @@ export default function CertificadosDigitais() {
           description: errorMessage,
           variant: "destructive",
         })
-        return
+        return null
       }
 
       const certInfo = await response.json()
-      console.debug('[CertificadosDigitais] handleFileUpload - certificate info extracted:', certInfo)
+      console.debug('[CertificadosDigitais] processCertificate - certificate info extracted:', certInfo)
 
+      return certInfo
+    } catch (error) {
+      console.error('[CertificadosDigitais] processCertificate - unexpected error:', error)
+      safeToast({
+        title: "Erro",
+        description: "Não foi possível processar o certificado digital.",
+        variant: "destructive",
+      })
+      return null
+    } finally {
+      setProcessing(false)
+    }
+  }, [safeToast])
+
+  // Handle file selection
+  const handleFileSelect = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    console.debug('[CertificadosDigitais] handleFileSelect - file selected:', file.name)
+
+    // Validate file type
+    if (!file.name.toLowerCase().endsWith('.pfx') && !file.name.toLowerCase().endsWith('.p12')) {
+      safeToast({
+        title: "Arquivo inválido",
+        description: "Por favor, selecione apenas arquivos .pfx ou .p12.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!senha.trim()) {
+      safeToast({
+        title: "Senha obrigatória",
+        description: "Por favor, informe a senha do certificado antes de selecionar o arquivo.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setSelectedFile(file)
+
+    // Process certificate to extract data
+    const certData = await processCertificate(file, senha)
+    if (certData) {
+      setCertificateData(certData)
+      
       // Find matching client by CNPJ
       const matchingClient = clients.find(client => 
-        client.cnpj.replace(/\D/g, '') === certInfo.cnpj_certificado.replace(/\D/g, '')
+        client.cnpj.replace(/\D/g, '') === certData.cnpj_certificado.replace(/\D/g, '')
       )
+      
+      if (matchingClient) {
+        setSelectedClientId(matchingClient.id)
+      } else {
+        setSelectedClientId("")
+      }
+      
+      setShowPreview(true)
+    }
+  }, [senha, clients, processCertificate, safeToast])
 
-      console.debug('[CertificadosDigitais] handleFileUpload - matching client:', matchingClient)
+  // Save certificate after preview confirmation
+  const saveCertificate = useCallback(async () => {
+    if (!selectedFile || !certificateData || !selectedClientId) {
+      safeToast({
+        title: "Erro",
+        description: "Dados incompletos para salvar o certificado.",
+        variant: "destructive",
+      })
+      return
+    }
 
-      if (!matchingClient) {
-        console.warn('[CertificadosDigitais] handleFileUpload - client not found for CNPJ:', certInfo.cnpj_certificado)
-        
-        // Clean up uploaded file
-        await supabase.storage.from('certificados-digitais').remove([fileName])
-        
-        safeToast({
-          title: "Cliente não encontrado",
-          description: `Não foi encontrado um cliente cadastrado com o CNPJ ${certInfo.cnpj_certificado}. Cadastre o cliente antes de adicionar o certificado.`,
-          variant: "destructive",
-        })
-        return
+    safeSetState(() => setUploading(true))
+
+    try {
+      // Upload file to storage
+      const fileName = `${Date.now()}-${selectedFile.name}`
+      console.debug('[CertificadosDigitais] saveCertificate - uploading file:', fileName)
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('certificados-digitais')
+        .upload(fileName, selectedFile)
+
+      if (uploadError) {
+        console.error('[CertificadosDigitals] saveCertificate - upload error:', uploadError)
+        throw uploadError
       }
 
+      console.debug('[CertificadosDigitais] saveCertificate - file uploaded successfully')
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('certificados-digitais')
+        .getPublicUrl(fileName)
+
+      console.debug('[CertificadosDigitais] saveCertificate - got public URL:', publicUrl)
+
       // Check if there's an existing certificate for this client and delete it
-      console.debug('[CertificadosDigitais] handleFileUpload - checking for existing certificates')
+      console.debug('[CertificadosDigitais] saveCertificate - checking for existing certificates')
       const { data: existingCerts } = await supabase
         .from('certificados_digitais')
         .select('*')
-        .eq('client_id', matchingClient.id)
+        .eq('client_id', selectedClientId)
 
       if (existingCerts && existingCerts.length > 0) {
-        console.debug('[CertificadosDigitais] handleFileUpload - replacing existing certificates:', existingCerts.length)
+        console.debug('[CertificadosDigitais] saveCertificate - replacing existing certificates:', existingCerts.length)
         
         for (const existingCert of existingCerts) {
           try {
@@ -216,7 +272,7 @@ export default function CertificadosDigitais() {
               .delete()
               .eq('id', existingCert.id)
           } catch (error) {
-            console.error('[CertificadosDigitais] handleFileUpload - error deleting existing cert:', error)
+            console.error('[CertificadosDigitais] saveCertificate - error deleting existing cert:', error)
           }
         }
       }
@@ -225,77 +281,49 @@ export default function CertificadosDigitais() {
       const senhaEncriptada = btoa(senha)
 
       // Save certificate info to database
-      console.debug('[CertificadosDigitais] handleFileUpload - saving to database')
+      console.debug('[CertificadosDigitais] saveCertificate - saving to database')
       const { error: dbError } = await supabase
         .from('certificados_digitais')
         .insert({
-          client_id: matchingClient.id,
-          nome_arquivo: file.name,
+          client_id: selectedClientId,
+          nome_arquivo: selectedFile.name,
           url: publicUrl,
           senha_criptografada: senhaEncriptada,
-          cnpj_certificado: certInfo.cnpj_certificado,
-          emissor: certInfo.emissor,
-          numero_serie: certInfo.numero_serie,
-          data_inicio: certInfo.data_inicio,
-          data_vencimento: certInfo.data_vencimento,
-          tamanho: file.size,
-          mime_type: file.type
+          cnpj_certificado: certificateData.cnpj_certificado,
+          emissor: certificateData.emissor,
+          numero_serie: certificateData.numero_serie,
+          data_inicio: certificateData.data_inicio,
+          data_vencimento: certificateData.data_vencimento,
+          tamanho: selectedFile.size,
+          mime_type: selectedFile.type
         })
 
       if (dbError) {
-        console.error('[CertificadosDigitals] handleFileUpload - database error:', dbError)
+        console.error('[CertificadosDigitals] saveCertificate - database error:', dbError)
         throw dbError
       }
 
-      console.debug('[CertificadosDigitais] handleFileUpload - success')
+      const selectedClient = clients.find(c => c.id === selectedClientId)
+      console.debug('[CertificadosDigitais] saveCertificate - success')
       safeToast({
         title: "Sucesso",
-        description: `Certificado adicionado para ${matchingClient.nome_empresarial}`,
+        description: `Certificado adicionado para ${selectedClient?.nome_empresarial}`,
       })
 
       handleModalClose()
       fetchCertificados()
 
     } catch (error) {
-      console.error('[CertificadosDigitais] handleFileUpload - unexpected error:', error)
+      console.error('[CertificadosDigitais] saveCertificate - unexpected error:', error)
       safeToast({
         title: "Erro",
-        description: "Não foi possível processar o certificado digital.",
+        description: "Não foi possível salvar o certificado digital.",
         variant: "destructive",
       })
     } finally {
       safeSetState(() => setUploading(false))
     }
-  }, [senha, clients, safeToast, safeSetState])
-
-  // Dropzone configuration with safe initialization
-  const [dropzoneProps, setDropzoneProps] = useState<any>({})
-
-  // Initialize dropzone hook once with safe defaults
-  const dropzone = useDropzone({
-    accept: {
-      'application/x-pkcs12': ['.pfx', '.p12']
-    },
-    maxFiles: 1,
-    onDrop: (files: File[]) => {
-      console.debug('[CertificadosDigitais] Files dropped:', files.length)
-      if (files.length > 0) {
-        handleFileUpload(files[0])
-      }
-    }
-  })
-
-  useEffect(() => {
-    // Set dropzone props after initialization
-    if (dropzone) {
-      setDropzoneProps({
-        getRootProps: dropzone.getRootProps,
-        getInputProps: dropzone.getInputProps,
-        isDragActive: dropzone.isDragActive,
-        acceptedFiles: dropzone.acceptedFiles || []
-      })
-    }
-  }, [dropzone, dropzone.isDragActive, dropzone.acceptedFiles])
+  }, [selectedFile, certificateData, selectedClientId, senha, clients, safeToast, safeSetState])
 
   // Cleanup function
   useEffect(() => {
@@ -376,6 +404,10 @@ export default function CertificadosDigitais() {
         setUploadModalOpen(true)
         setSenha("")
         setShowPassword(false)
+        setSelectedFile(null)
+        setCertificateData(null)
+        setShowPreview(false)
+        setSelectedClientId("")
       })
     } catch (error) {
       console.error('[CertificadosDigitais] handleModalOpen - error:', error)
@@ -391,34 +423,15 @@ export default function CertificadosDigitais() {
         setSenha("")
         setShowPassword(false)
         setUploading(false)
+        setSelectedFile(null)
+        setCertificateData(null)
+        setShowPreview(false)
+        setSelectedClientId("")
       })
-      
-      // Reset dropzone state completely
-      if (dropzone) {
-        // Reset input file value
-        if (dropzone.inputRef && dropzone.inputRef.current) {
-          dropzone.inputRef.current.value = ''
-          dropzone.inputRef.current.files = null
-        }
-        
-        // Force re-render of dropzone props with fresh state
-        setDropzoneProps({
-          getRootProps: dropzone.getRootProps,
-          getInputProps: dropzone.getInputProps,
-          isDragActive: false,
-          acceptedFiles: []
-        })
-      } else {
-        // Fallback: reset dropzone props to empty state
-        setDropzoneProps({})
-      }
-      
-      console.debug('[CertificadosDigitais] handleModalClose - dropzone reset complete')
     } catch (error) {
       console.error('[CertificadosDigitais] handleModalClose - error:', error)
     }
-  }, [safeSetState, dropzone])
-
+  }, [safeSetState])
 
   const getStatusInfo = (dataVencimento: string) => {
     try {
@@ -594,11 +607,11 @@ export default function CertificadosDigitais() {
               Adicionar Certificado
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px]">
+          <DialogContent className="sm:max-w-[700px]">
             <DialogHeader>
               <DialogTitle>Adicionar Certificado Digital</DialogTitle>
               <DialogDescription>
-                Faça upload de um certificado digital (.pfx ou .p12) e informe a senha.
+                Selecione um certificado digital (.pfx ou .p12) e informe a senha para visualizar os dados antes de salvar.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -611,7 +624,7 @@ export default function CertificadosDigitais() {
                     value={senha}
                     onChange={(e) => setSenha(e.target.value)}
                     placeholder="Digite a senha do certificado"
-                    disabled={uploading}
+                    disabled={uploading || processing}
                   />
                   <Button
                     type="button"
@@ -619,51 +632,120 @@ export default function CertificadosDigitais() {
                     size="sm"
                     className="absolute right-0 top-0 h-full px-3"
                     onClick={togglePasswordVisibility}
-                    disabled={uploading}
+                    disabled={uploading || processing}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
                 </div>
               </div>
-              <div
-                {...(dropzoneProps.getRootProps ? dropzoneProps.getRootProps() : {})}
-                className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-                  dropzoneProps.isDragActive
-                    ? 'border-primary bg-primary/10'
-                    : 'border-muted-foreground/25 hover:border-primary hover:bg-primary/5'
-                } ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <input {...(dropzoneProps.getInputProps ? dropzoneProps.getInputProps() : {})} disabled={uploading} />
-                <Shield className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                {dropzoneProps.isDragActive ? (
-                  <p>Solte o arquivo aqui...</p>
-                ) : (
-                  <div>
-                    <p className="mb-2">
-                      Arraste e solte um certificado aqui, ou clique para selecionar
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Apenas arquivos .pfx e .p12 são aceitos
-                    </p>
-                  </div>
-                )}
-                {(dropzoneProps.acceptedFiles || []).length > 0 && (
-                  <div className="mt-4 p-2 bg-muted rounded">
-                    <p className="text-sm font-medium">{(dropzoneProps.acceptedFiles || [])[0]?.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {((dropzoneProps.acceptedFiles || [])[0]?.size / 1024)?.toFixed(1)} KB
-                    </p>
-                  </div>
-                )}
+
+              <div>
+                <Label htmlFor="certificateFile">Arquivo do Certificado</Label>
+                <div className="mt-1">
+                  <Input
+                    id="certificateFile"
+                    type="file"
+                    accept=".pfx,.p12"
+                    onChange={handleFileSelect}
+                    disabled={uploading || processing}
+                    className="cursor-pointer"
+                  />
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Apenas arquivos .pfx e .p12 são aceitos
+                  </p>
+                </div>
               </div>
-              {(dropzoneProps.acceptedFiles || []).length > 0 && (
-                <Button
-                  onClick={() => handleFileUpload((dropzoneProps.acceptedFiles || [])[0])}
-                  disabled={uploading || !senha.trim()}
-                  className="w-full"
-                >
-                  {uploading ? "Processando..." : "Adicionar Certificado"}
-                </Button>
+
+              {processing && (
+                <div className="flex items-center justify-center p-4 border rounded-lg bg-muted/50">
+                  <div className="animate-spin mr-2">
+                    <Shield className="h-4 w-4" />
+                  </div>
+                  <span className="text-sm">Processando certificado...</span>
+                </div>
+              )}
+
+              {showPreview && certificateData && (
+                <div className="border rounded-lg p-4 space-y-4 bg-muted/20">
+                  <div className="flex items-center gap-2 mb-3">
+                    <FileText className="h-5 w-5 text-primary" />
+                    <h3 className="font-semibold">Dados do Certificado</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-sm font-medium">Razão Social</Label>
+                      <p className="text-sm text-muted-foreground">{certificateData.razao_social}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium">CNPJ</Label>
+                      <p className="text-sm text-muted-foreground">{certificateData.cnpj_certificado}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium">Emissor</Label>
+                      <p className="text-sm text-muted-foreground">{certificateData.emissor}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium">Número de Série</Label>
+                      <p className="text-sm text-muted-foreground">{certificateData.numero_serie}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium">Data de Início</Label>
+                      <p className="text-sm text-muted-foreground">
+                        {format(new Date(certificateData.data_inicio), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium">Data de Vencimento</Label>
+                      <p className="text-sm text-muted-foreground">
+                        {format(new Date(certificateData.data_vencimento), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="clientSelect">Vincular ao Cliente</Label>
+                    <Select value={selectedClientId} onValueChange={setSelectedClientId}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Selecione um cliente" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {clients.map((client) => (
+                          <SelectItem key={client.id} value={client.id}>
+                            {client.nome_empresarial} - {client.cnpj}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {!selectedClientId && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Selecione um cliente para vincular o certificado
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      onClick={saveCertificate}
+                      disabled={uploading || !selectedClientId}
+                      className="flex-1"
+                    >
+                      {uploading ? "Salvando..." : "Salvar Certificado"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowPreview(false)
+                        setCertificateData(null)
+                        setSelectedFile(null)
+                        setSelectedClientId("")
+                      }}
+                      disabled={uploading}
+                    >
+                      Cancelar
+                    </Button>
+                  </div>
+                </div>
               )}
             </div>
           </DialogContent>
