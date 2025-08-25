@@ -433,9 +433,62 @@ export default function CertificadosDigitais() {
     }
   }, [safeSetState])
 
+  // Safe date formatting function
+  const formatDate = (dateStr: string, formatStr: string = 'dd/MM/yyyy'): string => {
+    try {
+      // Parse date safely - handles both ISO and Brazilian formats  
+      const parseDate = (dateString: string): Date => {
+        // First try as ISO date
+        let date = new Date(dateString)
+        if (!isNaN(date.getTime())) {
+          return date
+        }
+        
+        // If not ISO, try as Brazilian format DD/MM/YYYY
+        const brMatch = dateString.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+        if (brMatch) {
+          const [, day, month, year] = brMatch
+          date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+          if (!isNaN(date.getTime())) {
+            return date
+          }
+        }
+        
+        throw new Error(`Invalid date format: ${dateString}`)
+      }
+      
+      const date = parseDate(dateStr)
+      return format(date, formatStr, { locale: ptBR })
+    } catch (error) {
+      console.error('[CertificadosDigitais] formatDate error:', error, 'for date:', dateStr)
+      return 'Data inválida'
+    }
+  }
+
   const getStatusInfo = (dataVencimento: string) => {
     try {
-      const vencimento = new Date(dataVencimento)
+      // Parse date safely - handles both ISO and Brazilian formats
+      const parseDate = (dateStr: string): Date => {
+        // First try as ISO date
+        let date = new Date(dateStr)
+        if (!isNaN(date.getTime())) {
+          return date
+        }
+        
+        // If not ISO, try as Brazilian format DD/MM/YYYY
+        const brMatch = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+        if (brMatch) {
+          const [, day, month, year] = brMatch
+          date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+          if (!isNaN(date.getTime())) {
+            return date
+          }
+        }
+        
+        throw new Error(`Invalid date format: ${dateStr}`)
+      }
+      
+      const vencimento = parseDate(dataVencimento)
       const hoje = new Date()
       const diasRestantes = Math.ceil((vencimento.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24))
 
@@ -447,7 +500,7 @@ export default function CertificadosDigitais() {
         return { status: 'valido', label: 'Válido', variant: 'success' as const, icon: CheckCircle }
       }
     } catch (error) {
-      console.error('[CertificadosDigitais] getStatusInfo - error:', error)
+      console.error('[CertificadosDigitais] getStatusInfo - error:', error, 'for date:', dataVencimento)
       return { status: 'erro', label: 'Erro', variant: 'destructive' as const, icon: AlertTriangle }
     }
   }
@@ -689,18 +742,18 @@ export default function CertificadosDigitais() {
                       <Label className="text-sm font-medium">Número de Série</Label>
                       <p className="text-sm text-muted-foreground">{certificateData.numero_serie}</p>
                     </div>
-                    <div>
-                      <Label className="text-sm font-medium">Data de Início</Label>
-                      <p className="text-sm text-muted-foreground">
-                        {format(new Date(certificateData.data_inicio), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
-                      </p>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium">Data de Vencimento</Label>
-                      <p className="text-sm text-muted-foreground">
-                        {format(new Date(certificateData.data_vencimento), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
-                      </p>
-                    </div>
+                     <div>
+                       <Label className="text-sm font-medium">Data de Início</Label>
+                       <p className="text-sm text-muted-foreground">
+                         {formatDate(certificateData.data_inicio, 'dd/MM/yyyy HH:mm')}
+                       </p>
+                     </div>
+                     <div>
+                       <Label className="text-sm font-medium">Data de Vencimento</Label>
+                       <p className="text-sm text-muted-foreground">
+                         {formatDate(certificateData.data_vencimento, 'dd/MM/yyyy HH:mm')}
+                       </p>
+                     </div>
                   </div>
 
                   <div>
@@ -797,12 +850,12 @@ export default function CertificadosDigitais() {
                         </TableCell>
                         <TableCell>{certificado.cnpj_certificado}</TableCell>
                         <TableCell>{certificado.emissor}</TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            <div>Início: {format(new Date(certificado.data_inicio), 'dd/MM/yyyy', { locale: ptBR })}</div>
-                            <div>Fim: {format(new Date(certificado.data_vencimento), 'dd/MM/yyyy', { locale: ptBR })}</div>
-                          </div>
-                        </TableCell>
+                         <TableCell>
+                           <div className="text-sm">
+                             <div>Início: {formatDate(certificado.data_inicio)}</div>
+                             <div>Fim: {formatDate(certificado.data_vencimento)}</div>
+                           </div>
+                         </TableCell>
                         <TableCell>
                           <Badge variant={statusInfo.variant} className="flex items-center gap-1 w-fit">
                             <StatusIcon className="h-3 w-3" />
@@ -919,18 +972,18 @@ export default function CertificadosDigitais() {
                     {selectedCertificado.nome_arquivo}
                   </p>
                 </div>
-                <div>
-                  <Label className="text-sm font-medium">Data de Início</Label>
-                  <p className="text-sm text-muted-foreground">
-                    {format(new Date(selectedCertificado.data_inicio), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
-                  </p>
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Data de Vencimento</Label>
-                  <p className="text-sm text-muted-foreground">
-                    {format(new Date(selectedCertificado.data_vencimento), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
-                  </p>
-                </div>
+                 <div>
+                   <Label className="text-sm font-medium">Data de Início</Label>
+                   <p className="text-sm text-muted-foreground">
+                     {formatDate(selectedCertificado.data_inicio, 'dd/MM/yyyy HH:mm')}
+                   </p>
+                 </div>
+                 <div>
+                   <Label className="text-sm font-medium">Data de Vencimento</Label>
+                   <p className="text-sm text-muted-foreground">
+                     {formatDate(selectedCertificado.data_vencimento, 'dd/MM/yyyy HH:mm')}
+                   </p>
+                 </div>
                 <div>
                   <Label className="text-sm font-medium">Tamanho</Label>
                   <p className="text-sm text-muted-foreground">
