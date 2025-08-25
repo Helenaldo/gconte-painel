@@ -50,6 +50,7 @@ export function Indicadores() {
     "Imobilização do Patrimônio Líquido (IPL)",
     "Margem Bruta (%)",
     "Margem Líquida (%)",
+    "Margem Líquida Acumulada (%)",
     "Giro do Ativo",
     "Prazo Médio de Pagamento (PMP)",
     "Prazo Médio de Estocagem (PME)",
@@ -93,7 +94,8 @@ export function Indicadores() {
       titulo: 'Indicadores de Rentabilidade / Lucratividade',
       itens: [
         'Margem Bruta (%)',
-        'Margem Líquida (%)'
+        'Margem Líquida (%)',
+        'Margem Líquida Acumulada (%)'
       ],
     },
     {
@@ -139,6 +141,7 @@ export function Indicadores() {
     "Imobilização do Patrimônio Líquido (IPL)": "Avalia quanto do patrimônio líquido está aplicado em ativos imobilizados, como máquinas, equipamentos e imóveis, reduzindo a disponibilidade para capital de giro.",
     "Margem Bruta (%)": "Representa o percentual que sobra da receita líquida após a dedução dos custos diretos de produção ou prestação de serviços. Mede a eficiência produtiva da empresa.",
     "Margem Líquida (%)": "Indica o percentual do lucro líquido obtido sobre a receita líquida, refletindo a lucratividade final após todos os custos, despesas e tributos.",
+    "Margem Líquida Acumulada (%)": "Representa o percentual de margem líquida com base nos saldos acumulados das contas de receitas, custos e despesas operacionais. Diferentemente da margem líquida mensal (que usa movimento), este indicador considera os valores totais acumulados no saldo atual das contas.",
     "Giro do Ativo": "Mede a eficiência da empresa em gerar receita com o uso de seus ativos. Quanto maior, mais eficiente é a utilização dos recursos. Este número representa quantas vezes o ativo gira em um ano.",
     "Prazo Médio de Pagamento (PMP)": "Mede o tempo médio, em dias, que a empresa leva para pagar seus fornecedores, ajustado proporcionalmente ao mês de referência. Um prazo maior pode indicar melhor negociação, mas também pode afetar o relacionamento com fornecedores.",
     "Prazo Médio de Estocagem (PME)": "Indica o tempo médio, em dias, que os produtos permanecem em estoque antes de serem vendidos, ajustado proporcionalmente ao mês de referência. Prazos longos podem representar capital parado e risco de obsolescência.",
@@ -207,6 +210,11 @@ export function Indicadores() {
       'Receitas': 'movimento',
       'Custos': 'movimento',
       'Despesas': 'movimento',
+    },
+    'Margem Líquida Acumulada (%)': {
+      '3 RECEITAS': 'saldo_atual',
+      '4.1 CUSTOS': 'saldo_atual', 
+      '4.2 DESPESAS OPERACIONAIS': 'saldo_atual',
     },
     'Giro do Ativo': {
       'Receitas': 'movimento',
@@ -647,6 +655,19 @@ export function Indicadores() {
           }
         }
 
+        // Margem Líquida Acumulada: precisa de Receitas (3), Custos (4.1) e Despesas Operacionais (4.2) parametrizados
+        {
+          if (temContasParametrizadas('3') && temContasParametrizadas('4.1') && temContasParametrizadas('4.2')) {
+            const rec = obterValorContaPorFonte('3', getVarFonte("Margem Líquida Acumulada (%)", '3 RECEITAS'))
+            const custos41 = obterValorContaPorFonte('4.1', getVarFonte("Margem Líquida Acumulada (%)", '4.1 CUSTOS'))
+            const despesas42 = obterValorContaPorFonte('4.2', getVarFonte("Margem Líquida Acumulada (%)", '4.2 DESPESAS OPERACIONAIS'))
+            const lucroLiquidoAcumulado = rec - custos41 - despesas42
+            resultadosIndicadores["Margem Líquida Acumulada (%)"][mesNome] = rec !== 0 ? (lucroLiquidoAcumulado / rec) * 100 : null
+          } else {
+            resultadosIndicadores["Margem Líquida Acumulada (%)"][mesNome] = null
+          }
+        }
+
         // Giro do Ativo: precisa de Receitas (3.1) e Ativo Total (1.1 + 1.2) parametrizados
         {
           if (temContasParametrizadas('3.1') && temContasParametrizadas('1.1') && temContasParametrizadas('1.2')) {
@@ -917,6 +938,7 @@ export function Indicadores() {
       "Imobilização do Patrimônio Líquido (IPL)": "(Imobilizado - Depreciação Acumulada) ÷ Patrimônio Líquido",
       "Margem Bruta (%)": "(Lucro Bruto ÷ Receita Líquida) × 100",
       "Margem Líquida (%)": "((3 RECEITAS - 4.1 CUSTOS - 4.2 DESPESAS OPERACIONAIS) ÷ 3 RECEITAS) × 100",
+      "Margem Líquida Acumulada (%)": "((3 RECEITAS - 4.1 CUSTOS - 4.2 DESPESAS OPERACIONAIS) ÷ 3 RECEITAS) × 100",
       "Giro do Ativo": "(Receita Líquida ÷ Ativo Total) × 12",
       "Capital Circulante Líquido (CCL)": "Ativo Circulante – Passivo Circulante",
       "Receitas Líquidas": "3 RECEITAS",
@@ -1073,6 +1095,17 @@ export function Indicadores() {
         return {
           componentes: [rec, custos41, despesas42, { label: 'Lucro Líquido', valor: lucroLiquido }],
           resultado: rec.valor > 0 ? (lucroLiquido / rec.valor) * 100 : null
+        }
+      }
+
+      case "Margem Líquida Acumulada (%)": {
+        const rec = comp('3 RECEITAS', '3')
+        const custos41 = comp('4.1 CUSTOS', '4.1')
+        const despesas42 = comp('4.2 DESPESAS OPERACIONAIS', '4.2')
+        const lucroLiquidoAcumulado = rec.valor - custos41.valor - despesas42.valor
+        return {
+          componentes: [rec, custos41, despesas42, { label: 'Lucro Líquido Acumulado', valor: lucroLiquidoAcumulado }],
+          resultado: rec.valor > 0 ? (lucroLiquidoAcumulado / rec.valor) * 100 : null
         }
       }
 
