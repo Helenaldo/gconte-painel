@@ -126,38 +126,85 @@ function parseSubject(subjectData: Uint8Array): { cn?: string, o?: string } {
 
 function extractCNPJFromSAN(certData: Uint8Array): string | null {
   try {
-    // Look for SAN extension OID 2.5.29.17 (0x55, 0x1D, 0x11)
+    console.log('Starting CNPJ extraction from SAN...')
+    
+    // Search for different possible patterns of CNPJ in the certificate
+    // Look for sequences that might contain CNPJ (14 consecutive digits)
+    const dataStr = Array.from(certData).map(b => String.fromCharCode(b)).join('')
+    
+    // Search for 14 consecutive digits anywhere in the certificate
+    const cnpjMatches = dataStr.match(/\d{14}/g)
+    if (cnpjMatches && cnpjMatches.length > 0) {
+      console.log('Found potential CNPJ candidates:', cnpjMatches)
+      
+      // Return the first 14-digit sequence found
+      const cnpj = cnpjMatches[0]
+      console.log('Using CNPJ:', cnpj)
+      return cnpj.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
+    }
+    
+    // Fallback: look for SAN extension and try different OID patterns
     const sanIndex = certData.findIndex((byte, i) => 
       byte === 0x55 && certData[i + 1] === 0x1D && certData[i + 2] === 0x11
     )
     
-    if (sanIndex === -1) return null
-    
-    // Look for CNPJ OID 2.16.76.1.3.3 in SAN
-    // OID encoding: 0x60, 0x84, 0x4C, 0x01, 0x03, 0x03
-    for (let i = sanIndex; i < certData.length - 20; i++) {
-      if (certData[i] === 0x60 && certData[i + 1] === 0x84 && 
-          certData[i + 2] === 0x4C && certData[i + 3] === 0x01 && 
-          certData[i + 4] === 0x03 && certData[i + 5] === 0x03) {
+    if (sanIndex !== -1) {
+      console.log('Found SAN extension at index:', sanIndex)
+      
+      // Look for various OID patterns for CNPJ
+      const patterns = [
+        // Original pattern: 2.16.76.1.3.3
+        [0x60, 0x84, 0x4C, 0x01, 0x03, 0x03],
+        // Alternative encodings
+        [0x60, 0x4C, 0x01, 0x03, 0x03],
+        // Look for the raw OID bytes
+        [0x06, 0x08, 0x60, 0x84, 0x4C, 0x01, 0x03, 0x03],
+      ]
+      
+      for (const pattern of patterns) {
+        console.log('Searching for pattern:', pattern.map(b => '0x' + b.toString(16)).join(', '))
         
-        // Found CNPJ OID, now find the value
-        for (let j = i + 6; j < Math.min(i + 50, certData.length - 14); j++) {
-          if (certData[j] === 0x0C || certData[j] === 0x13 || certData[j] === 0x04) { // String types
-            const lengthInfo = parseASN1Length(certData, j + 1)
-            if (lengthInfo.length >= 14) {
-              const cnpjBytes = certData.slice(lengthInfo.nextOffset, lengthInfo.nextOffset + lengthInfo.length)
-              const cnpjStr = new TextDecoder('utf-8').decode(cnpjBytes)
-              
-              // Extract only digits and format
-              const cnpjDigits = cnpjStr.replace(/\D/g, '')
-              if (cnpjDigits.length >= 14) {
-                return cnpjDigits.substring(0, 14).replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
+        for (let i = sanIndex; i < certData.length - pattern.length - 20; i++) {
+          let matches = true
+          for (let k = 0; k < pattern.length; k++) {
+            if (certData[i + k] !== pattern[k]) {
+              matches = false
+              break
+            }
+          }
+          
+          if (matches) {
+            console.log('Found OID pattern at index:', i)
+            
+            // Search for string data after the OID
+            for (let j = i + pattern.length; j < Math.min(i + 100, certData.length - 14); j++) {
+              // Look for different string encodings
+              if (certData[j] === 0x0C || certData[j] === 0x13 || certData[j] === 0x04 || 
+                  certData[j] === 0x16 || certData[j] === 0x1E) {
+                
+                const lengthInfo = parseASN1Length(certData, j + 1)
+                if (lengthInfo.length >= 8 && lengthInfo.length <= 30) {
+                  const valueBytes = certData.slice(lengthInfo.nextOffset, lengthInfo.nextOffset + lengthInfo.length)
+                  const valueStr = new TextDecoder('utf-8').decode(valueBytes)
+                  
+                  console.log('Found potential CNPJ value:', valueStr)
+                  
+                  // Extract digits
+                  const cnpjDigits = valueStr.replace(/\D/g, '')
+                  if (cnpjDigits.length >= 14) {
+                    const cnpj = cnpjDigits.substring(0, 14)
+                    console.log('Extracted CNPJ digits:', cnpj)
+                    return cnpj.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
+                  }
+                }
               }
             }
           }
         }
       }
     }
+    
+    console.log('No CNPJ found in SAN')
   } catch (error) {
     console.error('Error extracting CNPJ from SAN:', error)
   }
