@@ -469,6 +469,74 @@ export function Indicadores() {
     }
   }
 
+  // Função para verificar contas necessárias antes do cálculo
+  const verificarContasNecessarias = async (): Promise<{ success: boolean; message: string }> => {
+    try {
+      const { data: parametrizacoes, error } = await supabase
+        .from('parametrizacoes')
+        .select(`
+          conta_balancete_codigo,
+          plano_contas (
+            codigo, nome
+          )
+        `)
+        .eq('empresa_cnpj', empresaSelecionada)
+
+      if (error) throw error
+
+      const contasParametrizadas = parametrizacoes?.map(p => p.plano_contas?.codigo).filter(Boolean) || []
+      
+      // Verificar contas específicas dos novos indicadores
+      const contasNecessarias = [
+        { codigo: '3.1.2', nome: 'DEDUÇÕES DA RECEITA', indicador: 'Deduções das Receitas' },
+        { codigo: '3.1.3', nome: 'RECEITA FINANCEIRA', indicador: 'Outras Receitas Operacionais' }
+      ]
+
+      const contasFaltando = contasNecessarias.filter(conta => 
+        !contasParametrizadas.some(param => param.startsWith(conta.codigo))
+      )
+
+      if (contasFaltando.length > 0) {
+        const message = `Contas não parametrizadas encontradas: ${contasFaltando.map(c => `${c.codigo} (${c.indicador})`).join(', ')}`
+        console.warn(`[VERIFICAÇÃO] ${message}`)
+        return { success: false, message }
+      }
+
+      console.log(`[VERIFICAÇÃO] ✅ Todas as contas necessárias para os novos indicadores estão parametrizadas`)
+      return { success: true, message: 'Todas as contas necessárias estão parametrizadas' }
+
+    } catch (error) {
+      console.error('Erro na verificação de contas:', error)
+      return { success: false, message: 'Erro ao verificar contas parametrizadas' }
+    }
+  }
+
+  // Função para verificar se os indicadores foram salvos corretamente
+  const verificarIndicadoresSalvos = async (indicadoresEsperados: string[]): Promise<boolean> => {
+    try {
+      const { data: indicadoresSalvos, error } = await supabase
+        .from('indicadores_calculados')
+        .select('nome_indicador')
+        .eq('empresa_cnpj', empresaSelecionada)
+        .eq('ano', parseInt(anoSelecionado))
+        .in('nome_indicador', indicadoresEsperados)
+
+      if (error) throw error
+
+      const nomesSalvos = indicadoresSalvos?.map(i => i.nome_indicador) || []
+      const indicadoresEncontrados = indicadoresEsperados.filter(nome => nomesSalvos.includes(nome))
+      
+      console.log(`[VERIFICAÇÃO SALVAMENTO] Indicadores esperados: ${indicadoresEsperados.join(', ')}`)
+      console.log(`[VERIFICAÇÃO SALVAMENTO] Indicadores encontrados no BD: ${indicadoresEncontrados.join(', ')}`)
+      
+      return indicadoresEncontrados.length === indicadoresEsperados.length
+
+    } catch (error) {
+      console.error('Erro na verificação de salvamento:', error)
+      return false
+    }
+  }
+
   // Função para recalcular e salvar indicadores no banco de dados
   const recalcularESalvar = async () => {
     if (!empresaSelecionada || !anoSelecionado) {
@@ -483,8 +551,33 @@ export function Indicadores() {
     setLoadingSave(true)
 
     try {
+      // Verificar contas necessárias antes do cálculo
+      const verificacao = await verificarContasNecessarias()
+      if (!verificacao.success) {
+        console.warn(`[AVISO] ${verificacao.message}`)
+        toast({
+          title: "Aviso sobre parametrização",
+          description: verificacao.message,
+          variant: "default"
+        })
+      }
+
       // Primeiro, calcular os indicadores (reutilizar lógica existente)
+      console.log(`[CÁLCULO] Iniciando cálculo de indicadores para ${empresaSelecionada} - ${anoSelecionado}`)
       const { resultadosIndicadores } = await calcularIndicadoresInterno()
+
+      // Verificar se os novos indicadores foram calculados
+      const novosIndicadores = ['Deduções das Receitas', 'Outras Receitas Operacionais']
+      const novosIndicadoresCalculados = novosIndicadores.filter(nome => {
+        const dados = resultadosIndicadores[nome]
+        return dados && Object.values(dados).some(valor => valor !== null && valor !== undefined)
+      })
+
+      console.log(`[NOVOS INDICADORES] Calculados com sucesso: ${novosIndicadoresCalculados.join(', ')}`)
+      if (novosIndicadoresCalculados.length < novosIndicadores.length) {
+        const naoCalculados = novosIndicadores.filter(nome => !novosIndicadoresCalculados.includes(nome))
+        console.warn(`[NOVOS INDICADORES] Não calculados: ${naoCalculados.join(', ')}`)
+      }
 
       // Depois, salvar no banco de dados
       const indicadoresParaSalvar: any[] = []
@@ -516,6 +609,13 @@ export function Indicadores() {
         return
       }
 
+      // Log dos novos indicadores que serão salvos
+      const novosIndicadoresParaSalvar = indicadoresParaSalvar.filter(i => novosIndicadores.includes(i.nome_indicador))
+      console.log(`[SALVAMENTO] Novos indicadores a serem salvos: ${novosIndicadoresParaSalvar.length} registros`)
+      novosIndicadoresParaSalvar.forEach(ind => {
+        console.log(`  - ${ind.nome_indicador} - Mês ${ind.mes}: ${ind.valor}`)
+      })
+
       // Remover indicadores existentes para a mesma empresa/ano (para substituir)
       const { error: deleteError } = await supabase
         .from('indicadores_calculados')
@@ -532,9 +632,21 @@ export function Indicadores() {
 
       if (insertError) throw insertError
 
+      console.log(`[SALVAMENTO] ✅ ${indicadoresParaSalvar.length} indicadores salvos com sucesso`)
+
+      // Verificar se os novos indicadores foram salvos corretamente
+      if (novosIndicadoresCalculados.length > 0) {
+        const salvamentoVerificado = await verificarIndicadoresSalvos(novosIndicadoresCalculados)
+        if (salvamentoVerificado) {
+          console.log(`[VERIFICAÇÃO FINAL] ✅ Novos indicadores confirmados no banco de dados`)
+        } else {
+          console.warn(`[VERIFICAÇÃO FINAL] ⚠️ Alguns novos indicadores podem não ter sido salvos corretamente`)
+        }
+      }
+
       toast({
         title: "Indicadores salvos com sucesso",
-        description: `${indicadoresParaSalvar.length} indicadores foram salvos no banco de dados`,
+        description: `${indicadoresParaSalvar.length} indicadores foram salvos no banco de dados${novosIndicadoresCalculados.length > 0 ? `, incluindo ${novosIndicadoresCalculados.length} novos indicadores` : ''}`,
         variant: "default"
       })
 
@@ -995,21 +1107,33 @@ export function Indicadores() {
 
         // Deduções das Receitas
         {
-          if (temContasParametrizadas('3.1.2')) {
+          const contaExists = temContasParametrizadas('3.1.2')
+          console.log(`[NOVO INDICADOR] Deduções das Receitas - Mês ${mes}:`)
+          console.log(`  - Conta 3.1.2 parametrizada: ${contaExists}`)
+          
+          if (contaExists) {
             const deducoes = obterValorContaPorFonte('3.1.2', getVarFonte("Deduções das Receitas", '3.1.2 - DEDUÇÕES DA RECEITA'))
             resultadosIndicadores["Deduções das Receitas"][mesNome] = deducoes
+            console.log(`  - Valor calculado: ${deducoes}`)
           } else {
             resultadosIndicadores["Deduções das Receitas"][mesNome] = null
+            console.log(`  - Indicador não calculado: conta '3.1.2 - DEDUÇÕES DA RECEITA' não parametrizada`)
           }
         }
 
         // Outras Receitas Operacionais
         {
-          if (temContasParametrizadas('3.1.3')) {
+          const contaExists = temContasParametrizadas('3.1.3')
+          console.log(`[NOVO INDICADOR] Outras Receitas Operacionais - Mês ${mes}:`)
+          console.log(`  - Conta 3.1.3 parametrizada: ${contaExists}`)
+          
+          if (contaExists) {
             const outrasReceitas = obterValorContaPorFonte('3.1.3', getVarFonte("Outras Receitas Operacionais", '3.1.3 - RECEITA FINANCEIRA'))
             resultadosIndicadores["Outras Receitas Operacionais"][mesNome] = outrasReceitas
+            console.log(`  - Valor calculado: ${outrasReceitas}`)
           } else {
             resultadosIndicadores["Outras Receitas Operacionais"][mesNome] = null
+            console.log(`  - Indicador não calculado: conta '3.1.3 - RECEITA FINANCEIRA' não parametrizada`)
           }
         }
 
