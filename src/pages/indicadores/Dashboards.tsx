@@ -208,12 +208,14 @@ export function Dashboards() {
 
     if (paramError) throw paramError
 
-    // Processar dados dos indicadores
+    // Buscar indicadores calculados do banco de dados
+    const margemLiquidaMesFim = await buscarIndicadorCalculado(empresaSelecionada, 'Margem Líquida (%)', mesFimMes, anoFim)
+    const margemLiquidaAcumulada = await buscarIndicadorCalculado(empresaSelecionada, 'Margem Líquida Acumulada (%)', mesFimMes, anoFim)
+
+    // Processar dados dos indicadores para outros cálculos
     const indicadoresData = processarIndicadores(balancetes, parametrizacoes)
     
-    // Calcular dados do dashboard
-    const margemLiquidaMesFim = calcularMargemLiquidaMesFim(indicadoresData, mesFimMes, anoFim)
-    const margemLiquidaAcumulada = calcularMargemLiquidaAcumulada(indicadoresData, mesInicioMes, anoInicio, mesFimMes, anoFim)
+    // Calcular dados restantes do dashboard
     const fluxoResultados = calcularFluxoResultados(indicadoresData, mesInicioMes, anoInicio, mesFimMes, anoFim)
     const dreResumo = calcularDREResumo(balancetes, parametrizacoes, mesInicioMes, anoInicio, mesFimMes, anoFim)
     
@@ -223,6 +225,25 @@ export function Dashboards() {
       margemLiquidaAcumulada,
       fluxoResultados,
       dreResumo
+    }
+  }
+
+  const buscarIndicadorCalculado = async (empresaCnpj: string, nomeIndicador: string, mes: number, ano: number): Promise<number | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('indicadores_calculados')
+        .select('valor')
+        .eq('empresa_cnpj', empresaCnpj)
+        .eq('nome_indicador', nomeIndicador)
+        .eq('mes', mes)
+        .eq('ano', ano)
+        .maybeSingle()
+
+      if (error) throw error
+      return data?.valor || null
+    } catch (error) {
+      console.error(`Erro ao buscar indicador ${nomeIndicador}:`, error)
+      return null
     }
   }
   
@@ -607,7 +628,7 @@ export function Dashboards() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <TrendingUp className="h-5 w-5" />
-                    Lucratividade (Mês Fim)
+                    Lucratividade do mês
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -622,7 +643,7 @@ export function Dashboards() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <BarChart3 className="h-5 w-5" />
-                    Lucratividade Acumulada (Período)
+                    Lucratividade Acumulada no Período
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
