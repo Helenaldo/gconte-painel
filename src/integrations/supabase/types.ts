@@ -1104,6 +1104,7 @@ export type Database = {
         | "exigencia"
         | "envio_cliente"
         | "upload"
+        | "diligencia"
       process_prioridade: "baixa" | "media" | "alta" | "critica"
       process_setor:
         | "contabil"
@@ -1256,6 +1257,7 @@ export const Constants = {
         "exigencia",
         "envio_cliente",
         "upload",
+        "diligencia",
       ],
       process_prioridade: ["baixa", "media", "alta", "critica"],
       process_setor: [

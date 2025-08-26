@@ -479,7 +479,7 @@ export default function ProcessoDetalhes() {
         const { error } = await supabase
           .from("movimentos")
           .update({
-            tipo: vals.tipo,
+            tipo: vals.tipo as any,
             descricao: vals.descricao || null,
             responsavel_id: vals.responsavel_id || proc.responsavel_id,
             status_mov: vals.status_mov,
