@@ -158,10 +158,7 @@ export default function ProcessosListar() {
   const navigate = useNavigate();
   const { profile } = useAuth();
 
-  const [filters, setFilters] = useState<Filters>(() => {
-    const saved = localStorage.getItem(storageKey);
-    return saved ? JSON.parse(saved) : {};
-  });
+  const [filters, setFilters] = useState<Filters>({});
 
   const [visibleColumns, setVisibleColumns] = useState<VisibleColumns>(() => {
     const saved = localStorage.getItem(columnsStorageKey);
@@ -206,17 +203,18 @@ export default function ProcessosListar() {
   }, []);
 
   // Read deep-link params (?q, ?search, ?cliente_id, ?responsavel_id)
-  const location = useLocation();
-  useEffect(() => {
-    const sp = new URLSearchParams(location.search);
-    const qParam = sp.get("q") || sp.get("search");
-    const clienteId = sp.get("cliente_id");
-    const responsavelId = sp.get("responsavel_id");
-    if (qParam || clienteId || responsavelId) {
-      setFilters((f) => ({ ...f, q: qParam || f.q, clienteId: clienteId || f.clienteId || null, responsavelId: responsavelId || f.responsavelId || null }));
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Commented out to ensure filters always start clean
+  // const location = useLocation();
+  // useEffect(() => {
+  //   const sp = new URLSearchParams(location.search);
+  //   const qParam = sp.get("q") || sp.get("search");
+  //   const clienteId = sp.get("cliente_id");
+  //   const responsavelId = sp.get("responsavel_id");
+  //   if (qParam || clienteId || responsavelId) {
+  //     setFilters((f) => ({ ...f, q: qParam || f.q, clienteId: clienteId || f.clienteId || null, responsavelId: responsavelId || f.responsavelId || null }));
+  //   }
+  // // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, []);
 
   // Load options
   useEffect(() => {
