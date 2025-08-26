@@ -66,6 +66,8 @@ export function Indicadores() {
     "Despesas",
     "Custos e Despesas",
     "Margem de Contribuição",
+    "Deduções das Receitas",
+    "Outras Receitas Operacionais",
     "Resultado Líquido",
     "ROE – Return on Equity (Retorno sobre o Patrimônio Líquido)",
     "ROA – Return on Assets (Retorno sobre Ativos)",
@@ -120,6 +122,8 @@ export function Indicadores() {
         'Despesas',
         'Custos e Despesas',
         'Margem de Contribuição',
+        'Deduções das Receitas',
+        'Outras Receitas Operacionais',
         'Resultado Líquido'
       ],
     },
@@ -157,6 +161,8 @@ export function Indicadores() {
     "Despesas": "Valor da despesa do mês.",
     "Custos e Despesas": "Valor do Custo e da Despesa do mês.",
     "Margem de Contribuição": "Valor da Receita líquida deduzida dos custos. A margem de contribuição está relacionada com o quanto cada produto ou serviço oferecido contribui para pagar as despesas fixas de uma empresa.",
+    "Deduções das Receitas": "Valor das deduções das receitas no período, conforme conta padrão '3.1.2 - DEDUÇÕES DA RECEITA'.",
+    "Outras Receitas Operacionais": "Valor das receitas financeiras no período, conforme conta padrão '3.1.3 - RECEITA FINANCEIRA'.",
     "Resultado Líquido": "É o lucro ou prejuízo líquido do período. Se for positivo, significa que a empresa teve mais receitas do que gastos. Se for negativo, significa que a empresa teve mais gastos do que receitas.",
     "ROE – Return on Equity (Retorno sobre o Patrimônio Líquido)": "Mede o retorno obtido para cada unidade monetária investida pelos sócios. Indica a rentabilidade do capital próprio da empresa. Quanto maior, melhor para os acionistas.",
     "ROA – Return on Assets (Retorno sobre Ativos)": "Avalia a capacidade da empresa de gerar lucro em relação ao total de ativos que possui. Quanto maior o índice, mais eficiente é a utilização dos recursos disponíveis.",
@@ -272,6 +278,12 @@ export function Indicadores() {
     'Margem de Contribuição': {
       '3 RECEITAS': 'movimento',
       '4.1 CUSTOS': 'movimento',
+    },
+    'Deduções das Receitas': {
+      '3.1.2 - DEDUÇÕES DA RECEITA': 'movimento',
+    },
+    'Outras Receitas Operacionais': {
+      '3.1.3 - RECEITA FINANCEIRA': 'movimento',
     },
     'Resultado Líquido': {
       '3 RECEITAS': 'movimento',
@@ -981,6 +993,26 @@ export function Indicadores() {
           }
         }
 
+        // Deduções das Receitas
+        {
+          if (temContasParametrizadas('3.1.2')) {
+            const deducoes = obterValorContaPorFonte('3.1.2', getVarFonte("Deduções das Receitas", '3.1.2 - DEDUÇÕES DA RECEITA'))
+            resultadosIndicadores["Deduções das Receitas"][mesNome] = deducoes
+          } else {
+            resultadosIndicadores["Deduções das Receitas"][mesNome] = null
+          }
+        }
+
+        // Outras Receitas Operacionais
+        {
+          if (temContasParametrizadas('3.1.3')) {
+            const outrasReceitas = obterValorContaPorFonte('3.1.3', getVarFonte("Outras Receitas Operacionais", '3.1.3 - RECEITA FINANCEIRA'))
+            resultadosIndicadores["Outras Receitas Operacionais"][mesNome] = outrasReceitas
+          } else {
+            resultadosIndicadores["Outras Receitas Operacionais"][mesNome] = null
+          }
+        }
+
         // Resultado Líquido
         {
           if (temContasParametrizadas('3') && temContasParametrizadas('4')) {
@@ -1054,15 +1086,17 @@ export function Indicadores() {
     
     const isPercent = indicador.includes("(%)") || indicador.startsWith("ROE") || indicador.startsWith("ROA")
     const isCurrency = indicador.includes("CCL") || 
-               indicador === "Receitas Líquidas" || 
-               indicador === "Receitas Brutas" || 
-               indicador === "Custos" || 
-               indicador === "Despesas" || 
-               indicador === "Custos e Despesas" || 
-               indicador === "Margem de Contribuição" ||
-               indicador === "Resultado Líquido" ||
-               indicador === "EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization" ||
-               indicador === "Necessidade de Capital de Giro (NCG)"
+                indicador === "Receitas Líquidas" || 
+                indicador === "Receitas Brutas" || 
+                indicador === "Custos" || 
+                indicador === "Despesas" || 
+                indicador === "Custos e Despesas" || 
+                indicador === "Margem de Contribuição" ||
+                indicador === "Deduções das Receitas" ||
+                indicador === "Outras Receitas Operacionais" ||
+                indicador === "Resultado Líquido" ||
+                indicador === "EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization" ||
+                indicador === "Necessidade de Capital de Giro (NCG)"
   
     if (isPercent) {
       return `${valor.toFixed(2)}%`
@@ -1098,6 +1132,8 @@ export function Indicadores() {
       "Despesas": "4.2 DESPESAS OPERACIONAIS",
       "Custos e Despesas": "4 CUSTOS E DESPESAS",
       "Margem de Contribuição": "3 RECEITAS − 4.1 CUSTOS",
+      "Deduções das Receitas": "3.1.2 - DEDUÇÕES DA RECEITA",
+      "Outras Receitas Operacionais": "3.1.3 - RECEITA FINANCEIRA",
       "Resultado Líquido": "3 RECEITAS − 4 CUSTOS E DESPESAS",
       "ROE – Return on Equity (Retorno sobre o Patrimônio Líquido)": "((3 RECEITAS − 4 CUSTOS E DESPESAS) ÷ Patrimônio Líquido Médio) × 100",
       "ROA – Return on Assets (Retorno sobre Ativos)": "((3 RECEITAS − 4 CUSTOS E DESPESAS) ÷ Ativo Total Médio) × 100",
@@ -1327,6 +1363,22 @@ export function Indicadores() {
         return {
           componentes: [receitas, custos, { label: 'Margem de Contribuição', valor: margem }],
           resultado: margem
+        }
+      }
+
+      case "Deduções das Receitas": {
+        const deducoes = comp('3.1.2 - DEDUÇÕES DA RECEITA', '3.1.2')
+        return {
+          componentes: [deducoes],
+          resultado: deducoes.valor
+        }
+      }
+
+      case "Outras Receitas Operacionais": {
+        const outrasReceitas = comp('3.1.3 - RECEITA FINANCEIRA', '3.1.3')
+        return {
+          componentes: [outrasReceitas],
+          resultado: outrasReceitas.valor
         }
       }
 
