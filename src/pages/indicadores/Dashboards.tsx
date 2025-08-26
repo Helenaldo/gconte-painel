@@ -505,10 +505,13 @@ export function Dashboards() {
                 value={mesInicio}
                 onChange={(e) => setMesInicio(e.target.value)}
               >
-                <Input
-                  id="mesInicio"
-                  placeholder="01/2024"
-                />
+                {(inputProps) => (
+                  <Input
+                    {...inputProps}
+                    id="mesInicio"
+                    placeholder="01/2024"
+                  />
+                )}
               </InputMask>
             </div>
             
@@ -519,10 +522,13 @@ export function Dashboards() {
                 value={mesFim}
                 onChange={(e) => setMesFim(e.target.value)}
               >
-                <Input
-                  id="mesFim"
-                  placeholder="12/2024"
-                />
+                {(inputProps) => (
+                  <Input
+                    {...inputProps}
+                    id="mesFim"
+                    placeholder="12/2024"
+                  />
+                )}
               </InputMask>
             </div>
             
