@@ -218,7 +218,7 @@ export function Dashboards() {
     const indicadoresData = processarIndicadores(balancetes, parametrizacoes)
     
     // Calcular dados restantes do dashboard
-    const fluxoResultados = calcularFluxoResultados(indicadoresData, mesInicioMes, anoInicio, mesFimMes, anoFim)
+    const fluxoResultados = await calcularFluxoResultados(empresaSelecionada, mesInicioMes, anoInicio, mesFimMes, anoFim)
     const dreResumo = calcularDREResumo(balancetes, parametrizacoes, mesInicioMes, anoInicio, mesFimMes, anoFim)
     
     return {
@@ -346,11 +346,56 @@ export function Dashboards() {
     return ((receitasTotal - custosTotal - despesasTotal) / receitasTotal) * 100
   }
   
-  const calcularFluxoResultados = (dadosIndicadores: any, mesInicio: number, anoInicio: number, mesFim: number, anoFim: number) => {
+  const buscarIndicadoresPorPeriodo = async (empresaCnpj: string, indicadores: string[], mesInicio: number, anoInicio: number, mesFim: number, anoFim: number): Promise<{[mes: string]: {[indicador: string]: number | null}}> => {
+    try {
+      const dadosPorMes: {[mes: string]: {[indicador: string]: number | null}} = {}
+      
+      // Iterar pelos meses do período
+      for (let ano = anoInicio; ano <= anoFim; ano++) {
+        const mesInicioAtual = ano === anoInicio ? mesInicio : 1
+        const mesFimAtual = ano === anoFim ? mesFim : 12
+        
+        for (let mes = mesInicioAtual; mes <= mesFimAtual; mes++) {
+          const chaveMes = `${mes.toString().padStart(2, '0')}/${ano}`
+          dadosPorMes[chaveMes] = {}
+          
+          // Buscar cada indicador para o mês
+          for (const indicador of indicadores) {
+            const { data, error } = await supabase
+              .from('indicadores_calculados')
+              .select('valor')
+              .eq('empresa_cnpj', empresaCnpj)
+              .eq('nome_indicador', indicador)
+              .eq('mes', mes)
+              .eq('ano', ano)
+              .maybeSingle()
+            
+            if (error) {
+              console.error(`Erro ao buscar indicador ${indicador}:`, error)
+              dadosPorMes[chaveMes][indicador] = null
+            } else {
+              dadosPorMes[chaveMes][indicador] = data?.valor || null
+            }
+          }
+        }
+      }
+      
+      return dadosPorMes
+    } catch (error) {
+      console.error('Erro ao buscar indicadores por período:', error)
+      return {}
+    }
+  }
+
+  const calcularFluxoResultados = async (empresaCnpj: string, mesInicio: number, anoInicio: number, mesFim: number, anoFim: number) => {
     const meses: string[] = []
     const receitas: number[] = []
     const custosEDespesas: number[] = []
     const resultadoLiquido: number[] = []
+    
+    // Buscar dados dos indicadores do banco
+    const indicadoresNecessarios = ['Receitas Líquidas', 'Custos e Despesas', 'Resultado Líquido']
+    const dadosIndicadores = await buscarIndicadoresPorPeriodo(empresaCnpj, indicadoresNecessarios, mesInicio, anoInicio, mesFim, anoFim)
     
     // Iterar pelos meses do período
     for (let ano = anoInicio; ano <= anoFim; ano++) {
@@ -358,17 +403,15 @@ export function Dashboards() {
       const mesFimAtual = ano === anoFim ? mesFim : 12
       
       for (let mes = mesInicioAtual; mes <= mesFimAtual; mes++) {
-        const chave = `${ano}-${mes.toString().padStart(2, '0')}`
-        const dadosMes = dadosIndicadores[chave]
+        const chaveMes = `${mes.toString().padStart(2, '0')}/${ano}`
+        meses.push(chaveMes)
         
-        meses.push(`${mes.toString().padStart(2, '0')}/${ano}`)
+        const dadosMes = dadosIndicadores[chaveMes]
         
         if (dadosMes) {
-          const receitasMes = Math.abs(obterValorConta(dadosMes, '3', 'movimento'))
-          const custosMes = Math.abs(obterValorConta(dadosMes, '4.1', 'movimento'))
-          const despesasMes = Math.abs(obterValorConta(dadosMes, '4.2', 'movimento'))
-          const custosEDespesasMes = custosMes + despesasMes
-          const resultadoMes = receitasMes - custosEDespesasMes
+          const receitasMes = Math.abs(dadosMes['Receitas Líquidas'] || 0)
+          const custosEDespesasMes = Math.abs(dadosMes['Custos e Despesas'] || 0)
+          const resultadoMes = dadosMes['Resultado Líquido'] || 0
           
           receitas.push(receitasMes)
           custosEDespesas.push(custosEDespesasMes)
