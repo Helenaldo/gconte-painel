@@ -13,6 +13,7 @@ import { Search, Filter, Download, Building2, TrendingUp, BarChart3, FileText } 
 import { DoughnutChart } from "./components/DoughnutChart"
 import { MixedChart } from "./components/MixedChart"
 import { generateDashboardPDF } from "./utils/pdfGenerator"
+import InputMask from "react-input-mask"
 
 interface Empresa {
   cnpj: string
@@ -499,24 +500,30 @@ export function Dashboards() {
             
             <div className="space-y-2">
               <Label htmlFor="mesInicio">Mês Início (MM/AAAA)</Label>
-              <Input
-                id="mesInicio"
-                placeholder="01/2024"
+              <InputMask
+                mask="99/9999"
                 value={mesInicio}
                 onChange={(e) => setMesInicio(e.target.value)}
-                pattern="\d{2}/\d{4}"
-              />
+              >
+                <Input
+                  id="mesInicio"
+                  placeholder="01/2024"
+                />
+              </InputMask>
             </div>
             
             <div className="space-y-2">
               <Label htmlFor="mesFim">Mês Fim (MM/AAAA)</Label>
-              <Input
-                id="mesFim"
-                placeholder="12/2024"
+              <InputMask
+                mask="99/9999"
                 value={mesFim}
                 onChange={(e) => setMesFim(e.target.value)}
-                pattern="\d{2}/\d{4}"
-              />
+              >
+                <Input
+                  id="mesFim"
+                  placeholder="12/2024"
+                />
+              </InputMask>
             </div>
             
             <div className="space-y-2">
