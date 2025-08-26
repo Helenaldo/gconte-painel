@@ -15,6 +15,7 @@ import { DoughnutChart } from "./components/DoughnutChart"
 import { MixedChart } from "./components/MixedChart"
 import { generateDashboardPDF } from "./utils/pdfGenerator"
 import InputMask from "react-input-mask"
+import { useAuth } from "@/context/auth-context"
 
 interface Empresa {
   cnpj: string
@@ -48,8 +49,20 @@ interface CacheItem {
   timestamp: number
 }
 
+interface SavedFilters {
+  empresaSelecionada: string
+  mesInicio: string
+  mesFim: string
+  timestamp: number
+}
+
+interface PersistentCacheItem extends CacheItem {
+  filters: SavedFilters
+}
+
 export function Dashboards() {
   const { toast } = useToast()
+  const { user } = useAuth()
   
   // Estados principais
   const [empresas, setEmpresas] = useState<Empresa[]>([])
@@ -60,7 +73,7 @@ export function Dashboards() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
   const [fullscreenChart, setFullscreenChart] = useState<{type: string, data: any, title: string} | null>(null)
   
-  // Cache leve (em memória)
+  // Cache leve (em memória) e persistente
   const [cache, setCache] = useState<Map<string, CacheItem>>(new Map())
   
   // Estados dos filtros
@@ -72,10 +85,114 @@ export function Dashboards() {
     [empresaSelecionada, mesInicio, mesFim]
   )
   
-  // Carregar empresas disponíveis
+  // Chaves para localStorage
+  const FILTERS_KEY = 'dashboards_filters'
+  const CACHE_KEY = 'dashboards_cache'
+  
+  // Funções utilitárias para localStorage
+  const saveFiltersToStorage = (filters: SavedFilters) => {
+    try {
+      localStorage.setItem(FILTERS_KEY, JSON.stringify(filters))
+    } catch (error) {
+      console.error('Erro ao salvar filtros:', error)
+    }
+  }
+  
+  const loadFiltersFromStorage = (): SavedFilters | null => {
+    try {
+      const stored = localStorage.getItem(FILTERS_KEY)
+      return stored ? JSON.parse(stored) : null
+    } catch (error) {
+      console.error('Erro ao carregar filtros:', error)
+      return null
+    }
+  }
+  
+  const saveCacheToStorage = (key: string, cacheItem: PersistentCacheItem) => {
+    try {
+      const allCache = loadAllCacheFromStorage()
+      allCache[key] = cacheItem
+      localStorage.setItem(CACHE_KEY, JSON.stringify(allCache))
+    } catch (error) {
+      console.error('Erro ao salvar cache:', error)
+    }
+  }
+  
+  const loadAllCacheFromStorage = (): { [key: string]: PersistentCacheItem } => {
+    try {
+      const stored = localStorage.getItem(CACHE_KEY)
+      return stored ? JSON.parse(stored) : {}
+    } catch (error) {
+      console.error('Erro ao carregar cache:', error)
+      return {}
+    }
+  }
+  
+  const clearAllStorage = () => {
+    try {
+      localStorage.removeItem(FILTERS_KEY)
+      localStorage.removeItem(CACHE_KEY)
+      setCache(new Map())
+      // Reset form states
+      setEmpresaSelecionada("")
+      setMesInicio("")
+      setMesFim("")
+      setDashboardData(null)
+      toast({
+        title: "Cache limpo",
+        description: "Todos os dados em cache foram removidos",
+      })
+    } catch (error) {
+      console.error('Erro ao limpar storage:', error)
+    }
+  }
+  
+  // Carregar empresas disponíveis e filtros salvos
   useEffect(() => {
     carregarEmpresas()
+    carregarFiltrosSalvos()
+    carregarCachePersistente()
   }, [])
+  
+  // Monitorar mudanças no usuário para limpeza do cache
+  useEffect(() => {
+    if (!user) {
+      clearAllStorage()
+    }
+  }, [user])
+  
+  const carregarFiltrosSalvos = () => {
+    const savedFilters = loadFiltersFromStorage()
+    if (savedFilters && user) {
+      // Verificar se os filtros não são muito antigos (24 horas)
+      const isExpired = Date.now() - savedFilters.timestamp > 24 * 60 * 60 * 1000
+      
+      if (!isExpired) {
+        setEmpresaSelecionada(savedFilters.empresaSelecionada || "")
+        setMesInicio(savedFilters.mesInicio || "")
+        setMesFim(savedFilters.mesFim || "")
+      }
+    }
+  }
+  
+  const carregarCachePersistente = () => {
+    const allCache = loadAllCacheFromStorage()
+    const newCache = new Map<string, CacheItem>()
+    
+    Object.entries(allCache).forEach(([key, item]) => {
+      // Verificar se o cache não expirou (15 minutos)
+      const isExpired = Date.now() - item.timestamp > 15 * 60 * 1000
+      
+      if (!isExpired && user) {
+        newCache.set(key, {
+          data: item.data,
+          timestamp: item.timestamp
+        })
+      }
+    })
+    
+    setCache(newCache)
+  }
   
   const carregarEmpresas = async () => {
     try {
@@ -131,13 +248,26 @@ export function Dashboards() {
       return
     }
     
+    // Salvar filtros aplicados
+    const currentFilters: SavedFilters = {
+      empresaSelecionada,
+      mesInicio,
+      mesFim,
+      timestamp: Date.now()
+    }
+    saveFiltersToStorage(currentFilters)
+    
     // Verificar cache primeiro
     const cachedData = cache.get(cacheKey)
     const now = Date.now()
-    const CACHE_DURATION = 5 * 60 * 1000 // 5 minutos
+    const CACHE_DURATION = 15 * 60 * 1000 // 15 minutos
     
     if (cachedData && (now - cachedData.timestamp) < CACHE_DURATION) {
       setDashboardData(cachedData.data)
+      toast({
+        title: "Dados carregados do cache",
+        description: "Os dados foram carregados rapidamente do cache local",
+      })
       return
     }
     
@@ -146,11 +276,19 @@ export function Dashboards() {
     try {
       const data = await carregarDadosDashboard()
       
-      // Salvar no cache
-      setCache(prev => new Map(prev.set(cacheKey, {
+      // Salvar no cache em memória e localStorage
+      const cacheItem: CacheItem = {
         data,
         timestamp: now
-      })))
+      }
+      
+      const persistentCacheItem: PersistentCacheItem = {
+        ...cacheItem,
+        filters: currentFilters
+      }
+      
+      setCache(prev => new Map(prev.set(cacheKey, cacheItem)))
+      saveCacheToStorage(cacheKey, persistentCacheItem)
       
       setDashboardData(data)
     } catch (error) {
