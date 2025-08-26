@@ -91,7 +91,7 @@ type Setor = typeof SETORES[number]["value"];
 
 type StatusMov = "pendente" | "feito" | "cancelado";
 
-type MovTipo = "anotacao" | "protocolo" | "solicitacao" | "retorno_orgao" | "exigencia" | "envio_cliente" | "upload";
+type MovTipo = "anotacao" | "protocolo" | "solicitacao" | "retorno_orgao" | "exigencia" | "envio_cliente" | "upload" | "diligencia";
 
 function prioridadeVariant(v?: string) {
   switch (v) {
@@ -151,6 +151,8 @@ function tipoIcon(tipo?: string) {
       return <Send className="h-4 w-4" />;
     case "upload":
       return <UploadIcon className="h-4 w-4" />;
+    case "diligencia":
+      return <BadgeCheck className="h-4 w-4" />;
     default:
       return <Paperclip className="h-4 w-4" />;
   }
@@ -976,6 +978,7 @@ export default function ProcessoDetalhes() {
                     <option value="exigencia">Exigência</option>
                     <option value="envio_cliente">Envio Cliente</option>
                     <option value="upload">Upload</option>
+                    <option value="diligencia">Diligência</option>
                   </select>
                 </div>
                 <div>
