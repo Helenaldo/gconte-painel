@@ -134,10 +134,21 @@ export function MixedChart({ data }: MixedChartProps) {
         callbacks: {
           label: function(context) {
             const value = context.parsed.y
-            const formatted = new Intl.NumberFormat('pt-BR', {
-              style: 'currency',
-              currency: 'BRL'
-            }).format(Math.abs(value))
+            let formatted: string
+            
+            // Para o dataset "Custos e Despesas", o valor é negativo no gráfico mas queremos mostrar positivo na tooltip
+            if (context.dataset.label === 'Custos e Despesas') {
+              formatted = new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+              }).format(Math.abs(value))
+            } else {
+              // Para outros datasets (incluindo Resultado Líquido), mostrar o valor com o sinal correto
+              formatted = new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+              }).format(value)
+            }
             
             return `${context.dataset.label}: ${formatted}`
           }
