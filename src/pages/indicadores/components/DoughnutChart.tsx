@@ -94,7 +94,7 @@ export function DoughnutChart({ data, label }: DoughnutChartProps) {
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="text-center">
           <div className="text-2xl font-bold text-foreground">
-            {data.toFixed(1)}%
+            {data.toFixed(2)}%
           </div>
           <div className="text-xs text-muted-foreground">
             {label.split(' ')[0]}
