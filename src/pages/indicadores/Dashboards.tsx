@@ -7,9 +7,10 @@ import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { supabase } from "@/integrations/supabase/client"
 import { useToast } from "@/hooks/use-toast"
-import { Search, Filter, Download, Building2, TrendingUp, BarChart3, FileText } from "lucide-react"
+import { Search, Filter, Download, Building2, TrendingUp, BarChart3, FileText, Maximize2 } from "lucide-react"
 import { DoughnutChart } from "./components/DoughnutChart"
 import { MixedChart } from "./components/MixedChart"
 import { generateDashboardPDF } from "./utils/pdfGenerator"
@@ -57,6 +58,7 @@ export function Dashboards() {
   const [mesFim, setMesFim] = useState<string>("")
   const [loading, setLoading] = useState(false)
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
+  const [fullscreenChart, setFullscreenChart] = useState<{type: string, data: any, title: string} | null>(null)
   
   // Cache leve (em memória)
   const [cache, setCache] = useState<Map<string, CacheItem>>(new Map())
@@ -626,9 +628,22 @@ export function Dashboards() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5" />
-                    Lucratividade do mês
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="h-5 w-5" />
+                      Lucratividade do mês
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFullscreenChart({
+                        type: 'doughnut',
+                        data: { data: dashboardData.margemLiquidaMesFim, label: "Margem Líquida (%)" },
+                        title: 'Lucratividade do mês'
+                      })}
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                    </Button>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -641,9 +656,22 @@ export function Dashboards() {
               
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <BarChart3 className="h-5 w-5" />
-                    Lucratividade Acumulada no Período
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5" />
+                      Lucratividade Acumulada no Período
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFullscreenChart({
+                        type: 'doughnut',
+                        data: { data: dashboardData.margemLiquidaAcumulada, label: "Margem Líquida Acumulada (%)" },
+                        title: 'Lucratividade Acumulada no Período'
+                      })}
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                    </Button>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -658,9 +686,22 @@ export function Dashboards() {
             {/* Fluxo de Resultados */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5" />
-                  Fluxo de Resultados
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5" />
+                    Fluxo de Resultados
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setFullscreenChart({
+                      type: 'mixed',
+                      data: dashboardData.fluxoResultados,
+                      title: 'Fluxo de Resultados'
+                    })}
+                  >
+                    <Maximize2 className="h-4 w-4" />
+                  </Button>
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -714,6 +755,30 @@ export function Dashboards() {
           </TabsContent>
         </Tabs>
       )}
+
+      {/* Modal de tela cheia */}
+      <Dialog open={!!fullscreenChart} onOpenChange={() => setFullscreenChart(null)}>
+        <DialogContent className="max-w-6xl h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>{fullscreenChart?.title}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 flex items-center justify-center p-4">
+            {fullscreenChart?.type === 'doughnut' && (
+              <div className="w-full max-w-2xl">
+                <DoughnutChart
+                  data={fullscreenChart.data.data}
+                  label={fullscreenChart.data.label}
+                />
+              </div>
+            )}
+            {fullscreenChart?.type === 'mixed' && (
+              <div className="w-full h-full">
+                <MixedChart data={fullscreenChart.data} />
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
