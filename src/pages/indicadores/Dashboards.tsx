@@ -219,7 +219,7 @@ export function Dashboards() {
     
     // Calcular dados restantes do dashboard
     const fluxoResultados = await calcularFluxoResultados(empresaSelecionada, mesInicioMes, anoInicio, mesFimMes, anoFim)
-    const dreResumo = calcularDREResumo(balancetes, parametrizacoes, mesInicioMes, anoInicio, mesFimMes, anoFim)
+    const dreResumo = await calcularDREResumo(empresaSelecionada, mesInicioMes, anoInicio, mesFimMes, anoFim)
     
     return {
       empresa: empresaData,
@@ -432,9 +432,8 @@ export function Dashboards() {
     }
   }
   
-  const calcularDREResumo = (balancetes: any[], parametrizacoes: any[], mesInicio: number, anoInicio: number, mesFim: number, anoFim: number) => {
+  const calcularDREResumo = async (empresaCnpj: string, mesInicio: number, anoInicio: number, mesFim: number, anoFim: number) => {
     const meses: string[] = []
-    const dadosProcessados = processarIndicadores(balancetes, parametrizacoes)
     
     // Estrutura da DRE
     const estruturaDRE = [
@@ -452,6 +451,16 @@ export function Dashboards() {
     estruturaDRE.forEach(linha => {
       data[linha] = []
     })
+
+    // Buscar indicadores necessários do banco de dados
+    const indicadoresNecessarios = [
+      'Receita Bruta',
+      'Deduções das Receitas',
+      'Custos',
+      'Despesas',
+      'Outras Receitas Operacionais'
+    ]
+    const dadosIndicadores = await buscarIndicadoresPorPeriodo(empresaCnpj, indicadoresNecessarios, mesInicio, anoInicio, mesFim, anoFim)
     
     // Iterar pelos meses do período
     for (let ano = anoInicio; ano <= anoFim; ano++) {
@@ -459,19 +468,19 @@ export function Dashboards() {
       const mesFimAtual = ano === anoFim ? mesFim : 12
       
       for (let mes = mesInicioAtual; mes <= mesFimAtual; mes++) {
-        const chave = `${ano}-${mes.toString().padStart(2, '0')}`
-        const dadosMes = dadosProcessados[chave]
+        const chaveMes = `${mes.toString().padStart(2, '0')}/${ano}`
+        meses.push(chaveMes)
         
-        meses.push(`${mes.toString().padStart(2, '0')}/${ano}`)
+        const dadosMes = dadosIndicadores[chaveMes]
         
         if (dadosMes) {
-          const receitaBruta = Math.abs(obterValorConta(dadosMes, '3.1.1', 'movimento'))
-          const deducoes = Math.abs(obterValorConta(dadosMes, '3.1.2', 'movimento'))
+          const receitaBruta = Math.abs(dadosMes['Receita Bruta'] || 0)
+          const deducoes = Math.abs(dadosMes['Deduções das Receitas'] || 0)
           const receitaLiquida = receitaBruta - deducoes
-          const custos = Math.abs(obterValorConta(dadosMes, '4.1', 'movimento'))
+          const custos = Math.abs(dadosMes['Custos'] || 0)
           const lucroBruto = receitaLiquida - custos
-          const despesas = Math.abs(obterValorConta(dadosMes, '4.2', 'movimento'))
-          const outrasReceitas = Math.abs(obterValorConta(dadosMes, '3.1.3', 'movimento'))
+          const despesas = Math.abs(dadosMes['Despesas'] || 0)
+          const outrasReceitas = Math.abs(dadosMes['Outras Receitas Operacionais'] || 0)
           const lucroLiquido = lucroBruto - despesas + outrasReceitas
           
           data['Receita Bruta'].push(receitaBruta)
