@@ -454,7 +454,7 @@ export function Dashboards() {
 
     // Buscar indicadores necessários do banco de dados
     const indicadoresNecessarios = [
-      'Receita Bruta',
+      'Receitas Brutas',
       'Deduções das Receitas',
       'Custos',
       'Despesas',
@@ -474,7 +474,7 @@ export function Dashboards() {
         const dadosMes = dadosIndicadores[chaveMes]
         
         if (dadosMes) {
-          const receitaBruta = Math.abs(dadosMes['Receita Bruta'] || 0)
+          const receitaBruta = Math.abs(dadosMes['Receitas Brutas'] || 0)
           const deducoes = Math.abs(dadosMes['Deduções das Receitas'] || 0)
           const receitaLiquida = receitaBruta - deducoes
           const custos = Math.abs(dadosMes['Custos'] || 0)
