@@ -10,7 +10,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { supabase } from "@/integrations/supabase/client"
 import { useToast } from "@/hooks/use-toast"
-import { Search, Calculator, ChevronDown, ChevronRight, Info } from "lucide-react"
+import { Search, Calculator, ChevronDown, ChevronRight, Info, Save } from "lucide-react"
 
 interface Empresa {
   cnpj: string
@@ -33,6 +33,7 @@ export function Indicadores() {
   const [empresaSelecionada, setEmpresaSelecionada] = useState<string>("")
   const [anoSelecionado, setAnoSelecionado] = useState<string>("")
   const [loading, setLoading] = useState(false)
+  const [loadingSave, setLoadingSave] = useState(false)
   const [indicadores, setIndicadores] = useState<{ [nome: string]: IndicadorData }>({})
   const [anosDisponiveis, setAnosDisponiveis] = useState<number[]>([])
   const [mesesExibidos, setMesesExibidos] = useState<string[]>([])
@@ -367,17 +368,177 @@ export function Indicadores() {
     return total
   }
 
-  const calcularIndicadores = async () => {
+  // Função para mapear indicador para categoria
+  const obterCategoriaIndicador = (indicador: string): string => {
+    for (const categoria of categorias) {
+      if (categoria.itens.includes(indicador)) {
+        return categoria.titulo
+      }
+    }
+    return "Outros" // fallback
+  }
+
+  // Função para buscar indicadores salvos no banco de dados
+  const buscarIndicadores = async () => {
     if (!empresaSelecionada || !anoSelecionado) {
       toast({
         title: "Filtros obrigatórios",
-        description: "Selecione empresa e ano para calcular os indicadores",
+        description: "Selecione empresa e ano para buscar os indicadores",
         variant: "destructive"
       })
       return
     }
 
     setLoading(true)
+
+    try {
+      const { data: indicadoresSalvos, error } = await supabase
+        .from('indicadores_calculados')
+        .select('*')
+        .eq('empresa_cnpj', empresaSelecionada)
+        .eq('ano', parseInt(anoSelecionado))
+        .order('mes')
+
+      if (error) throw error
+
+      if (!indicadoresSalvos || indicadoresSalvos.length === 0) {
+        toast({
+          title: "Nenhum indicador encontrado",
+          description: "Não há indicadores salvos para os filtros selecionados. Use 'Recalcular e Salvar' primeiro.",
+          variant: "destructive"
+        })
+        setIndicadores({})
+        setMesesExibidos([])
+        return
+      }
+
+      // Processar dados salvos
+      const resultadosIndicadores: { [nome: string]: IndicadorData } = {}
+      const mesesSet = new Set<number>()
+
+      // Inicializar estrutura de indicadores
+      nomeIndicadores.forEach(nomeIndicador => {
+        resultadosIndicadores[nomeIndicador] = {}
+      })
+
+      // Preencher com dados salvos
+      indicadoresSalvos.forEach(item => {
+        mesesSet.add(item.mes)
+        if (resultadosIndicadores[item.nome_indicador]) {
+          const nomesMeses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+          const mesNome = nomesMeses[item.mes - 1]
+          resultadosIndicadores[item.nome_indicador][mesNome] = parseFloat(item.valor.toString())
+        }
+      })
+
+      // Criar lista de meses exibidos
+      const mesesOrdenados = Array.from(mesesSet).sort((a, b) => a - b)
+      const nomesMeses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+      setMesesExibidos(mesesOrdenados.map(m => nomesMeses[m - 1]))
+
+      setIndicadores(resultadosIndicadores)
+      setDadosDetalhados({}) // Limpar dados detalhados pois vêm do banco
+
+      toast({
+        title: "Indicadores carregados",
+        description: `${indicadoresSalvos.length} indicadores encontrados no banco de dados`,
+        variant: "default"
+      })
+
+    } catch (error) {
+      console.error("Erro ao buscar indicadores:", error)
+      toast({
+        title: "Erro ao buscar indicadores",
+        description: "Não foi possível carregar os indicadores do banco de dados",
+        variant: "destructive"
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Função para recalcular e salvar indicadores no banco de dados
+  const recalcularESalvar = async () => {
+    if (!empresaSelecionada || !anoSelecionado) {
+      toast({
+        title: "Filtros obrigatórios",
+        description: "Selecione empresa e ano para recalcular os indicadores",
+        variant: "destructive"
+      })
+      return
+    }
+
+    setLoadingSave(true)
+
+    try {
+      // Primeiro, calcular os indicadores (reutilizar lógica existente)
+      const { resultadosIndicadores } = await calcularIndicadoresInterno()
+
+      // Depois, salvar no banco de dados
+      const indicadoresParaSalvar: any[] = []
+
+      Object.entries(resultadosIndicadores).forEach(([nomeIndicador, dadosMeses]) => {
+        Object.entries(dadosMeses).forEach(([mesNome, valor]) => {
+          if (valor !== null && valor !== undefined) {
+            const nomesMeses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+            const mes = nomesMeses.indexOf(mesNome) + 1
+            
+            indicadoresParaSalvar.push({
+              empresa_cnpj: empresaSelecionada,
+              ano: parseInt(anoSelecionado),
+              mes: mes,
+              categoria: obterCategoriaIndicador(nomeIndicador),
+              nome_indicador: nomeIndicador,
+              valor: valor
+            })
+          }
+        })
+      })
+
+      if (indicadoresParaSalvar.length === 0) {
+        toast({
+          title: "Nenhum indicador para salvar",
+          description: "Não há indicadores calculados para salvar",
+          variant: "destructive"
+        })
+        return
+      }
+
+      // Remover indicadores existentes para a mesma empresa/ano (para substituir)
+      const { error: deleteError } = await supabase
+        .from('indicadores_calculados')
+        .delete()
+        .eq('empresa_cnpj', empresaSelecionada)
+        .eq('ano', parseInt(anoSelecionado))
+
+      if (deleteError) throw deleteError
+
+      // Inserir novos indicadores
+      const { error: insertError } = await supabase
+        .from('indicadores_calculados')
+        .insert(indicadoresParaSalvar)
+
+      if (insertError) throw insertError
+
+      toast({
+        title: "Indicadores salvos com sucesso",
+        description: `${indicadoresParaSalvar.length} indicadores foram salvos no banco de dados`,
+        variant: "default"
+      })
+
+    } catch (error) {
+      console.error("Erro ao recalcular e salvar indicadores:", error)
+      toast({
+        title: "Erro ao salvar indicadores",
+        description: "Não foi possível salvar os indicadores no banco de dados",
+        variant: "destructive"
+      })
+    } finally {
+      setLoadingSave(false)
+    }
+  }
+
+  const calcularIndicadoresInterno = async () => {
 
     try {
       // Buscar balancetes da empresa no ano selecionado (incluindo parametrizando)
@@ -397,14 +558,7 @@ export function Indicadores() {
       if (balancetesError) throw balancetesError
 
       if (!balancetes || balancetes.length === 0) {
-        toast({
-          title: "Nenhum dado encontrado",
-          description: "Nenhum balancete encontrado para os filtros selecionados",
-          variant: "destructive"
-        })
-        setIndicadores({})
-        setMesesExibidos([])
-        return
+        throw new Error("Nenhum balancete encontrado para os filtros selecionados")
       }
 
       // Buscar parametrizações para mapear contas do balancete para plano de contas
@@ -886,15 +1040,12 @@ export function Indicadores() {
         setMesSelecionado(mesRecente)
       }
 
+      // Retornar os resultados para uso na função de salvar
+      return { resultadosIndicadores, dadosPorMes, mesesOrdenados }
+
     } catch (error) {
       console.error('Erro ao calcular indicadores:', error)
-      toast({
-        title: "Erro",
-        description: "Falha ao calcular indicadores",
-        variant: "destructive"
-      })
-    } finally {
-      setLoading(false)
+      throw error // Re-throw para ser capturado pela função que chama
     }
   }
 
@@ -1417,21 +1568,40 @@ export function Indicadores() {
                   </Select>
                 </div>
 
-                <div className="sm:col-span-2 lg:col-span-1">
+                <div className="sm:col-span-2 lg:col-span-1 flex gap-2">
                   <Button 
-                    onClick={calcularIndicadores} 
+                    onClick={buscarIndicadores} 
                     disabled={loading || !empresaSelecionada || !anoSelecionado}
-                    className="w-full h-10"
+                    className="flex-1 h-10"
+                    variant="outline"
                   >
                     {loading ? (
                       <>
                         <Search className="w-4 h-4 mr-2 animate-spin" />
-                        Calculando...
+                        Buscando...
+                      </>
+                    ) : (
+                      <>
+                        <Search className="w-4 h-4 mr-2" />
+                        Buscar Indicadores
+                      </>
+                    )}
+                  </Button>
+                  
+                  <Button 
+                    onClick={recalcularESalvar} 
+                    disabled={loadingSave || !empresaSelecionada || !anoSelecionado}
+                    className="flex-1 h-10"
+                  >
+                    {loadingSave ? (
+                      <>
+                        <Save className="w-4 h-4 mr-2 animate-spin" />
+                        Salvando...
                       </>
                     ) : (
                       <>
                         <Calculator className="w-4 h-4 mr-2" />
-                        Filtrar Indicadores
+                        Recalcular e Salvar
                       </>
                     )}
                   </Button>

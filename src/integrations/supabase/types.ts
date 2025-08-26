@@ -334,6 +334,42 @@ export type Database = {
           },
         ]
       }
+      indicadores_calculados: {
+        Row: {
+          ano: number
+          categoria: string
+          created_at: string
+          empresa_cnpj: string
+          id: string
+          mes: number
+          nome_indicador: string
+          updated_at: string
+          valor: number
+        }
+        Insert: {
+          ano: number
+          categoria: string
+          created_at?: string
+          empresa_cnpj: string
+          id?: string
+          mes: number
+          nome_indicador: string
+          updated_at?: string
+          valor: number
+        }
+        Update: {
+          ano?: number
+          categoria?: string
+          created_at?: string
+          empresa_cnpj?: string
+          id?: string
+          mes?: number
+          nome_indicador?: string
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: []
+      }
       invitations: {
         Row: {
           created_at: string
