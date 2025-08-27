@@ -1249,13 +1249,13 @@ export function Indicadores() {
 
         // Peso dos Tributos sobre a Receita
         {
-          if (temContasParametrizadas('4.2.3') && temContasParametrizadas('3.1.2.1') && temContasParametrizadas('3.1.2.2') && temContasParametrizadas('3.1.2.3') && temContasParametrizadas('3.1.2.4') && temContasParametrizadas('3.1.2.5') && temContasParametrizadas('3.1.1')) {
-            const despesasTributarias = obterValorContaPorFonte('4.2.3', getVarFonte("Peso dos Tributos sobre a Receita", '4.2.3 DESPESAS TRIBUTÁRIAS'))
-            const iss = obterValorContaPorFonte('3.1.2.1', getVarFonte("Peso dos Tributos sobre a Receita", '3.1.2.1 ISS'))
-            const simplesNacional = obterValorContaPorFonte('3.1.2.2', getVarFonte("Peso dos Tributos sobre a Receita", '3.1.2.2 SIMPLES NACIONAL'))
-            const pis = obterValorContaPorFonte('3.1.2.3', getVarFonte("Peso dos Tributos sobre a Receita", '3.1.2.3 PIS'))
-            const cofins = obterValorContaPorFonte('3.1.2.4', getVarFonte("Peso dos Tributos sobre a Receita", '3.1.2.4 COFINS'))
-            const icms = obterValorContaPorFonte('3.1.2.5', getVarFonte("Peso dos Tributos sobre a Receita", '3.1.2.5 ICMS'))
+          if (temContasParametrizadas('3.1.1')) {
+            const despesasTributarias = temContasParametrizadas('4.2.3') ? obterValorContaPorFonte('4.2.3', getVarFonte("Peso dos Tributos sobre a Receita", '4.2.3 DESPESAS TRIBUTÁRIAS')) : 0
+            const iss = temContasParametrizadas('3.1.2.1') ? obterValorContaPorFonte('3.1.2.1', getVarFonte("Peso dos Tributos sobre a Receita", '3.1.2.1 ISS')) : 0
+            const simplesNacional = temContasParametrizadas('3.1.2.2') ? obterValorContaPorFonte('3.1.2.2', getVarFonte("Peso dos Tributos sobre a Receita", '3.1.2.2 SIMPLES NACIONAL')) : 0
+            const pis = temContasParametrizadas('3.1.2.3') ? obterValorContaPorFonte('3.1.2.3', getVarFonte("Peso dos Tributos sobre a Receita", '3.1.2.3 PIS')) : 0
+            const cofins = temContasParametrizadas('3.1.2.4') ? obterValorContaPorFonte('3.1.2.4', getVarFonte("Peso dos Tributos sobre a Receita", '3.1.2.4 COFINS')) : 0
+            const icms = temContasParametrizadas('3.1.2.5') ? obterValorContaPorFonte('3.1.2.5', getVarFonte("Peso dos Tributos sobre a Receita", '3.1.2.5 ICMS')) : 0
             const receitaBruta = obterValorContaPorFonte('3.1.1', getVarFonte("Peso dos Tributos sobre a Receita", '3.1.1 RECEITA BRUTA'))
             const totalTributos = despesasTributarias + iss + simplesNacional + pis + cofins + icms
             resultadosIndicadores["Peso dos Tributos sobre a Receita"][mesNome] = receitaBruta !== 0 ? (totalTributos / receitaBruta) * 100 : null
