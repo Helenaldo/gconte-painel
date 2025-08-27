@@ -50,15 +50,24 @@ export function AreaChart({ data, title, label }: AreaChartProps) {
       {
         label: label,
         data: data.valores,
-        borderColor: 'hsl(var(--primary))',
-        backgroundColor: 'hsl(var(--primary) / 0.2)',
-        borderWidth: 2,
+        borderColor: 'hsl(259, 82%, 56%)',
+        backgroundColor: (context: any) => {
+          const chart = context.chart;
+          const {ctx, chartArea} = chart;
+          if (!chartArea) return null;
+          const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+          gradient.addColorStop(0, 'hsl(259, 82%, 56% / 0.4)');
+          gradient.addColorStop(1, 'hsl(259, 82%, 56% / 0.05)');
+          return gradient;
+        },
+        borderWidth: 3,
         fill: true,
-        tension: 0.1,
-        pointBackgroundColor: 'hsl(var(--primary))',
-        pointBorderColor: 'hsl(var(--primary))',
-        pointRadius: 4,
-        pointHoverRadius: 6,
+        tension: 0.4,
+        pointBackgroundColor: 'hsl(259, 82%, 66%)',
+        pointBorderColor: 'hsl(259, 82%, 46%)',
+        pointRadius: 5,
+        pointHoverRadius: 8,
+        pointBorderWidth: 2,
       },
     ],
   }

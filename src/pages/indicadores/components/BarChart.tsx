@@ -46,9 +46,19 @@ export function BarChart({ data, title, label }: BarChartProps) {
       {
         label: label,
         data: data.valores,
-        backgroundColor: 'hsl(var(--primary) / 0.8)',
-        borderColor: 'hsl(var(--primary))',
-        borderWidth: 1,
+        backgroundColor: (context: any) => {
+          const chart = context.chart;
+          const {ctx, chartArea} = chart;
+          if (!chartArea) return null;
+          const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+          gradient.addColorStop(0, 'hsl(142, 71%, 45%)');
+          gradient.addColorStop(1, 'hsl(142, 71%, 35%)');
+          return gradient;
+        },
+        borderColor: 'hsl(142, 76%, 40%)',
+        borderWidth: 2,
+        borderRadius: 4,
+        borderSkipped: false,
       },
     ],
   }
