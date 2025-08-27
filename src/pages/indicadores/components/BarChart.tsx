@@ -51,11 +51,11 @@ export function BarChart({ data, title, label }: BarChartProps) {
           const {ctx, chartArea} = chart;
           if (!chartArea) return null;
           const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-          gradient.addColorStop(0, 'hsl(142, 71%, 45%)');
-          gradient.addColorStop(1, 'hsl(142, 71%, 35%)');
+          gradient.addColorStop(0, 'rgba(34, 197, 94, 0.8)');
+          gradient.addColorStop(1, 'rgba(26, 149, 71, 0.8)');
           return gradient;
         },
-        borderColor: 'hsl(142, 76%, 40%)',
+        borderColor: 'rgba(22, 163, 74, 1)',
         borderWidth: 2,
         borderRadius: 4,
         borderSkipped: false,
