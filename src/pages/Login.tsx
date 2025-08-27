@@ -5,12 +5,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Eye, EyeOff, AlertCircle, LogIn, CalendarDays, Newspaper } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Eye, EyeOff, AlertCircle, LogIn, CalendarDays, Newspaper, Building2, Shield } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/context/auth-context"
 import { Calendar } from "@/components/ui/calendar"
 import { Separator } from "@/components/ui/separator"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { ThemeToggle } from "@/components/ui/theme-toggle"
 import ReCAPTCHA from "react-google-recaptcha"
 import { supabase } from "@/integrations/supabase/client"
 
@@ -19,6 +21,7 @@ export function Login() {
   const [loginEmail, setLoginEmail] = useState("")
   const [loginPassword, setLoginPassword] = useState("")
   const [showLoginPassword, setShowLoginPassword] = useState(false)
+  const [rememberMe, setRememberMe] = useState(false)
   const [isLoginLoading, setIsLoginLoading] = useState(false)
   const [loginError, setLoginError] = useState("")
   const { toast } = useToast()
@@ -154,234 +157,258 @@ export function Login() {
   }
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-accent/10 p-4">
-      <div className="absolute inset-0 bg-grid-pattern opacity-5" aria-hidden="true"></div>
+    <main className="min-h-screen bg-background">
+      {/* Theme Toggle */}
+      <div className="absolute top-6 right-6 z-50">
+        <ThemeToggle />
+      </div>
 
-      <div className="w-full max-w-6xl grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Coluna: Formulário */}
-        <Card className="shadow-lg border-0 bg-card/95 backdrop-blur">
-          <CardHeader className="space-y-1">
-            <div className="flex justify-center">
-              {office?.logomarca_url ? (
-                <Avatar className="h-20 w-20">
-                  <AvatarImage src={office.logomarca_url} alt="Logo do Escritório" className="object-contain" />
-                  <AvatarFallback className="bg-gradient-primary">
-                    <span className="text-primary-foreground font-bold text-3xl">GC</span>
-                  </AvatarFallback>
-                </Avatar>
-              ) : (
-                <div className="h-20 w-20 rounded-xl bg-gradient-primary flex items-center justify-center">
-                  <span className="text-primary-foreground font-bold text-3xl">GC</span>
-                </div>
-              )}
-            </div>
-          </CardHeader>
-
-          <CardContent>
-            <div className="w-full">
-              <div className="flex items-center gap-2 mb-6">
-                <LogIn className="h-5 w-5 text-primary" />
-                <h2 className="text-lg font-semibold">Entrar na sua conta</h2>
-              </div>
-              
-              <form onSubmit={handleLogin} className="space-y-4">
-                {loginError && (
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{loginError}</AlertDescription>
-                  </Alert>
-                )}
-
-                <div className="space-y-2">
-                  <Label htmlFor="login-email">E-mail</Label>
-                  <Input
-                    id="login-email"
-                    type="email"
-                    placeholder="seu@email.com"
-                    value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.target.value)}
-                    required
-                    disabled={isLoginLoading}
-                    className="h-11"
-                    autoComplete="username"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="login-password">Senha</Label>
-                  <div className="relative">
-                    <Input
-                      id="login-password"
-                      type={showLoginPassword ? "text" : "password"}
-                      placeholder="••••••••"
-                      value={loginPassword}
-                      onChange={(e) => setLoginPassword(e.target.value)}
-                      required
-                      disabled={isLoginLoading}
-                      className="h-11 pr-10"
-                      autoComplete="current-password"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                      onClick={() => setShowLoginPassword(!showLoginPassword)}
-                      disabled={isLoginLoading}
-                      aria-label={showLoginPassword ? 'Ocultar senha' : 'Mostrar senha'}
-                    >
-                      {showLoginPassword ? (
-                        <EyeOff className="h-4 w-4 text-muted-foreground" />
-                      ) : (
-                        <Eye className="h-4 w-4 text-muted-foreground" />
-                      )}
-                    </Button>
+      <div className="min-h-screen flex">
+        {/* Left Panel - Brand & Information */}
+        <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-primary/5 via-primary/10 to-accent/5">
+          {/* Background Pattern */}
+          <div className="absolute inset-0 bg-grid-pattern opacity-5" aria-hidden="true"></div>
+          
+          <div className="relative z-10 flex flex-col justify-between p-12 w-full">
+            {/* Header with Logo */}
+            <header className="flex flex-col items-start">
+              <div className="flex items-center gap-4 mb-8">
+                {office?.logomarca_url ? (
+                  <Avatar className="h-16 w-16 border-2 border-primary/20">
+                    <AvatarImage src={office.logomarca_url} alt="Logo do Escritório" className="object-contain" />
+                    <AvatarFallback className="bg-gradient-to-r from-primary to-primary-hover text-primary-foreground">
+                      <Building2 className="h-8 w-8" />
+                    </AvatarFallback>
+                  </Avatar>
+                ) : (
+                  <div className="h-16 w-16 rounded-full bg-gradient-to-r from-primary to-primary-hover flex items-center justify-center border-2 border-primary/20">
+                    <Building2 className="h-8 w-8 text-primary-foreground" />
                   </div>
-                  <div className="flex justify-end">
-                    <button type="button" onClick={handleForgotPassword} className="text-sm text-primary hover:underline">
-                      Esqueceu a senha?
-                    </button>
+                )}
+                <div>
+                  <h1 className="text-2xl font-bold text-foreground">{office?.nome || 'GCONTE PAINEL'}</h1>
+                  <p className="text-muted-foreground">Sistema de Gestão Contábil</p>
+                </div>
+              </div>
+
+              {/* Corporate Features */}
+              <div className="space-y-6 max-w-md">
+                <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-card/50 backdrop-blur-sm">
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Shield className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-foreground">Segurança Avançada</h3>
+                    <p className="text-sm text-muted-foreground">Autenticação com reCAPTCHA e criptografia</p>
                   </div>
                 </div>
 
-                <div className="pt-1">
-                  <ReCAPTCHA
-                    ref={recaptchaRef}
-                    sitekey={RECAPTCHA_SITE_KEY}
-                    onChange={(token) => setRecaptchaToken(token)}
-                    onExpired={() => setRecaptchaToken(null)}
-                    theme={document.documentElement.classList.contains('dark') ? 'dark' : 'light'}
-                  />
+                <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-card/50 backdrop-blur-sm">
+                  <div className="h-10 w-10 rounded-lg bg-success/10 flex items-center justify-center">
+                    <CalendarDays className="h-5 w-5 text-success" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-foreground">Gestão Inteligente</h3>
+                    <p className="text-sm text-muted-foreground">Calendário integrado com feriados nacionais</p>
+                  </div>
                 </div>
 
-                <Button 
-                  type="submit" 
-                  className="w-full h-11 bg-gradient-primary hover:opacity-90 transition-opacity"
-                  disabled={isLoginLoading || !recaptchaToken}
-                >
-                  {isLoginLoading ? "Entrando..." : "Entrar"}
-                </Button>
-              </form>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Coluna: Painel Informativo */}
-        <Card className="shadow-lg border-0 bg-card/95 backdrop-blur overflow-hidden">
-          <CardHeader className="pb-3">
-            <div className="flex items-center gap-3">
-              <div className="flex-1">
-                <CardTitle className="text-lg font-semibold">{office?.nome || 'GCONTE PAINEL'}</CardTitle>
-                {office?.cnpj && (
-                  <p className="text-xs text-muted-foreground">CNPJ: {office.cnpj}</p>
-                )}
-                <CardDescription className="text-muted-foreground">Informações e contatos</CardDescription>
+                <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-card/50 backdrop-blur-sm">
+                  <div className="h-10 w-10 rounded-lg bg-info/10 flex items-center justify-center">
+                    <Newspaper className="h-5 w-5 text-info" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-foreground">Informações Atualizadas</h3>
+                    <p className="text-sm text-muted-foreground">Feed de notícias econômicas e políticas</p>
+                  </div>
+                </div>
               </div>
-            </div>
-            
-            {/* Informações de contato do escritório */}
+            </header>
+
+            {/* Office Contact Information */}
             {office && (
-              <div className="mt-4 space-y-3 border-t pt-3">
-                {/* Endereço */}
-                {(office.logradouro || office.cep) && (
-                  <div className="space-y-1">
-                    <h4 className="text-sm font-medium text-muted-foreground">Endereço</h4>
-                    <div className="text-sm">
+              <footer className="space-y-4">
+                <Separator className="opacity-50" />
+                {(office.logradouro || office.telefone || office.email) && (
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Informações de Contato</h4>
+                    <div className="grid grid-cols-1 gap-2 text-sm">
                       {office.logradouro && (
-                        <p>
-                          {[office.logradouro, office.numero].filter(Boolean).join(", ")}
+                        <p className="text-muted-foreground">
+                          📍 {[office.logradouro, office.numero].filter(Boolean).join(", ")}
                           {office.complemento && `, ${office.complemento}`}
+                          {office.bairro && `, ${office.bairro}`}
                         </p>
                       )}
-                      {(office.bairro || office.municipio || office.uf) && (
-                        <p>{[office.bairro, office.municipio, office.uf].filter(Boolean).join(" - ")}</p>
-                      )}
-                      {office.cep && <p>CEP: {office.cep}</p>}
+                      {office.telefone && <p className="text-muted-foreground">📞 {office.telefone}</p>}
+                      {office.email && <p className="text-muted-foreground">✉️ {office.email}</p>}
                     </div>
                   </div>
                 )}
-                
-                {/* Contatos */}
-                {(office.telefone || office.email || office.instagram) && (
-                  <div className="space-y-1">
-                    <h4 className="text-sm font-medium text-muted-foreground">Contatos</h4>
-                    <div className="text-sm space-y-1">
-                      {office.telefone && <p>📞 {office.telefone}</p>}
-                      {office.email && <p>✉️ {office.email}</p>}
-                      {office.instagram && <p>📱 {office.instagram}</p>}
-                    </div>
-                  </div>
-                )}
-              </div>
+              </footer>
             )}
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Calendário com feriados */}
-            <section aria-labelledby="cal-feriados">
-              <div className="flex items-center gap-2 mb-2">
-                <CalendarDays className="h-4 w-4" />
-                <h3 id="cal-feriados" className="text-sm font-medium">Calendário com Feriados Nacionais</h3>
-              </div>
-              <div className="rounded-md border p-2">
-                <Calendar
-                  mode="single"
-                  className="pointer-events-auto"
-                  modifiers={{ holiday: holidayDates }}
-                  modifiersClassNames={{ holiday: "bg-accent text-accent-foreground" }}
-                />
-              </div>
-              {holidays.length > 0 && (
-                <ul className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-muted-foreground">
-                  {holidays.slice(0,6).map((h) => (
-                    <li key={h.date} className="flex justify-between">
-                      <span>{new Date(h.date).toLocaleDateString('pt-BR')}</span>
-                      <span className="truncate ml-2">{h.name}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
+          </div>
+        </div>
 
-            <Separator />
-
-            {/* Notícias */}
-            <section aria-labelledby="news-br">
-              <div className="flex items-center gap-2 mb-2">
-                <Newspaper className="h-4 w-4" />
-                <h3 id="news-br" className="text-sm font-medium">Notícias de Economia e Política</h3>
+        {/* Right Panel - Login Form */}
+        <div className="w-full lg:w-1/2 flex items-center justify-center p-6 lg:p-12">
+          <div className="w-full max-w-md">
+            {/* Mobile Header */}
+            <div className="lg:hidden mb-8 text-center">
+              <div className="flex justify-center mb-4">
+                {office?.logomarca_url ? (
+                  <Avatar className="h-20 w-20">
+                    <AvatarImage src={office.logomarca_url} alt="Logo do Escritório" className="object-contain" />
+                    <AvatarFallback className="bg-gradient-to-r from-primary to-primary-hover text-primary-foreground">
+                      <Building2 className="h-10 w-10" />
+                    </AvatarFallback>
+                  </Avatar>
+                ) : (
+                  <div className="h-20 w-20 rounded-full bg-gradient-to-r from-primary to-primary-hover flex items-center justify-center">
+                    <Building2 className="h-10 w-10 text-primary-foreground" />
+                  </div>
+                )}
               </div>
-              {news.length === 0 ? (
-                <div className="text-sm text-muted-foreground">
-                  Configure uma API gratuita (ex.: GNews) para exibir o feed. Adicione sua chave em localStorage como <code>gnews_key</code> e recarregue a página.
+              <h1 className="text-2xl font-bold text-foreground">{office?.nome || 'GCONTE PAINEL'}</h1>
+              <p className="text-muted-foreground">Sistema de Gestão Contábil</p>
+            </div>
+
+            {/* Login Form */}
+            <Card className="border-border/50 shadow-lg">
+              <CardHeader className="space-y-1 text-center pb-6">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <LogIn className="h-5 w-5 text-primary" />
+                  <CardTitle className="text-xl">Acesse sua conta</CardTitle>
                 </div>
-              ) : (
-                <ul className="space-y-2">
-                  {news.map((n, idx) => (
-                    <li key={idx} className="text-sm">
-                      <a href={n.url} target="_blank" rel="noreferrer" className="story-link text-foreground">
-                        {n.title}
-                      </a>
-                      {n.source && <span className="ml-2 text-muted-foreground">— {n.source}</span>}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
+                <CardDescription>
+                  Entre com suas credenciais para acessar o painel
+                </CardDescription>
+              </CardHeader>
 
-            <Separator />
+              <CardContent>
+                <form onSubmit={handleLogin} className="space-y-6">
+                  {loginError && (
+                    <Alert variant="destructive" className="animate-in slide-in-from-top-1 duration-300">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{loginError}</AlertDescription>
+                    </Alert>
+                  )}
 
-            {/* Dicas úteis */}
-            <section aria-labelledby="dicas-contabeis" className="space-y-2">
-              <h3 id="dicas-contabeis" className="text-sm font-medium">Dicas Úteis para Contadores</h3>
-              <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
-                <li>Prazos para entrega de obrigações acessórias no mês</li>
-                <li>Últimas atualizações do SPED</li>
-                <li>Alterações tributárias recentes</li>
-              </ul>
-            </section>
-          </CardContent>
-        </Card>
+                  {/* Email Field */}
+                  <div className="space-y-2">
+                    <Label htmlFor="login-email" className="text-sm font-medium">
+                      Endereço de e-mail
+                    </Label>
+                    <Input
+                      id="login-email"
+                      type="email"
+                      placeholder="seu@email.com"
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
+                      required
+                      disabled={isLoginLoading}
+                      className="h-11 transition-all duration-200 focus:ring-2 focus:ring-primary/20"
+                      autoComplete="username"
+                      aria-describedby="email-description"
+                    />
+                  </div>
+
+                  {/* Password Field */}
+                  <div className="space-y-2">
+                    <Label htmlFor="login-password" className="text-sm font-medium">
+                      Senha
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        id="login-password"
+                        type={showLoginPassword ? "text" : "password"}
+                        placeholder="Digite sua senha"
+                        value={loginPassword}
+                        onChange={(e) => setLoginPassword(e.target.value)}
+                        required
+                        disabled={isLoginLoading}
+                        className="h-11 pr-10 transition-all duration-200 focus:ring-2 focus:ring-primary/20"
+                        autoComplete="current-password"
+                        aria-describedby="password-description"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                        onClick={() => setShowLoginPassword(!showLoginPassword)}
+                        disabled={isLoginLoading}
+                        aria-label={showLoginPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                      >
+                        {showLoginPassword ? (
+                          <EyeOff className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <Eye className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Remember Me & Forgot Password */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="remember-me"
+                        checked={rememberMe}
+                        onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                        disabled={isLoginLoading}
+                      />
+                      <Label
+                        htmlFor="remember-me"
+                        className="text-sm font-normal text-muted-foreground cursor-pointer"
+                      >
+                        Lembrar-me
+                      </Label>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="link"
+                      size="sm"
+                      onClick={handleForgotPassword}
+                      disabled={isLoginLoading}
+                      className="px-0 h-auto text-sm text-primary hover:text-primary-hover"
+                    >
+                      Esqueceu a senha?
+                    </Button>
+                  </div>
+
+                  {/* reCAPTCHA */}
+                  <div className="flex justify-center">
+                    <ReCAPTCHA
+                      ref={recaptchaRef}
+                      sitekey={RECAPTCHA_SITE_KEY}
+                      onChange={(token) => setRecaptchaToken(token)}
+                      onExpired={() => setRecaptchaToken(null)}
+                      theme={document.documentElement.classList.contains('dark') ? 'dark' : 'light'}
+                    />
+                  </div>
+
+                  {/* Submit Button */}
+                  <Button 
+                    type="submit" 
+                    className="w-full h-12 bg-gradient-to-r from-primary to-primary-hover text-primary-foreground font-medium shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50"
+                    disabled={isLoginLoading || !recaptchaToken}
+                  >
+                    {isLoginLoading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2"></div>
+                        Entrando...
+                      </>
+                    ) : (
+                      "Entrar na conta"
+                    )}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
-    </div>
+    </main>
   )
 }
