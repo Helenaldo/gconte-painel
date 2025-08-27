@@ -16,6 +16,8 @@ import { ThemeToggle } from "@/components/ui/theme-toggle"
 import ReCAPTCHA from "react-google-recaptcha"
 import { supabase } from "@/integrations/supabase/client"
 
+// Corporate Professional Login Page - NobleUI Theme
+
 export function Login() {
   const { isAuthenticated, signIn, loading } = useAuth()
   const [loginEmail, setLoginEmail] = useState("")
