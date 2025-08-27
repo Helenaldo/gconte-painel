@@ -71,7 +71,11 @@ export function Indicadores() {
     "Resultado Líquido",
     "ROE – Return on Equity (Retorno sobre o Patrimônio Líquido)",
     "ROA – Return on Assets (Retorno sobre Ativos)",
-    "EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization"
+    "EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization",
+    "Peso dos Custos sobre a Receita",
+    "Peso das Despesas sobre a Receita",
+    "Peso dos Tributos sobre a Receita",
+    "Peso da Folha sobre a Receita"
   ]
 
   // Categorias para agrupamento da tabela
@@ -135,6 +139,15 @@ export function Indicadores() {
         'EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization'
       ],
     },
+    {
+      titulo: 'PESOS',
+      itens: [
+        'Peso dos Custos sobre a Receita',
+        'Peso das Despesas sobre a Receita',
+        'Peso dos Tributos sobre a Receita',
+        'Peso da Folha sobre a Receita'
+      ],
+    },
   ]
 
   const descricaoIndicadores: { [key: string]: string } = {
@@ -166,7 +179,11 @@ export function Indicadores() {
     "Resultado Líquido": "É o lucro ou prejuízo líquido do período. Se for positivo, significa que a empresa teve mais receitas do que gastos. Se for negativo, significa que a empresa teve mais gastos do que receitas.",
     "ROE – Return on Equity (Retorno sobre o Patrimônio Líquido)": "Mede o retorno obtido para cada unidade monetária investida pelos sócios. Indica a rentabilidade do capital próprio da empresa. Quanto maior, melhor para os acionistas.",
     "ROA – Return on Assets (Retorno sobre Ativos)": "Avalia a capacidade da empresa de gerar lucro em relação ao total de ativos que possui. Quanto maior o índice, mais eficiente é a utilização dos recursos disponíveis.",
-    "EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization": "Indica o lucro operacional antes do impacto de juros, tributos, depreciação e amortização. É utilizado para avaliar a geração de caixa operacional da empresa, desconsiderando efeitos financeiros e contábeis."
+    "EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization": "Indica o lucro operacional antes do impacto de juros, tributos, depreciação e amortização. É utilizado para avaliar a geração de caixa operacional da empresa, desconsiderando efeitos financeiros e contábeis.",
+    "Peso dos Custos sobre a Receita": "Indica o percentual que os custos representam em relação à receita bruta da empresa. Este indicador ajuda a avaliar a eficiência operacional e o controle de custos diretos.",
+    "Peso das Despesas sobre a Receita": "Mostra o percentual que as despesas operacionais representam sobre a receita bruta. Importante para análise da estrutura de gastos administrativos e operacionais.",
+    "Peso dos Tributos sobre a Receita": "Representa o percentual da carga tributária total (IRPJ, CSLL, ISS, Simples Nacional, PIS, COFINS, ICMS) sobre a receita bruta. Fundamental para análise da eficiência tributária.",
+    "Peso da Folha sobre a Receita": "Indica o percentual que os gastos com pessoal (salários e encargos sociais) representam sobre a receita bruta. Importante indicador de produtividade e controle de custos com pessoal."
   }
   // Fonte por coluna para variáveis de cada indicador
   type FonteColuna = 'saldo_atual' | 'saldo_anterior' | 'movimento'
@@ -288,6 +305,28 @@ export function Indicadores() {
     'Resultado Líquido': {
       '3 RECEITAS': 'movimento',
       '4 CUSTOS E DESPESAS': 'movimento',
+    },
+    'Peso dos Custos sobre a Receita': {
+      '4.1 CUSTOS': 'movimento',
+      '3.1.1 RECEITA BRUTA': 'movimento',
+    },
+    'Peso das Despesas sobre a Receita': {
+      '4.2 DESPESAS OPERACIONAIS': 'movimento',
+      '3.1.1 RECEITA BRUTA': 'movimento',
+    },
+    'Peso dos Tributos sobre a Receita': {
+      '4.2.3 DESPESAS TRIBUTÁRIAS': 'movimento',
+      '3.1.2.1 ISS': 'movimento',
+      '3.1.2.2 SIMPLES NACIONAL': 'movimento',
+      '3.1.2.3 PIS': 'movimento',
+      '3.1.2.4 COFINS': 'movimento',
+      '3.1.2.5 ICMS': 'movimento',
+      '3.1.1 RECEITA BRUTA': 'movimento',
+    },
+    'Peso da Folha sobre a Receita': {
+      '4.1.2 CUSTOS COM PESSOAL': 'movimento',
+      '4.1.3 CUSTOS COM ENCARGOS SOCIAIS': 'movimento',
+      '3.1.1 RECEITA BRUTA': 'movimento',
     },
   }
 
@@ -1185,6 +1224,58 @@ export function Indicadores() {
             resultadosIndicadores["EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization"][mesNome] = null
           }
         }
+
+        // Peso dos Custos sobre a Receita
+        {
+          if (temContasParametrizadas('4.1') && temContasParametrizadas('3.1.1')) {
+            const custos = obterValorContaPorFonte('4.1', getVarFonte("Peso dos Custos sobre a Receita", '4.1 CUSTOS'))
+            const receitaBruta = obterValorContaPorFonte('3.1.1', getVarFonte("Peso dos Custos sobre a Receita", '3.1.1 RECEITA BRUTA'))
+            resultadosIndicadores["Peso dos Custos sobre a Receita"][mesNome] = receitaBruta !== 0 ? (custos / receitaBruta) * 100 : null
+          } else {
+            resultadosIndicadores["Peso dos Custos sobre a Receita"][mesNome] = null
+          }
+        }
+
+        // Peso das Despesas sobre a Receita
+        {
+          if (temContasParametrizadas('4.2') && temContasParametrizadas('3.1.1')) {
+            const despesas = obterValorContaPorFonte('4.2', getVarFonte("Peso das Despesas sobre a Receita", '4.2 DESPESAS OPERACIONAIS'))
+            const receitaBruta = obterValorContaPorFonte('3.1.1', getVarFonte("Peso das Despesas sobre a Receita", '3.1.1 RECEITA BRUTA'))
+            resultadosIndicadores["Peso das Despesas sobre a Receita"][mesNome] = receitaBruta !== 0 ? (despesas / receitaBruta) * 100 : null
+          } else {
+            resultadosIndicadores["Peso das Despesas sobre a Receita"][mesNome] = null
+          }
+        }
+
+        // Peso dos Tributos sobre a Receita
+        {
+          if (temContasParametrizadas('4.2.3') && temContasParametrizadas('3.1.2.1') && temContasParametrizadas('3.1.2.2') && temContasParametrizadas('3.1.2.3') && temContasParametrizadas('3.1.2.4') && temContasParametrizadas('3.1.2.5') && temContasParametrizadas('3.1.1')) {
+            const despesasTributarias = obterValorContaPorFonte('4.2.3', getVarFonte("Peso dos Tributos sobre a Receita", '4.2.3 DESPESAS TRIBUTÁRIAS'))
+            const iss = obterValorContaPorFonte('3.1.2.1', getVarFonte("Peso dos Tributos sobre a Receita", '3.1.2.1 ISS'))
+            const simplesNacional = obterValorContaPorFonte('3.1.2.2', getVarFonte("Peso dos Tributos sobre a Receita", '3.1.2.2 SIMPLES NACIONAL'))
+            const pis = obterValorContaPorFonte('3.1.2.3', getVarFonte("Peso dos Tributos sobre a Receita", '3.1.2.3 PIS'))
+            const cofins = obterValorContaPorFonte('3.1.2.4', getVarFonte("Peso dos Tributos sobre a Receita", '3.1.2.4 COFINS'))
+            const icms = obterValorContaPorFonte('3.1.2.5', getVarFonte("Peso dos Tributos sobre a Receita", '3.1.2.5 ICMS'))
+            const receitaBruta = obterValorContaPorFonte('3.1.1', getVarFonte("Peso dos Tributos sobre a Receita", '3.1.1 RECEITA BRUTA'))
+            const totalTributos = despesasTributarias + iss + simplesNacional + pis + cofins + icms
+            resultadosIndicadores["Peso dos Tributos sobre a Receita"][mesNome] = receitaBruta !== 0 ? (totalTributos / receitaBruta) * 100 : null
+          } else {
+            resultadosIndicadores["Peso dos Tributos sobre a Receita"][mesNome] = null
+          }
+        }
+
+        // Peso da Folha sobre a Receita
+        {
+          if (temContasParametrizadas('4.1.2') && temContasParametrizadas('4.1.3') && temContasParametrizadas('3.1.1')) {
+            const custosComPessoal = obterValorContaPorFonte('4.1.2', getVarFonte("Peso da Folha sobre a Receita", '4.1.2 CUSTOS COM PESSOAL'))
+            const custosComEncargos = obterValorContaPorFonte('4.1.3', getVarFonte("Peso da Folha sobre a Receita", '4.1.3 CUSTOS COM ENCARGOS SOCIAIS'))
+            const receitaBruta = obterValorContaPorFonte('3.1.1', getVarFonte("Peso da Folha sobre a Receita", '3.1.1 RECEITA BRUTA'))
+            const totalFolha = custosComPessoal + custosComEncargos
+            resultadosIndicadores["Peso da Folha sobre a Receita"][mesNome] = receitaBruta !== 0 ? (totalFolha / receitaBruta) * 100 : null
+          } else {
+            resultadosIndicadores["Peso da Folha sobre a Receita"][mesNome] = null
+          }
+        }
       })
 
       setIndicadores(resultadosIndicadores)
@@ -1208,7 +1299,7 @@ export function Indicadores() {
   const formatarValor = (valor: number | null, indicador: string): string => {
     if (valor === null || valor === undefined) return "–"
     
-    const isPercent = indicador.includes("(%)") || indicador.startsWith("ROE") || indicador.startsWith("ROA")
+    const isPercent = indicador.includes("(%)") || indicador.startsWith("ROE") || indicador.startsWith("ROA") || indicador.startsWith("Peso")
     const isCurrency = indicador.includes("CCL") || 
                 indicador === "Receitas Líquidas" || 
                 indicador === "Receitas Brutas" || 
@@ -1267,7 +1358,11 @@ export function Indicadores() {
       "Prazo Médio de Recebimento (PMR)": "(1.1.2.1 CLIENTES ÷ 3.1.1 RECEITA BRUTA) × (360 ÷ 12 × número do mês)",
       "Ciclo Operacional (CO)": "Prazo Médio de Estocagem + Prazo Médio de Recebimento",
       "Ciclo Financeiro (CF)": "Ciclo Operacional − Prazo Médio de Pagamento",
-      "Necessidade de Capital de Giro (NCG)": "1.1 ATIVO CIRCULANTE − 2.1 PASSIVO CIRCULANTE"
+      "Necessidade de Capital de Giro (NCG)": "1.1 ATIVO CIRCULANTE − 2.1 PASSIVO CIRCULANTE",
+      "Peso dos Custos sobre a Receita": "(4.1 CUSTOS ÷ 3.1.1 RECEITA BRUTA) × 100",
+      "Peso das Despesas sobre a Receita": "(4.2 DESPESAS OPERACIONAIS ÷ 3.1.1 RECEITA BRUTA) × 100",
+      "Peso dos Tributos sobre a Receita": "((4.2.3 DESPESAS TRIBUTÁRIAS + 3.1.2.1 ISS + 3.1.2.2 SIMPLES NACIONAL + 3.1.2.3 PIS + 3.1.2.4 COFINS + 3.1.2.5 ICMS) ÷ 3.1.1 RECEITA BRUTA) × 100",
+      "Peso da Folha sobre a Receita": "((4.1.2 CUSTOS COM PESSOAL + 4.1.3 CUSTOS COM ENCARGOS SOCIAIS) ÷ 3.1.1 RECEITA BRUTA) × 100"
     }
     return formulas[indicador] || ""
   }
@@ -1637,6 +1732,54 @@ export function Indicadores() {
             { label: 'Tributos', valor: tributos, fonte: 'movimento' },
             { label: 'Depreciação e Amortização', valor: depreciacaoEAmo, fonte: 'movimento' }
           ],
+          resultado
+        }
+      }
+
+      case "Peso dos Custos sobre a Receita": {
+        const custos = comp('4.1 CUSTOS', '4.1')
+        const receitaBruta = comp('3.1.1 RECEITA BRUTA', '3.1.1')
+        const resultado = receitaBruta.valor !== 0 ? (custos.valor / receitaBruta.valor) * 100 : null
+        return {
+          componentes: [custos, receitaBruta],
+          resultado
+        }
+      }
+
+      case "Peso das Despesas sobre a Receita": {
+        const despesas = comp('4.2 DESPESAS OPERACIONAIS', '4.2')
+        const receitaBruta = comp('3.1.1 RECEITA BRUTA', '3.1.1')
+        const resultado = receitaBruta.valor !== 0 ? (despesas.valor / receitaBruta.valor) * 100 : null
+        return {
+          componentes: [despesas, receitaBruta],
+          resultado
+        }
+      }
+
+      case "Peso dos Tributos sobre a Receita": {
+        const despesasTributarias = comp('4.2.3 DESPESAS TRIBUTÁRIAS', '4.2.3')
+        const iss = comp('3.1.2.1 ISS', '3.1.2.1')
+        const simplesNacional = comp('3.1.2.2 SIMPLES NACIONAL', '3.1.2.2')
+        const pis = comp('3.1.2.3 PIS', '3.1.2.3')
+        const cofins = comp('3.1.2.4 COFINS', '3.1.2.4')
+        const icms = comp('3.1.2.5 ICMS', '3.1.2.5')
+        const receitaBruta = comp('3.1.1 RECEITA BRUTA', '3.1.1')
+        const totalTributos = despesasTributarias.valor + iss.valor + simplesNacional.valor + pis.valor + cofins.valor + icms.valor
+        const resultado = receitaBruta.valor !== 0 ? (totalTributos / receitaBruta.valor) * 100 : null
+        return {
+          componentes: [despesasTributarias, iss, simplesNacional, pis, cofins, icms, receitaBruta, { label: 'Total Tributos', valor: totalTributos }],
+          resultado
+        }
+      }
+
+      case "Peso da Folha sobre a Receita": {
+        const custosComPessoal = comp('4.1.2 CUSTOS COM PESSOAL', '4.1.2')
+        const custosComEncargos = comp('4.1.3 CUSTOS COM ENCARGOS SOCIAIS', '4.1.3')
+        const receitaBruta = comp('3.1.1 RECEITA BRUTA', '3.1.1')
+        const totalFolha = custosComPessoal.valor + custosComEncargos.valor
+        const resultado = receitaBruta.valor !== 0 ? (totalFolha / receitaBruta.valor) * 100 : null
+        return {
+          componentes: [custosComPessoal, custosComEncargos, receitaBruta, { label: 'Total Folha', valor: totalFolha }],
           resultado
         }
       }
