@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Eye, EyeOff, AlertCircle, LogIn, CalendarDays, Newspaper, Building2, Shield } from "lucide-react"
+import { Eye, EyeOff, AlertCircle, LogIn, CalendarDays, Newspaper, Building2, Target } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/context/auth-context"
 import { Calendar } from "@/components/ui/calendar"
@@ -197,11 +197,11 @@ export function Login() {
               <div className="space-y-6 max-w-md">
                 <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-card/50 backdrop-blur-sm">
                   <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Shield className="h-5 w-5 text-primary" />
+                    <Target className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <h3 className="font-medium text-foreground">Segurança Avançada</h3>
-                    <p className="text-sm text-muted-foreground">Autenticação com reCAPTCHA e criptografia</p>
+                    <h3 className="font-medium text-foreground">Missão</h3>
+                    <p className="text-sm text-muted-foreground">Oferecer soluções contábeis inteligentes e consultivas, com agilidade, precisão e proximidade no atendimento, ajudando empresas a se adaptarem às exigências legais e do mercado, enquanto potencializam seus resultados e alcançam seus objetivos estratégicos.</p>
                   </div>
                 </div>
 
