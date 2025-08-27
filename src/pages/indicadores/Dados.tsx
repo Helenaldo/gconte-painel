@@ -285,7 +285,7 @@ export function Dados() {
     // Verificar todas as contas de receita PRIMEIRO (código 3)
     if (conta.codigo?.startsWith('3')) {
       // Exceção: Deduções da Receita é conta redutora (devedora)
-      if (conta.codigo === '3.1.2') {
+      if (conta.codigo?.startsWith('3.1.2')) {
         return 'devedora'
       }
       return 'credora' // Todas as outras receitas são credoras
