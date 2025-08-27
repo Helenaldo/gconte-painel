@@ -13,6 +13,9 @@ import { useToast } from "@/hooks/use-toast"
 import { Search, Filter, Download, Building2, TrendingUp, BarChart3, FileText, Maximize2 } from "lucide-react"
 import { DoughnutChart } from "./components/DoughnutChart"
 import { MixedChart } from "./components/MixedChart"
+import { BarChart } from "./components/BarChart"
+import { LineChart } from "./components/LineChart"
+import { AreaChart } from "./components/AreaChart"
 import { generateDashboardPDF } from "./utils/pdfGenerator"
 import InputMask from "react-input-mask"
 import { useAuth } from "@/context/auth-context"
@@ -41,6 +44,18 @@ interface DashboardData {
     data: {
       [linha: string]: number[]
     }
+  }
+  receitaOperacionalBruta: {
+    meses: string[]
+    valores: number[]
+  }
+  liquidezCorrente: {
+    meses: string[]
+    valores: number[]
+  }
+  capitalCirculanteLiquido: {
+    meses: string[]
+    valores: number[]
   }
 }
 
@@ -359,12 +374,20 @@ export function Dashboards() {
     const fluxoResultados = await calcularFluxoResultados(empresaSelecionada, mesInicioMes, anoInicio, mesFimMes, anoFim)
     const dreResumo = await calcularDREResumo(empresaSelecionada, mesInicioMes, anoInicio, mesFimMes, anoFim)
     
+    // Buscar dados dos novos gráficos
+    const receitaOperacionalBruta = await buscarDadosIndicadorPorPeriodo(empresaSelecionada, 'Receitas Brutas', mesInicioMes, anoInicio, mesFimMes, anoFim)
+    const liquidezCorrente = await buscarDadosIndicadorPorPeriodo(empresaSelecionada, 'Liquidez Corrente', mesInicioMes, anoInicio, mesFimMes, anoFim)
+    const capitalCirculanteLiquido = await buscarDadosIndicadorPorPeriodo(empresaSelecionada, 'Capital Circulante Líquido (CCL)', mesInicioMes, anoInicio, mesFimMes, anoFim)
+    
     return {
       empresa: empresaData,
       margemLiquidaMesFim,
       margemLiquidaAcumulada,
       fluxoResultados,
-      dreResumo
+      dreResumo,
+      receitaOperacionalBruta,
+      liquidezCorrente,
+      capitalCirculanteLiquido
     }
   }
 
@@ -522,6 +545,45 @@ export function Dashboards() {
     } catch (error) {
       console.error('Erro ao buscar indicadores por período:', error)
       return {}
+    }
+  }
+
+  const buscarDadosIndicadorPorPeriodo = async (empresaCnpj: string, nomeIndicador: string, mesInicio: number, anoInicio: number, mesFim: number, anoFim: number): Promise<{meses: string[], valores: number[]}> => {
+    try {
+      const meses: string[] = []
+      const valores: number[] = []
+      
+      // Iterar pelos meses do período
+      for (let ano = anoInicio; ano <= anoFim; ano++) {
+        const mesInicioAtual = ano === anoInicio ? mesInicio : 1
+        const mesFimAtual = ano === anoFim ? mesFim : 12
+        
+        for (let mes = mesInicioAtual; mes <= mesFimAtual; mes++) {
+          const chaveMes = `${mes.toString().padStart(2, '0')}/${ano}`
+          meses.push(chaveMes)
+          
+          const { data, error } = await supabase
+            .from('indicadores_calculados')
+            .select('valor')
+            .eq('empresa_cnpj', empresaCnpj)
+            .eq('nome_indicador', nomeIndicador)
+            .eq('mes', mes)
+            .eq('ano', ano)
+            .maybeSingle()
+          
+          if (error) {
+            console.error(`Erro ao buscar indicador ${nomeIndicador}:`, error)
+            valores.push(0)
+          } else {
+            valores.push(data?.valor || 0)
+          }
+        }
+      }
+      
+      return { meses, valores }
+    } catch (error) {
+      console.error(`Erro ao buscar dados do indicador ${nomeIndicador}:`, error)
+      return { meses: [], valores: [] }
     }
   }
 
@@ -899,6 +961,96 @@ export function Dashboards() {
               </CardContent>
             </Card>
             
+            {/* Novos Gráficos dos Indicadores */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5" />
+                      Receita Operacional Bruta
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFullscreenChart({
+                        type: 'bar',
+                        data: dashboardData.receitaOperacionalBruta,
+                        title: 'Receita Operacional Bruta'
+                      })}
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                    </Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <BarChart
+                    data={dashboardData.receitaOperacionalBruta}
+                    title="Receita Operacional Bruta"
+                    label="Receitas Brutas"
+                  />
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="h-5 w-5" />
+                      Liquidez Corrente
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFullscreenChart({
+                        type: 'line',
+                        data: dashboardData.liquidezCorrente,
+                        title: 'Liquidez Corrente'
+                      })}
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                    </Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <LineChart
+                    data={dashboardData.liquidezCorrente}
+                    title="Liquidez Corrente"
+                    label="Liquidez Corrente"
+                  />
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5" />
+                      Capital Circulante Líquido
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFullscreenChart({
+                        type: 'area',
+                        data: dashboardData.capitalCirculanteLiquido,
+                        title: 'Capital Circulante Líquido'
+                      })}
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                    </Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <AreaChart
+                    data={dashboardData.capitalCirculanteLiquido}
+                    title="Capital Circulante Líquido"
+                    label="Capital Circulante Líquido (CCL)"
+                  />
+                </CardContent>
+              </Card>
+            </div>
+            
             {/* DRE Resumida */}
             <Card>
               <CardHeader>
@@ -964,6 +1116,33 @@ export function Dashboards() {
             {fullscreenChart?.type === 'mixed' && (
               <div className="w-full h-full">
                 <MixedChart data={fullscreenChart.data} />
+              </div>
+            )}
+            {fullscreenChart?.type === 'bar' && (
+              <div className="w-full h-full">
+                <BarChart
+                  data={fullscreenChart.data}
+                  title={fullscreenChart.title}
+                  label="Receitas Brutas"
+                />
+              </div>
+            )}
+            {fullscreenChart?.type === 'line' && (
+              <div className="w-full h-full">
+                <LineChart
+                  data={fullscreenChart.data}
+                  title={fullscreenChart.title}
+                  label="Liquidez Corrente"
+                />
+              </div>
+            )}
+            {fullscreenChart?.type === 'area' && (
+              <div className="w-full h-full">
+                <AreaChart
+                  data={fullscreenChart.data}
+                  title={fullscreenChart.title}
+                  label="Capital Circulante Líquido (CCL)"
+                />
               </div>
             )}
           </div>
