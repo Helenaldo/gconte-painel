@@ -27,15 +27,15 @@ export function DoughnutChart({ data, label }: DoughnutChartProps) {
         data: data !== null ? [Math.abs(data), 100 - Math.abs(data)] : [0, 100],
         backgroundColor: [
           data !== null && data >= 0 
-            ? 'hsl(142, 71%, 45%)' // success color
-            : 'hsl(0, 84%, 60%)',   // destructive color
-          isDark ? 'hsl(210, 18%, 20%)' : 'hsl(220, 13%, 91%)'
+            ? 'rgba(34, 197, 94, 0.85)' // Vibrant green
+            : 'rgba(239, 68, 68, 0.85)', // Vibrant red
+          isDark ? 'rgba(45, 55, 72, 0.5)' : 'rgba(226, 232, 240, 0.5)'
         ],
         borderColor: [
           data !== null && data >= 0 
-            ? 'hsl(142, 71%, 45%)' 
-            : 'hsl(0, 84%, 60%)',
-          isDark ? 'hsl(210, 18%, 20%)' : 'hsl(220, 13%, 91%)'
+            ? 'rgba(22, 163, 74, 1)' 
+            : 'rgba(220, 38, 38, 1)',
+          isDark ? 'rgba(45, 55, 72, 0.8)' : 'rgba(226, 232, 240, 0.8)'
         ],
         borderWidth: 2,
       },

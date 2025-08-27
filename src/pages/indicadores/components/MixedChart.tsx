@@ -45,8 +45,16 @@ export function MixedChart({ data }: MixedChartProps) {
         type: 'bar' as const,
         label: 'Receitas',
         data: data.receitas,
-        backgroundColor: 'hsl(142, 71%, 45%)',
-        borderColor: 'hsl(142, 71%, 45%)',
+        backgroundColor: (context: any) => {
+          const chart = context.chart;
+          const {ctx, chartArea} = chart;
+          if (!chartArea) return null;
+          const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+          gradient.addColorStop(0, 'rgba(34, 197, 94, 0.8)');
+          gradient.addColorStop(1, 'rgba(22, 163, 74, 0.6)');
+          return gradient;
+        },
+        borderColor: 'rgba(22, 163, 74, 1)',
         borderWidth: 1,
         order: 2,
         barThickness: 40,
@@ -55,8 +63,16 @@ export function MixedChart({ data }: MixedChartProps) {
         type: 'bar' as const,
         label: 'Custos e Despesas',
         data: data.custosEDespesas.map(val => -Math.abs(val)), // Valores negativos para aparecer abaixo do eixo
-        backgroundColor: 'hsl(0, 84%, 60%)',
-        borderColor: 'hsl(0, 84%, 60%)',
+        backgroundColor: (context: any) => {
+          const chart = context.chart;
+          const {ctx, chartArea} = chart;
+          if (!chartArea) return null;
+          const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+          gradient.addColorStop(0, 'rgba(239, 68, 68, 0.8)');
+          gradient.addColorStop(1, 'rgba(220, 38, 38, 0.6)');
+          return gradient;
+        },
+        borderColor: 'rgba(220, 38, 38, 1)',
         borderWidth: 1,
         order: 3,
         barThickness: 40,
@@ -65,11 +81,13 @@ export function MixedChart({ data }: MixedChartProps) {
         type: 'line' as const,
         label: 'Resultado Líquido',
         data: data.resultadoLiquido,
-        borderColor: 'hsl(219, 82%, 56%)',
-        backgroundColor: 'hsl(219, 82%, 56%)',
+        borderColor: 'rgba(59, 130, 246, 1)',
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
         borderWidth: 3,
         pointRadius: 6,
         pointHoverRadius: 8,
+        pointBackgroundColor: 'rgba(96, 165, 250, 1)',
+        pointBorderColor: 'rgba(37, 99, 235, 1)',
         fill: false,
         order: 1,
         tension: 0.3,
