@@ -53,6 +53,7 @@ export function Login() {
     uf?: string;
     recaptcha_site_key?: string | null;
   } | null>(null)
+  const [officeLoaded, setOfficeLoaded] = useState(false)
   
   useEffect(() => {
     let mounted = true
@@ -63,11 +64,15 @@ export function Login() {
           .select('nome, cnpj, logomarca_url, telefone, email, instagram, logradouro, numero, complemento, bairro, cep, municipio, uf, recaptcha_site_key')
           .maybeSingle()
         
-        if (mounted && data) {
+        if (mounted) {
           setOffice(data)
+          setOfficeLoaded(true)
         }
       } catch (err) {
         console.error('Erro ao buscar dados do escritório:', err)
+        if (mounted) {
+          setOfficeLoaded(true)
+        }
       }
     })()
     return () => { mounted = false }
@@ -391,13 +396,20 @@ export function Login() {
 
                   {/* reCAPTCHA */}
                   <div className="flex justify-center">
-                    <ReCAPTCHA
-                      ref={recaptchaRef}
-                      sitekey={RECAPTCHA_SITE_KEY}
-                      onChange={(token) => setRecaptchaToken(token)}
-                      onExpired={() => setRecaptchaToken(null)}
-                      theme={document.documentElement.classList.contains('dark') ? 'dark' : 'light'}
-                    />
+                    {!officeLoaded ? (
+                      <div className="h-[78px] flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+                      </div>
+                    ) : (
+                      <ReCAPTCHA
+                        key={RECAPTCHA_SITE_KEY} // Force re-render quando a chave mudar
+                        ref={recaptchaRef}
+                        sitekey={RECAPTCHA_SITE_KEY}
+                        onChange={(token) => setRecaptchaToken(token)}
+                        onExpired={() => setRecaptchaToken(null)}
+                        theme={document.documentElement.classList.contains('dark') ? 'dark' : 'light'}
+                      />
+                    )}
                   </div>
 
                   {/* Submit Button */}
