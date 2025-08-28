@@ -235,7 +235,7 @@ export function Login() {
 
             {/* Office Contact Information */}
             {office && (
-              <footer className="space-y-4">
+              <footer className="space-y-4 mt-6">
                 <Separator className="opacity-50" />
                 {(office.logradouro || office.telefone || office.email) && (
                   <div className="space-y-3">
