@@ -194,7 +194,7 @@ export function Login() {
               </div>
 
               {/* Corporate Features */}
-              <div className="space-y-6 max-w-md">
+              <div className="space-y-6 max-w-xl">
                 <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-card/50 backdrop-blur-sm">
                   <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                     <Target className="h-5 w-5 text-primary" />
