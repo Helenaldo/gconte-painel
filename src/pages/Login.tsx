@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Eye, EyeOff, AlertCircle, LogIn, CalendarDays, Newspaper, Building2, Target } from "lucide-react"
+import { Eye, EyeOff, AlertCircle, LogIn, CalendarDays, Newspaper, Building2, Target, Lightbulb } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/context/auth-context"
 import { Calendar } from "@/components/ui/calendar"
@@ -207,11 +207,11 @@ export function Login() {
 
                 <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-card/50 backdrop-blur-sm">
                   <div className="h-10 w-10 rounded-lg bg-success/10 flex items-center justify-center">
-                    <CalendarDays className="h-5 w-5 text-success" />
+                    <Lightbulb className="h-5 w-5 text-success" />
                   </div>
                   <div>
-                    <h3 className="font-medium text-foreground">Gestão Inteligente</h3>
-                    <p className="text-sm text-muted-foreground">Calendário integrado com feriados nacionais</p>
+                    <h3 className="font-medium text-foreground">Visão</h3>
+                    <p className="text-sm text-muted-foreground">Ser referência em ética, inovação e excelência contábil, reconhecida pela confiança dos clientes e pelo impacto positivo na gestão empresarial.</p>
                   </div>
                 </div>
 
