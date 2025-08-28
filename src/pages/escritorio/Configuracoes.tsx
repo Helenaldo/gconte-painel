@@ -438,60 +438,141 @@ export function Configuracoes() {
       </div>
 
       {escritorio ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Dados do Escritório</CardTitle>
-            <CardDescription>
-              Informações do escritório cadastrado
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div className="flex items-center gap-4">
-                  <Avatar className="h-16 w-16">
-                    <AvatarImage src={escritorio.logomarca_url || ""} alt="Logomarca" className="object-contain" />
-                    <AvatarFallback><Building2 className="h-8 w-8" /></AvatarFallback>
-                  </Avatar>
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle>Dados do Escritório</CardTitle>
+              <CardDescription>
+                Informações do escritório cadastrado
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4">
+                    <Avatar className="h-16 w-16">
+                      <AvatarImage src={escritorio.logomarca_url || ""} alt="Logomarca" className="object-contain" />
+                      <AvatarFallback><Building2 className="h-8 w-8" /></AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <h3 className="text-lg font-semibold">{escritorio.nome}</h3>
+                      <p className="text-sm text-muted-foreground">CNPJ: {escritorio.cnpj}</p>
+                    </div>
+                  </div>
+                  
                   <div>
-                    <h3 className="text-lg font-semibold">{escritorio.nome}</h3>
-                    <p className="text-sm text-muted-foreground">CNPJ: {escritorio.cnpj}</p>
+                    <Label className="text-sm font-medium text-muted-foreground">Endereço</Label>
+                    <p className="mt-1">
+                      {[escritorio.logradouro, escritorio.numero].filter(Boolean).join(", ")}
+                      {escritorio.complemento && `, ${escritorio.complemento}`}
+                    </p>
+                    <p>
+                      {[escritorio.bairro, escritorio.municipio, escritorio.uf].filter(Boolean).join(" - ")}
+                    </p>
+                    <p>CEP: {escritorio.cep}</p>
                   </div>
                 </div>
-                
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Endereço</Label>
-                  <p className="mt-1">
-                    {[escritorio.logradouro, escritorio.numero].filter(Boolean).join(", ")}
-                    {escritorio.complemento && `, ${escritorio.complemento}`}
-                  </p>
-                  <p>
-                    {[escritorio.bairro, escritorio.municipio, escritorio.uf].filter(Boolean).join(" - ")}
-                  </p>
-                  <p>CEP: {escritorio.cep}</p>
-                </div>
-              </div>
 
-              <div className="space-y-4">
-                <div>
-                  <Label className="text-sm font-medium text-muted-foreground">Contato</Label>
-                  <p className="mt-1">Telefone: {escritorio.telefone}</p>
-                  {escritorio.email && <p>E-mail: {escritorio.email}</p>}
-                  {escritorio.instagram && <p>Instagram: {escritorio.instagram}</p>}
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Contato</Label>
+                    <p className="mt-1">Telefone: {escritorio.telefone}</p>
+                    {escritorio.email && <p>E-mail: {escritorio.email}</p>}
+                    {escritorio.instagram && <p>Instagram: {escritorio.instagram}</p>}
+                  </div>
+                  
+                  <Button 
+                    variant="outline" 
+                    onClick={openEditModal}
+                    className="w-full md:w-auto"
+                  >
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Editar Informações
+                  </Button>
                 </div>
-                
-                <Button 
-                  variant="outline" 
-                  onClick={openEditModal}
-                  className="w-full md:w-auto"
-                >
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Editar Informações
-                </Button>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+
+          {/* Card de configuração do reCAPTCHA */}
+          {escritorio.recaptcha_site_key && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="h-5 w-5" />
+                  Configuração do reCAPTCHA
+                </CardTitle>
+                <CardDescription>
+                  Configure os domínios autorizados no Google reCAPTCHA Console
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="p-4 bg-muted/50 rounded-lg">
+                  <h4 className="font-medium text-sm mb-2">Domínio atual detectado:</h4>
+                  <code className="text-sm bg-background p-2 rounded border">
+                    {window.location.hostname}
+                  </code>
+                </div>
+
+                <div>
+                  <h4 className="font-medium text-sm mb-2">Domínios que devem ser configurados no reCAPTCHA:</h4>
+                  <div className="space-y-2">
+                    {[
+                      'localhost',
+                      '127.0.0.1',
+                      window.location.hostname,
+                      'seu-dominio-producao.com'
+                    ].filter((domain, index, arr) => arr.indexOf(domain) === index).map((domain, index) => (
+                      <div key={index} className="flex items-center gap-2 text-sm">
+                        <span className="w-2 h-2 bg-primary rounded-full"></span>
+                        <code className="bg-background p-1 rounded border">{domain}</code>
+                        {domain === 'seu-dominio-producao.com' && (
+                          <span className="text-muted-foreground">(substitua pelo seu domínio real)</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="border-t pt-4">
+                  <h4 className="font-medium text-sm mb-2">Como configurar:</h4>
+                  <ol className="text-sm text-muted-foreground space-y-1 ml-4">
+                    <li>1. Acesse o <a href="https://www.google.com/recaptcha/admin" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Google reCAPTCHA Console</a></li>
+                    <li>2. Clique na sua chave: <code className="bg-background p-1 rounded border text-xs">{escritorio.recaptcha_site_key}</code></li>
+                    <li>3. Vá em "Configurações" → "Domínios"</li>
+                    <li>4. Adicione todos os domínios listados acima</li>
+                    <li>5. Salve as alterações</li>
+                  </ol>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      navigator.clipboard.writeText(escritorio.recaptcha_site_key!)
+                      toast({
+                        title: "Copiado!",
+                        description: "Chave do reCAPTCHA copiada para a área de transferência"
+                      })
+                    }}
+                  >
+                    Copiar Chave
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    asChild
+                  >
+                    <a href="https://www.google.com/recaptcha/admin" target="_blank" rel="noopener noreferrer">
+                      Abrir Console
+                    </a>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </>
       ) : (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
