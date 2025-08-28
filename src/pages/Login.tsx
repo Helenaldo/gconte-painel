@@ -17,6 +17,7 @@ import ReCAPTCHA from "react-google-recaptcha"
 import { supabase } from "@/integrations/supabase/client"
 
 // Corporate Professional Login Page - NobleUI Theme
+// Forçando rebuild para aplicar mudanças
 
 export function Login() {
   const { isAuthenticated, signIn, loading } = useAuth()
@@ -159,7 +160,7 @@ export function Login() {
   }
 
   return (
-    <main className="min-h-screen bg-background">
+    <main className="min-h-screen bg-background border-t-4 border-primary">
       {/* Theme Toggle */}
       <div className="absolute top-6 right-6 z-50">
         <ThemeToggle />
