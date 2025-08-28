@@ -36,7 +36,7 @@ export function Login() {
     if (metaDesc) metaDesc.content = "Acesse sua conta no GCONTE Painel. Login seguro com reCAPTCHA."
   }, [])
 
-  // Office data - buscar todos os campos
+  // Office data - buscar todos os campos incluindo reCAPTCHA
   const [office, setOffice] = useState<{
     nome?: string;
     cnpj?: string;
@@ -51,6 +51,7 @@ export function Login() {
     cep?: string;
     municipio?: string;
     uf?: string;
+    recaptcha_site_key?: string | null;
   } | null>(null)
   
   useEffect(() => {
@@ -59,7 +60,7 @@ export function Login() {
       try {
         const { data, error } = await supabase
           .from('office')
-          .select('nome, cnpj, logomarca_url, telefone, email, instagram, logradouro, numero, complemento, bairro, cep, municipio, uf')
+          .select('nome, cnpj, logomarca_url, telefone, email, instagram, logradouro, numero, complemento, bairro, cep, municipio, uf, recaptcha_site_key')
           .maybeSingle()
         
         if (mounted && data) {
@@ -103,10 +104,10 @@ export function Login() {
       .catch(() => {})
   }, [])
 
-  // reCAPTCHA
+  // reCAPTCHA - prioriza configuração do banco, depois localStorage, depois chave de teste
   const recaptchaRef = useRef<ReCAPTCHA | null>(null)
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null)
-  const RECAPTCHA_SITE_KEY = localStorage.getItem('recaptcha_site_key') || "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI" // Override via localStorage: recaptcha_site_key
+  const RECAPTCHA_SITE_KEY = office?.recaptcha_site_key || localStorage.getItem('recaptcha_site_key') || "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"
 
   if (loading) {
     return (

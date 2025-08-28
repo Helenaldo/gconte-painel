@@ -26,6 +26,7 @@ interface Escritorio {
   email: string
   instagram: string
   logomarca_url: string | null
+  recaptcha_site_key: string | null
 }
 
 const estadosBrasil = [
@@ -50,6 +51,7 @@ export function Configuracoes() {
     telefone: "",
     email: "",
     instagram: "",
+    recaptcha_site_key: "",
     logomarca: null as File | null
   })
   const { toast } = useToast()
@@ -139,6 +141,7 @@ export function Configuracoes() {
         telefone: formData.telefone,
         email: formData.email || null,
         instagram: formData.instagram || null,
+        recaptcha_site_key: formData.recaptcha_site_key || null,
         logomarca_url: logomarcaUrl
       }
 
@@ -186,6 +189,7 @@ export function Configuracoes() {
         telefone: escritorio.telefone,
         email: escritorio.email,
         instagram: escritorio.instagram,
+        recaptcha_site_key: escritorio.recaptcha_site_key || "",
         logomarca: null
       })
     } else {
@@ -202,6 +206,7 @@ export function Configuracoes() {
         telefone: "",
         email: "",
         instagram: "",
+        recaptcha_site_key: "",
         logomarca: null
       })
     }
@@ -380,6 +385,19 @@ export function Configuracoes() {
                     onChange={(e) => setFormData(prev => ({...prev, instagram: e.target.value}))}
                     placeholder="@usuario"
                   />
+                </div>
+
+                <div className="col-span-2 space-y-2">
+                  <Label htmlFor="recaptcha_site_key">Chave do Site reCAPTCHA</Label>
+                  <Input
+                    id="recaptcha_site_key"
+                    value={formData.recaptcha_site_key}
+                    onChange={(e) => setFormData(prev => ({...prev, recaptcha_site_key: e.target.value}))}
+                    placeholder="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Configure sua chave do reCAPTCHA v2 no <a href="https://www.google.com/recaptcha/admin" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Google reCAPTCHA</a>
+                  </p>
                 </div>
 
                 <div className="col-span-2 space-y-2">
