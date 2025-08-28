@@ -87,6 +87,7 @@ export function Dashboards() {
   const [loading, setLoading] = useState(false)
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
   const [fullscreenChart, setFullscreenChart] = useState<{type: string, data: any, title: string} | null>(null)
+  const [semDados, setSemDados] = useState<boolean>(false)
   
   // Cache leve (em memória) e persistente
   const [cache, setCache] = useState<Map<string, CacheItem>>(new Map())
@@ -209,6 +210,44 @@ export function Dashboards() {
     setCache(newCache)
   }
   
+  const buscarPeriodoDisponivel = async (cnpj: string) => {
+    try {
+      const { data: balancetes, error } = await supabase
+        .from('balancetes')
+        .select('ano, mes')
+        .eq('cnpj', cnpj)
+        .in('status', ['parametrizado', 'parametrizando'])
+        .order('ano', { ascending: false })
+        .order('mes', { ascending: false })
+
+      if (error) throw error
+
+      if (!balancetes || balancetes.length === 0) {
+        return null
+      }
+
+      // Encontrar o período mais recente
+      const maisRecente = balancetes[0]
+      const mesFim = `${maisRecente.mes.toString().padStart(2, '0')}/${maisRecente.ano}`
+      
+      // Calcular 6 meses antes
+      let mesInicio = maisRecente.mes - 5
+      let anoInicio = maisRecente.ano
+      
+      if (mesInicio <= 0) {
+        mesInicio += 12
+        anoInicio -= 1
+      }
+      
+      const mesInicioFormatted = `${mesInicio.toString().padStart(2, '0')}/${anoInicio}`
+
+      return { mesInicio: mesInicioFormatted, mesFim }
+    } catch (error) {
+      console.error('Erro ao buscar período disponível:', error)
+      return null
+    }
+  }
+
   const carregarEmpresas = async () => {
     try {
       // Buscar CNPJs únicos que têm balancetes parametrizados
@@ -244,6 +283,30 @@ export function Dashboards() {
       })
     }
   }
+
+  const handleEmpresaChange = async (cnpj: string) => {
+    setEmpresaSelecionada(cnpj)
+    setSemDados(false)
+    
+    if (cnpj) {
+      const periodo = await buscarPeriodoDisponivel(cnpj)
+      if (periodo) {
+        setMesInicio(periodo.mesInicio)
+        setMesFim(periodo.mesFim)
+      } else {
+        setMesInicio("")
+        setMesFim("")
+        toast({
+          title: "Aviso",
+          description: "Nenhum balancete encontrado para esta empresa",
+          variant: "destructive"
+        })
+      }
+    } else {
+      setMesInicio("")
+      setMesFim("")
+    }
+  }
   
   const empresasFiltradas = useMemo(() => {
     if (!searchTerm) return empresas
@@ -262,6 +325,41 @@ export function Dashboards() {
       })
       return
     }
+
+    // Verificar se existem balancetes para o período
+    const [mesInicioMes, anoInicio] = mesInicio.split('/').map(Number)
+    const [mesFimMes, anoFim] = mesFim.split('/').map(Number)
+
+    const { data: balancetesVerificacao, error: verificacaoError } = await supabase
+      .from('balancetes')
+      .select('id')
+      .eq('cnpj', empresaSelecionada)
+      .gte('ano', anoInicio)
+      .lte('ano', anoFim)
+      .in('status', ['parametrizado', 'parametrizando'])
+
+    if (verificacaoError) {
+      console.error('Erro ao verificar balancetes:', verificacaoError)
+      toast({
+        title: "Erro",
+        description: "Falha ao verificar dados disponíveis",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (!balancetesVerificacao || balancetesVerificacao.length === 0) {
+      setSemDados(true)
+      setDashboardData(null)
+      toast({
+        title: "Período sem dados",
+        description: "Período sem dados para ser processados",
+        variant: "destructive"
+      })
+      return
+    }
+
+    setSemDados(false)
     
     // Salvar filtros aplicados
     const currentFilters: SavedFilters = {
@@ -748,7 +846,7 @@ export function Dashboards() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label htmlFor="empresa">Empresa</Label>
-              <Select value={empresaSelecionada} onValueChange={setEmpresaSelecionada}>
+              <Select value={empresaSelecionada} onValueChange={handleEmpresaChange}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione uma empresa" />
                 </SelectTrigger>
@@ -833,13 +931,26 @@ export function Dashboards() {
       )}
 
       {/* Conteúdo Principal */}
-      {!dashboardData && !loading && (
+      {!dashboardData && !loading && !semDados && (
         <Card className="py-12">
           <CardContent className="text-center">
             <BarChart3 className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">Nenhum dado para exibir</h3>
             <p className="text-muted-foreground">
               Aplique os filtros acima para carregar os dados do dashboard
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Aviso de período sem dados */}
+      {semDados && !loading && (
+        <Card className="py-12 border-destructive/50">
+          <CardContent className="text-center">
+            <BarChart3 className="mx-auto h-12 w-12 text-destructive mb-4" />
+            <h3 className="text-lg font-semibold mb-2 text-destructive">Período sem dados para ser processados</h3>
+            <p className="text-muted-foreground">
+              Não foram encontrados balancetes parametrizados para o período selecionado
             </p>
           </CardContent>
         </Card>
