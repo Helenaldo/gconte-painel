@@ -394,12 +394,28 @@ export function Configuracoes() {
 
                 <div className="space-y-2">
                   <Label htmlFor="recaptcha_site_key">Chave do Site reCAPTCHA</Label>
-                  <Input
-                    id="recaptcha_site_key"
-                    value={formData.recaptcha_site_key}
-                    onChange={(e) => setFormData(prev => ({...prev, recaptcha_site_key: e.target.value}))}
-                    placeholder="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      id="recaptcha_site_key"
+                      value={formData.recaptcha_site_key}
+                      onChange={(e) => setFormData(prev => ({...prev, recaptcha_site_key: e.target.value}))}
+                      placeholder="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        if (formData.recaptcha_site_key) {
+                          navigator.clipboard.writeText(formData.recaptcha_site_key);
+                          toast({ title: "Copiado!", description: "Chave copiada para a área de transferência" });
+                        }
+                      }}
+                      disabled={!formData.recaptcha_site_key}
+                    >
+                      Copiar
+                    </Button>
+                  </div>
                   <p className="text-xs text-muted-foreground">
                     Chave pública para exibir o reCAPTCHA no frontend
                   </p>
@@ -407,27 +423,97 @@ export function Configuracoes() {
 
                 <div className="space-y-2">
                   <Label htmlFor="recaptcha_secret_key">Chave Secreta reCAPTCHA</Label>
-                  <Input
-                    id="recaptcha_secret_key"
-                    type="password"
-                    value={formData.recaptcha_secret_key}
-                    onChange={(e) => setFormData(prev => ({...prev, recaptcha_secret_key: e.target.value}))}
-                    placeholder="6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe"
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      id="recaptcha_secret_key"
+                      type="password"
+                      value={formData.recaptcha_secret_key}
+                      onChange={(e) => setFormData(prev => ({...prev, recaptcha_secret_key: e.target.value}))}
+                      placeholder="6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        if (formData.recaptcha_secret_key) {
+                          navigator.clipboard.writeText(formData.recaptcha_secret_key);
+                          toast({ title: "Copiado!", description: "Chave secreta copiada para a área de transferência" });
+                        }
+                      }}
+                      disabled={!formData.recaptcha_secret_key}
+                    >
+                      Copiar
+                    </Button>
+                  </div>
                   <p className="text-xs text-muted-foreground">
                     Chave secreta para validação no backend
                   </p>
                 </div>
 
-                <div className="col-span-2 text-xs text-muted-foreground bg-muted/50 p-3 rounded-lg">
-                  <p className="font-medium mb-1">Como configurar o reCAPTCHA:</p>
-                  <ol className="space-y-1 ml-4">
-                    <li>1. Acesse o <a href="https://www.google.com/recaptcha/admin" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Google reCAPTCHA Console</a></li>
-                    <li>2. Crie um novo site (tipo reCAPTCHA v2)</li>
-                    <li>3. Configure os domínios: localhost, 127.0.0.1, seu domínio atual e produção</li>
-                    <li>4. Copie a "Chave do site" e a "Chave secreta" para os campos acima</li>
-                    <li>5. Salve as configurações</li>
-                  </ol>
+                <div className="col-span-2 space-y-3">
+                  <div className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-lg">
+                    <p className="font-medium mb-1">Como configurar o reCAPTCHA:</p>
+                    <ol className="space-y-1 ml-4">
+                      <li>1. Acesse o <a href="https://www.google.com/recaptcha/admin" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Google reCAPTCHA Console</a></li>
+                      <li>2. Crie um novo site (tipo reCAPTCHA v2)</li>
+                      <li>3. Configure os domínios: localhost, 127.0.0.1, {window.location.hostname}</li>
+                      <li>4. Copie a "Chave do site" e a "Chave secreta" para os campos acima</li>
+                      <li>5. Salve as configurações</li>
+                    </ol>
+                  </div>
+
+                  {/* Test reCAPTCHA Configuration */}
+                  <div className="bg-info/10 border border-info/20 p-3 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="font-medium text-sm">Testar Configuração reCAPTCHA</p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                          if (!formData.recaptcha_site_key || !formData.recaptcha_secret_key) {
+                            toast({ 
+                              title: "Erro", 
+                              description: "Configure ambas as chaves antes de testar", 
+                              variant: "destructive" 
+                            });
+                            return;
+                          }
+                          
+                          try {
+                            // Test if keys are valid format (basic validation)
+                            if (formData.recaptcha_site_key.length < 30 || formData.recaptcha_secret_key.length < 30) {
+                              toast({ 
+                                title: "Erro", 
+                                description: "Chaves parecem inválidas (muito curtas)", 
+                                variant: "destructive" 
+                              });
+                              return;
+                            }
+                            
+                            toast({ 
+                              title: "Teste realizado!", 
+                              description: "Chaves configuradas. Teste completo será feito no login.", 
+                              duration: 3000 
+                            });
+                          } catch (error) {
+                            toast({ 
+                              title: "Erro", 
+                              description: "Erro ao testar configuração", 
+                              variant: "destructive" 
+                            });
+                          }
+                        }}
+                        disabled={!formData.recaptcha_site_key || !formData.recaptcha_secret_key}
+                      >
+                        Testar
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Teste básico das chaves configuradas. O teste completo é feito durante o login.
+                    </p>
+                  </div>
                 </div>
 
                 <div className="col-span-2 space-y-2">

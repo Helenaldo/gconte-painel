@@ -27,8 +27,8 @@ export function Login() {
   const [rememberMe, setRememberMe] = useState(false)
   const [isLoginLoading, setIsLoginLoading] = useState(false)
   const [loginError, setLoginError] = useState("")
-  const [showEmergencyLogin, setShowEmergencyLogin] = useState(false)
-  const [emergencyLoginAttempts, setEmergencyLoginAttempts] = useState(0)
+  const [isRecaptchaLoading, setIsRecaptchaLoading] = useState(false)
+  const [recaptchaAttempts, setRecaptchaAttempts] = useState(0)
   const { toast } = useToast()
 
   // SEO
@@ -128,70 +128,120 @@ export function Login() {
     return <Navigate to="/dashboard" replace />
   }
 
-  const handleLogin = async (e: React.FormEvent, isEmergency = false) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoginError("")
     setIsLoginLoading(true)
+    setIsRecaptchaLoading(true)
 
     try {
-      // Verificar reCAPTCHA apenas se não for login de emergência
-      if (!isEmergency) {
-        if (!recaptchaToken) {
-          setLoginError("Valide o reCAPTCHA antes de continuar.")
-          setIsLoginLoading(false)
-          return
-        }
-
-        // Validar reCAPTCHA no backend
-        try {
-          const { data, error: functionError } = await supabase.functions.invoke('verify-recaptcha', {
-            body: { recaptchaToken }
-          });
-
-          if (functionError || !data?.success) {
-            const errorMsg = data?.error || 'Erro na validação do reCAPTCHA';
-            
-            // Se for erro de domínio, mostrar opção de emergência
-            if (errorMsg.includes('Domínio não autorizado') || errorMsg.includes('hostname-mismatch')) {
-              setShowEmergencyLogin(true);
-              setLoginError(`${errorMsg} Use o login de emergência se necessário.`);
-            } else {
-              setLoginError(errorMsg);
-            }
-            
-            setIsLoginLoading(false)
-            return;
-          }
-        } catch (recaptchaError) {
-          console.error('Erro na validação do reCAPTCHA:', recaptchaError);
-          setShowEmergencyLogin(true);
-          setLoginError("Erro na validação do reCAPTCHA. Use o login de emergência se necessário.");
-          setIsLoginLoading(false)
-          return;
-        }
-      } else {
-        // Incrementar tentativas de login de emergência
-        setEmergencyLoginAttempts(prev => prev + 1);
-        if (emergencyLoginAttempts >= 3) {
-          setLoginError("Muitas tentativas de login de emergência. Recarregue a página.");
-          setIsLoginLoading(false)
-          return;
-        }
+      // reCAPTCHA validation is now mandatory
+      if (!recaptchaToken) {
+        setLoginError("Complete o reCAPTCHA antes de continuar.")
+        setIsLoginLoading(false)
+        setIsRecaptchaLoading(false)
+        return
       }
 
+      // Validar reCAPTCHA no backend
+      try {
+        const { data, error: functionError } = await supabase.functions.invoke('verify-recaptcha', {
+          body: { 
+            recaptchaToken,
+            userAgent: navigator.userAgent,
+            timestamp: new Date().toISOString()
+          }
+        });
+
+        if (functionError) {
+          console.error('Erro na função de verificação:', functionError);
+          setLoginError("Erro na validação de segurança. Tente novamente.");
+          setIsLoginLoading(false)
+          setIsRecaptchaLoading(false)
+          return;
+        }
+
+        if (!data?.success) {
+          const errorMsg = data?.error || 'Erro na validação do reCAPTCHA';
+          console.error('reCAPTCHA validation failed:', data);
+          
+          // Increment attempts for better UX feedback
+          setRecaptchaAttempts(prev => prev + 1);
+          
+          // Handle rate limiting
+          if (data?.retryAfter) {
+            setLoginError(`${errorMsg} Tente novamente em ${data.retryAfter} segundos.`);
+          } else if (data?.canRetry === false) {
+            setLoginError(`${errorMsg} Entre em contato com o administrador.`);
+          } else {
+            setLoginError(`${errorMsg} ${recaptchaAttempts > 0 ? 'Complete o reCAPTCHA novamente.' : ''}`);
+          }
+          
+          // Reset reCAPTCHA for another attempt
+          if (recaptchaRef.current && data?.canRetry !== false) {
+            recaptchaRef.current.reset();
+            setRecaptchaToken(null);
+          }
+          
+          setIsLoginLoading(false)
+          setIsRecaptchaLoading(false)
+          return;
+        }
+
+        // Log successful reCAPTCHA validation
+        console.log('reCAPTCHA validation successful:', {
+          hostname: data.hostname,
+          score: data.score
+        });
+
+      } catch (recaptchaError) {
+        console.error('Erro na validação do reCAPTCHA:', recaptchaError);
+        setLoginError("Erro na validação de segurança. Verifique sua conexão e tente novamente.");
+        setIsLoginLoading(false)
+        setIsRecaptchaLoading(false)
+        return;
+      }
+
+      setIsRecaptchaLoading(false)
+
+      // Proceed with login
       const { error } = await signIn(loginEmail, loginPassword)
       if (error) {
-        setLoginError(error.message || "Erro ao fazer login. Verifique suas credenciais.")
+        if (error.message.includes('Invalid login credentials')) {
+          setLoginError("E-mail ou senha incorretos. Verifique suas credenciais.")
+        } else if (error.message.includes('Email not confirmed')) {
+          setLoginError("E-mail não confirmado. Verifique sua caixa de entrada.")
+        } else {
+          setLoginError(error.message || "Erro ao fazer login. Tente novamente.")
+        }
       } else {
+        // Create audit log entry for successful login
+        try {
+          await supabase.functions.invoke('create-login-audit', {
+            body: {
+              action: 'login_success',
+              ip_address: 'client_side', // Will be replaced by edge function
+              user_agent: navigator.userAgent,
+              timestamp: new Date().toISOString()
+            }
+          });
+        } catch (auditError) {
+          // Don't block login if audit fails
+          console.warn('Falha ao criar log de auditoria:', auditError);
+        }
+
         toast({ 
           title: "Login realizado com sucesso!", 
-          description: isEmergency ? "Login de emergência realizado." : "Bem-vindo ao GCONTE PAINEL."
+          description: "Bem-vindo ao GCONTE PAINEL.",
+          duration: 3000
         })
       }
     } catch (err: any) {
+      console.error('Erro interno no login:', err);
       setLoginError("Erro interno do sistema. Tente novamente mais tarde.")
     } finally {
       setIsLoginLoading(false)
+      setIsRecaptchaLoading(false)
     }
   }
 
@@ -439,60 +489,59 @@ export function Login() {
                     </Button>
                   </div>
 
-                  {/* reCAPTCHA */}
-                  <div className="flex justify-center">
-                    {!officeLoaded ? (
-                      <div className="h-[78px] flex items-center justify-center">
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
+                    {/* reCAPTCHA */}
+                    {officeLoaded && (
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">
+                          Verificação de Segurança
+                        </Label>
+                        <div className="flex justify-center">
+                          <ReCAPTCHA
+                            ref={recaptchaRef}
+                            sitekey={RECAPTCHA_SITE_KEY}
+                            onChange={setRecaptchaToken}
+                            theme="light"
+                            size="normal"
+                            className="recaptcha-container"
+                          />
+                        </div>
+                        {isRecaptchaLoading && (
+                          <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                            <div className="animate-spin rounded-full h-3 w-3 border-b border-primary"></div>
+                            Validando segurança...
+                          </div>
+                        )}
+                        {!recaptchaToken && !isRecaptchaLoading && (
+                          <p className="text-xs text-muted-foreground text-center">
+                            Complete a verificação acima para continuar
+                          </p>
+                        )}
+                        {recaptchaAttempts > 0 && (
+                          <p className="text-xs text-warning text-center">
+                            Tentativa {recaptchaAttempts + 1} - Complete novamente se necessário
+                          </p>
+                        )}
                       </div>
-                    ) : (
-                      <ReCAPTCHA
-                        key={RECAPTCHA_SITE_KEY} // Force re-render quando a chave mudar
-                        ref={recaptchaRef}
-                        sitekey={RECAPTCHA_SITE_KEY}
-                        onChange={(token) => setRecaptchaToken(token)}
-                        onExpired={() => setRecaptchaToken(null)}
-                        theme={document.documentElement.classList.contains('dark') ? 'dark' : 'light'}
-                      />
                     )}
-                  </div>
 
-                  {/* Submit Button */}
-                  <Button 
-                    type="submit" 
-                    className="w-full h-12 bg-gradient-to-r from-primary to-primary-hover text-primary-foreground font-medium shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50"
-                    disabled={isLoginLoading || (!recaptchaToken && !showEmergencyLogin)}
-                  >
-                    {isLoginLoading ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2"></div>
-                        Entrando...
-                      </>
-                    ) : (
-                      "Entrar na conta"
-                    )}
-                  </Button>
-
-                  {/* Botão de Login de Emergência */}
-                  {showEmergencyLogin && (
+                    {/* Login Button */}
                     <Button 
-                      type="button"
-                      variant="outline"
-                      className="w-full h-12 border-warning text-warning hover:bg-warning/10"
-                      disabled={isLoginLoading || emergencyLoginAttempts >= 3}
-                      onClick={(e) => handleLogin(e, true)}
+                      type="submit" 
+                      disabled={isLoginLoading || !recaptchaToken || isRecaptchaLoading} 
+                      className="w-full h-11 bg-gradient-primary hover:opacity-90 transition-all duration-200"
                     >
-                      <AlertCircle className="h-4 w-4 mr-2" />
-                      Login de Emergência {emergencyLoginAttempts > 0 && `(${emergencyLoginAttempts}/3)`}
+                      {isLoginLoading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          {isRecaptchaLoading ? 'Validando segurança...' : 'Entrando...'}
+                        </>
+                      ) : (
+                        <>
+                          <LogIn className="mr-2 h-4 w-4" />
+                          Entrar com Segurança
+                        </>
+                      )}
                     </Button>
-                  )}
-
-                  {showEmergencyLogin && (
-                    <div className="text-xs text-muted-foreground text-center space-y-1">
-                      <p>⚠️ O login de emergência ignora o reCAPTCHA</p>
-                      <p>Configure os domínios corretos no <a href="https://www.google.com/recaptcha/admin" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Google reCAPTCHA Console</a></p>
-                    </div>
-                  )}
                 </form>
               </CardContent>
             </Card>
