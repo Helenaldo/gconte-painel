@@ -326,34 +326,57 @@ export function Dashboards() {
       return
     }
 
-    // Verificar se existem balancetes para o período
+    // Verificar se existem balancetes para o período específico
     const [mesInicioMes, anoInicio] = mesInicio.split('/').map(Number)
     const [mesFimMes, anoFim] = mesFim.split('/').map(Number)
 
-    const { data: balancetesVerificacao, error: verificacaoError } = await supabase
-      .from('balancetes')
-      .select('id')
-      .eq('cnpj', empresaSelecionada)
-      .gte('ano', anoInicio)
-      .lte('ano', anoFim)
-      .in('status', ['parametrizado', 'parametrizando'])
+    // Gerar todos os meses no período solicitado
+    const mesesSolicitados = []
+    let currentYear = anoInicio
+    let currentMonth = mesInicioMes
 
-    if (verificacaoError) {
+    while (currentYear < anoFim || (currentYear === anoFim && currentMonth <= mesFimMes)) {
+      mesesSolicitados.push({ ano: currentYear, mes: currentMonth })
+      currentMonth++
+      if (currentMonth > 12) {
+        currentMonth = 1
+        currentYear++
+      }
+    }
+
+    // Verificar se existem balancetes para pelo menos um dos meses solicitados
+    const verificacoesPromises = mesesSolicitados.map(({ ano, mes }) =>
+      supabase
+        .from('balancetes')
+        .select('id')
+        .eq('cnpj', empresaSelecionada)
+        .eq('ano', ano)
+        .eq('mes', mes)
+        .in('status', ['parametrizado', 'parametrizando'])
+        .limit(1)
+    )
+
+    try {
+      const resultados = await Promise.all(verificacoesPromises)
+      const temDados = resultados.some(resultado => 
+        resultado.data && resultado.data.length > 0
+      )
+
+      if (!temDados) {
+        setSemDados(true)
+        setDashboardData(null)
+        toast({
+          title: "Período sem dados",
+          description: "Período sem dados para ser processados",
+          variant: "destructive"
+        })
+        return
+      }
+    } catch (verificacaoError) {
       console.error('Erro ao verificar balancetes:', verificacaoError)
       toast({
         title: "Erro",
         description: "Falha ao verificar dados disponíveis",
-        variant: "destructive"
-      })
-      return
-    }
-
-    if (!balancetesVerificacao || balancetesVerificacao.length === 0) {
-      setSemDados(true)
-      setDashboardData(null)
-      toast({
-        title: "Período sem dados",
-        description: "Período sem dados para ser processados",
         variant: "destructive"
       })
       return
