@@ -553,6 +553,7 @@ export type Database = {
           municipio: string | null
           nome: string
           numero: string | null
+          recaptcha_secret_key: string | null
           recaptcha_site_key: string | null
           telefone: string | null
           uf: string | null
@@ -572,6 +573,7 @@ export type Database = {
           municipio?: string | null
           nome: string
           numero?: string | null
+          recaptcha_secret_key?: string | null
           recaptcha_site_key?: string | null
           telefone?: string | null
           uf?: string | null
@@ -591,6 +593,7 @@ export type Database = {
           municipio?: string | null
           nome?: string
           numero?: string | null
+          recaptcha_secret_key?: string | null
           recaptcha_site_key?: string | null
           telefone?: string | null
           uf?: string | null

@@ -27,6 +27,7 @@ interface Escritorio {
   instagram: string
   logomarca_url: string | null
   recaptcha_site_key: string | null
+  recaptcha_secret_key: string | null
 }
 
 const estadosBrasil = [
@@ -52,6 +53,7 @@ export function Configuracoes() {
     email: "",
     instagram: "",
     recaptcha_site_key: "",
+    recaptcha_secret_key: "",
     logomarca: null as File | null
   })
   const { toast } = useToast()
@@ -142,6 +144,7 @@ export function Configuracoes() {
         email: formData.email || null,
         instagram: formData.instagram || null,
         recaptcha_site_key: formData.recaptcha_site_key || null,
+        recaptcha_secret_key: formData.recaptcha_secret_key || null,
         logomarca_url: logomarcaUrl
       }
 
@@ -190,6 +193,7 @@ export function Configuracoes() {
         email: escritorio.email,
         instagram: escritorio.instagram,
         recaptcha_site_key: escritorio.recaptcha_site_key || "",
+        recaptcha_secret_key: escritorio.recaptcha_secret_key || "",
         logomarca: null
       })
     } else {
@@ -207,6 +211,7 @@ export function Configuracoes() {
         email: "",
         instagram: "",
         recaptcha_site_key: "",
+        recaptcha_secret_key: "",
         logomarca: null
       })
     }
@@ -387,7 +392,7 @@ export function Configuracoes() {
                   />
                 </div>
 
-                <div className="col-span-2 space-y-2">
+                <div className="space-y-2">
                   <Label htmlFor="recaptcha_site_key">Chave do Site reCAPTCHA</Label>
                   <Input
                     id="recaptcha_site_key"
@@ -396,8 +401,33 @@ export function Configuracoes() {
                     placeholder="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Configure sua chave do reCAPTCHA v2 no <a href="https://www.google.com/recaptcha/admin" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Google reCAPTCHA</a>
+                    Chave pública para exibir o reCAPTCHA no frontend
                   </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="recaptcha_secret_key">Chave Secreta reCAPTCHA</Label>
+                  <Input
+                    id="recaptcha_secret_key"
+                    type="password"
+                    value={formData.recaptcha_secret_key}
+                    onChange={(e) => setFormData(prev => ({...prev, recaptcha_secret_key: e.target.value}))}
+                    placeholder="6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Chave secreta para validação no backend
+                  </p>
+                </div>
+
+                <div className="col-span-2 text-xs text-muted-foreground bg-muted/50 p-3 rounded-lg">
+                  <p className="font-medium mb-1">Como configurar o reCAPTCHA:</p>
+                  <ol className="space-y-1 ml-4">
+                    <li>1. Acesse o <a href="https://www.google.com/recaptcha/admin" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Google reCAPTCHA Console</a></li>
+                    <li>2. Crie um novo site (tipo reCAPTCHA v2)</li>
+                    <li>3. Configure os domínios: localhost, 127.0.0.1, seu domínio atual e produção</li>
+                    <li>4. Copie a "Chave do site" e a "Chave secreta" para os campos acima</li>
+                    <li>5. Salve as configurações</li>
+                  </ol>
                 </div>
 
                 <div className="col-span-2 space-y-2">

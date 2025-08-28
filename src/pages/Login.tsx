@@ -27,6 +27,8 @@ export function Login() {
   const [rememberMe, setRememberMe] = useState(false)
   const [isLoginLoading, setIsLoginLoading] = useState(false)
   const [loginError, setLoginError] = useState("")
+  const [showEmergencyLogin, setShowEmergencyLogin] = useState(false)
+  const [emergencyLoginAttempts, setEmergencyLoginAttempts] = useState(0)
   const { toast } = useToast()
 
   // SEO
@@ -126,22 +128,65 @@ export function Login() {
     return <Navigate to="/dashboard" replace />
   }
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent, isEmergency = false) => {
     e.preventDefault()
     setLoginError("")
     setIsLoginLoading(true)
 
     try {
-      if (!recaptchaToken) {
-        setLoginError("Valide o reCAPTCHA antes de continuar.")
-        setIsLoginLoading(false)
-        return
+      // Verificar reCAPTCHA apenas se não for login de emergência
+      if (!isEmergency) {
+        if (!recaptchaToken) {
+          setLoginError("Valide o reCAPTCHA antes de continuar.")
+          setIsLoginLoading(false)
+          return
+        }
+
+        // Validar reCAPTCHA no backend
+        try {
+          const { data, error: functionError } = await supabase.functions.invoke('verify-recaptcha', {
+            body: { recaptchaToken }
+          });
+
+          if (functionError || !data?.success) {
+            const errorMsg = data?.error || 'Erro na validação do reCAPTCHA';
+            
+            // Se for erro de domínio, mostrar opção de emergência
+            if (errorMsg.includes('Domínio não autorizado') || errorMsg.includes('hostname-mismatch')) {
+              setShowEmergencyLogin(true);
+              setLoginError(`${errorMsg} Use o login de emergência se necessário.`);
+            } else {
+              setLoginError(errorMsg);
+            }
+            
+            setIsLoginLoading(false)
+            return;
+          }
+        } catch (recaptchaError) {
+          console.error('Erro na validação do reCAPTCHA:', recaptchaError);
+          setShowEmergencyLogin(true);
+          setLoginError("Erro na validação do reCAPTCHA. Use o login de emergência se necessário.");
+          setIsLoginLoading(false)
+          return;
+        }
+      } else {
+        // Incrementar tentativas de login de emergência
+        setEmergencyLoginAttempts(prev => prev + 1);
+        if (emergencyLoginAttempts >= 3) {
+          setLoginError("Muitas tentativas de login de emergência. Recarregue a página.");
+          setIsLoginLoading(false)
+          return;
+        }
       }
+
       const { error } = await signIn(loginEmail, loginPassword)
       if (error) {
         setLoginError(error.message || "Erro ao fazer login. Verifique suas credenciais.")
       } else {
-        toast({ title: "Login realizado com sucesso!", description: "Bem-vindo ao GCONTE PAINEL." })
+        toast({ 
+          title: "Login realizado com sucesso!", 
+          description: isEmergency ? "Login de emergência realizado." : "Bem-vindo ao GCONTE PAINEL."
+        })
       }
     } catch (err: any) {
       setLoginError("Erro interno do sistema. Tente novamente mais tarde.")
@@ -416,7 +461,7 @@ export function Login() {
                   <Button 
                     type="submit" 
                     className="w-full h-12 bg-gradient-to-r from-primary to-primary-hover text-primary-foreground font-medium shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50"
-                    disabled={isLoginLoading || !recaptchaToken}
+                    disabled={isLoginLoading || (!recaptchaToken && !showEmergencyLogin)}
                   >
                     {isLoginLoading ? (
                       <>
@@ -427,6 +472,27 @@ export function Login() {
                       "Entrar na conta"
                     )}
                   </Button>
+
+                  {/* Botão de Login de Emergência */}
+                  {showEmergencyLogin && (
+                    <Button 
+                      type="button"
+                      variant="outline"
+                      className="w-full h-12 border-warning text-warning hover:bg-warning/10"
+                      disabled={isLoginLoading || emergencyLoginAttempts >= 3}
+                      onClick={(e) => handleLogin(e, true)}
+                    >
+                      <AlertCircle className="h-4 w-4 mr-2" />
+                      Login de Emergência {emergencyLoginAttempts > 0 && `(${emergencyLoginAttempts}/3)`}
+                    </Button>
+                  )}
+
+                  {showEmergencyLogin && (
+                    <div className="text-xs text-muted-foreground text-center space-y-1">
+                      <p>⚠️ O login de emergência ignora o reCAPTCHA</p>
+                      <p>Configure os domínios corretos no <a href="https://www.google.com/recaptcha/admin" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Google reCAPTCHA Console</a></p>
+                    </div>
+                  )}
                 </form>
               </CardContent>
             </Card>
