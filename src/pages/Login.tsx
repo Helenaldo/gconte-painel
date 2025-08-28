@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Eye, EyeOff, AlertCircle, LogIn, CalendarDays, Newspaper, Building2, Target, Lightbulb } from "lucide-react"
+import { Eye, EyeOff, AlertCircle, LogIn, CalendarDays, Newspaper, Building2, Target, Lightbulb, Shield } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/context/auth-context"
 import { Calendar } from "@/components/ui/calendar"
@@ -217,11 +217,16 @@ export function Login() {
 
                 <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-card/50 backdrop-blur-sm">
                   <div className="h-10 w-10 rounded-lg bg-info/10 flex items-center justify-center">
-                    <Newspaper className="h-5 w-5 text-info" />
+                    <Shield className="h-5 w-5 text-info" />
                   </div>
                   <div>
-                    <h3 className="font-medium text-foreground">Informações Atualizadas</h3>
-                    <p className="text-sm text-muted-foreground">Feed de notícias econômicas e políticas</p>
+                    <h3 className="font-medium text-foreground">Políticas da Empresa</h3>
+                    <p className="text-sm text-muted-foreground">
+                      • Foco no Cliente: superar expectativas por meio de um atendimento consultivo, ágil e transparente.<br/>
+                      • Conformidade Legal: assegurar rigoroso cumprimento das normas contábeis, fiscais e regulatórias.<br/>
+                      • Qualidade e Inovação: manter processos de gestão da qualidade em constante aprimoramento, incorporando tecnologia e boas práticas do mercado.<br/>
+                      • Melhoria Contínua: buscar evolução permanente nos serviços prestados, visando eficiência, segurança da informação e excelência no relacionamento com clientes e parceiros.
+                    </p>
                   </div>
                 </div>
               </div>
