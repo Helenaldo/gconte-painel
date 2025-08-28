@@ -245,6 +245,9 @@ export function Login() {
                           📍 {[office.logradouro, office.numero].filter(Boolean).join(", ")}
                           {office.complemento && `, ${office.complemento}`}
                           {office.bairro && `, ${office.bairro}`}
+                          {office.municipio && `, ${office.municipio}`}
+                          {office.uf && ` - ${office.uf}`}
+                          {office.cep && `, CEP: ${office.cep}`}
                         </p>
                       )}
                       {office.telefone && <p className="text-muted-foreground">📞 {office.telefone}</p>}
