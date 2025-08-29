@@ -55,6 +55,75 @@ export function PesoChart({ data }: PesoChartProps) {
   console.log('📊 Valores Absolutos:', data.valoresAbsolutos)
   console.log('📈 Valores Percentuais:', data.valoresPercentuais)
 
+  // Definir cores específicas para cada tipo de indicador
+  const getColors = (labelAbsoluto: string) => {
+    switch (labelAbsoluto) {
+      case 'Custos':
+        return {
+          barBackground: (context: any) => {
+            const chart = context.chart;
+            const {ctx, chartArea} = chart;
+            if (!chartArea) return null;
+            const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+            gradient.addColorStop(0, 'rgba(34, 197, 94, 0.8)'); // Verde
+            gradient.addColorStop(1, 'rgba(22, 163, 74, 0.6)');
+            return gradient;
+          },
+          barBorder: 'rgba(22, 163, 74, 1)',
+          lineColor: 'rgba(21, 128, 61, 1)', // Verde mais escuro
+          lineBackground: 'rgba(34, 197, 94, 0.1)'
+        }
+      case 'Despesas':
+        return {
+          barBackground: (context: any) => {
+            const chart = context.chart;
+            const {ctx, chartArea} = chart;
+            if (!chartArea) return null;
+            const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+            gradient.addColorStop(0, 'rgba(239, 68, 68, 0.8)'); // Vermelho
+            gradient.addColorStop(1, 'rgba(220, 38, 38, 0.6)');
+            return gradient;
+          },
+          barBorder: 'rgba(220, 38, 38, 1)',
+          lineColor: 'rgba(185, 28, 28, 1)', // Vermelho mais escuro
+          lineBackground: 'rgba(239, 68, 68, 0.1)'
+        }
+      case 'Tributos':
+        return {
+          barBackground: (context: any) => {
+            const chart = context.chart;
+            const {ctx, chartArea} = chart;
+            if (!chartArea) return null;
+            const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+            gradient.addColorStop(0, 'rgba(251, 146, 60, 0.8)'); // Laranja
+            gradient.addColorStop(1, 'rgba(249, 115, 22, 0.6)');
+            return gradient;
+          },
+          barBorder: 'rgba(249, 115, 22, 1)',
+          lineColor: 'rgba(234, 88, 12, 1)', // Laranja mais escuro
+          lineBackground: 'rgba(251, 146, 60, 0.1)'
+        }
+      case 'Folha e Encargos':
+      default:
+        return {
+          barBackground: (context: any) => {
+            const chart = context.chart;
+            const {ctx, chartArea} = chart;
+            if (!chartArea) return null;
+            const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+            gradient.addColorStop(0, 'rgba(139, 92, 246, 0.8)'); // Roxo
+            gradient.addColorStop(1, 'rgba(124, 58, 237, 0.6)');
+            return gradient;
+          },
+          barBorder: 'rgba(124, 58, 237, 1)',
+          lineColor: 'rgba(109, 40, 217, 1)', // Roxo mais escuro
+          lineBackground: 'rgba(139, 92, 246, 0.1)'
+        }
+    }
+  }
+
+  const colors = getColors(data.labelAbsoluto)
+
   const chartData = {
     labels: data.meses,
     datasets: [
@@ -63,10 +132,8 @@ export function PesoChart({ data }: PesoChartProps) {
         type: 'bar' as const,
         label: data.labelAbsoluto,
         data: data.valoresAbsolutos,
-        backgroundColor: isDark 
-          ? 'hsla(var(--primary), 0.8)' 
-          : 'hsla(var(--primary), 0.6)',
-        borderColor: 'hsl(var(--primary))',
+        backgroundColor: colors.barBackground,
+        borderColor: colors.barBorder,
         borderWidth: 2,
         borderRadius: 8,
         borderSkipped: false,
@@ -78,10 +145,10 @@ export function PesoChart({ data }: PesoChartProps) {
         type: 'line' as const,
         label: data.labelPercentual,
         data: data.valoresPercentuais,
-        borderColor: 'hsl(var(--destructive))',
-        backgroundColor: 'hsla(var(--destructive), 0.1)',
+        borderColor: colors.lineColor,
+        backgroundColor: colors.lineBackground,
         borderWidth: 4,
-        pointBackgroundColor: 'hsl(var(--destructive))',
+        pointBackgroundColor: colors.lineColor,
         pointBorderColor: isDark ? 'hsl(var(--background))' : 'hsl(var(--card))',
         pointBorderWidth: 3,
         pointRadius: 6,
