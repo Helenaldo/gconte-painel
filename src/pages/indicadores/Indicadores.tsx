@@ -1348,6 +1348,7 @@ export function Indicadores() {
                 indicador === "Deduções das Receitas" ||
                 indicador === "Outras Receitas Operacionais" ||
                 indicador === "Tributos" ||
+                indicador === "Folha e Encargos" ||
                 indicador === "Resultado Líquido" ||
                 indicador === "EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization" ||
                 indicador === "Necessidade de Capital de Giro (NCG)"
