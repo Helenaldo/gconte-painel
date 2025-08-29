@@ -67,9 +67,10 @@ export function Indicadores() {
     "Custos e Despesas",
     "Margem de Contribuição",
     "Deduções das Receitas",
-    "Outras Receitas Operacionais",
-    "Tributos",
-    "Resultado Líquido",
+     "Outras Receitas Operacionais",
+     "Tributos",
+     "Folha e Encargos",
+     "Resultado Líquido",
     "ROE – Return on Equity (Retorno sobre o Patrimônio Líquido)",
     "ROA – Return on Assets (Retorno sobre Ativos)",
     "EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization",
@@ -130,6 +131,7 @@ export function Indicadores() {
         'Deduções das Receitas',
         'Outras Receitas Operacionais',
         'Tributos',
+        'Folha e Encargos',
         'Resultado Líquido'
       ],
     },
@@ -178,6 +180,8 @@ export function Indicadores() {
     "Margem de Contribuição": "Valor da Receita líquida deduzida dos custos. A margem de contribuição está relacionada com o quanto cada produto ou serviço oferecido contribui para pagar as despesas fixas de uma empresa.",
     "Deduções das Receitas": "Valor das deduções das receitas no período, conforme conta padrão '3.1.2 - DEDUÇÕES DA RECEITA'.",
     "Outras Receitas Operacionais": "Valor das receitas financeiras no período, conforme conta padrão '3.1.3 - RECEITA FINANCEIRA'.",
+    "Tributos": "Soma dos valores de impostos e tributos pagos no período, incluindo IRPJ, CSLL, ISS, Simples Nacional, PIS, COFINS e ICMS.",
+    "Folha e Encargos": "Soma dos custos com pessoal (salários) e encargos sociais (FGTS, INSS, etc.), representando o custo total da folha de pagamento da empresa.",
     "Resultado Líquido": "É o lucro ou prejuízo líquido do período. Se for positivo, significa que a empresa teve mais receitas do que gastos. Se for negativo, significa que a empresa teve mais gastos do que receitas.",
     "ROE – Return on Equity (Retorno sobre o Patrimônio Líquido)": "Mede o retorno obtido para cada unidade monetária investida pelos sócios. Indica a rentabilidade do capital próprio da empresa. Quanto maior, melhor para os acionistas.",
     "ROA – Return on Assets (Retorno sobre Ativos)": "Avalia a capacidade da empresa de gerar lucro em relação ao total de ativos que possui. Quanto maior o índice, mais eficiente é a utilização dos recursos disponíveis.",
@@ -337,6 +341,10 @@ export function Indicadores() {
       '3.1.2.3 PIS': 'movimento',
       '3.1.2.4 COFINS': 'movimento',
       '3.1.2.5 ICMS': 'movimento',
+    },
+    'Folha e Encargos': {
+      '4.1.2 CUSTOS COM PESSOAL': 'movimento',
+      '4.1.3 CUSTOS COM ENCARGOS SOCIAIS': 'movimento',
     },
   }
 
@@ -787,12 +795,9 @@ export function Indicadores() {
       // Calcular indicadores para cada mês
       const resultadosIndicadores: { [nome: string]: IndicadorData } = {}
 
-      console.log('[DEBUG] Inicializando indicadores...')
       nomeIndicadores.forEach(nomeIndicador => {
-        console.log('[DEBUG] Inicializando indicador:', nomeIndicador)
         resultadosIndicadores[nomeIndicador] = {}
       })
-      console.log('[DEBUG] Indicadores inicializados:', Object.keys(resultadosIndicadores))
 
       mesesOrdenados.forEach(mes => {
         const mesNome = nomesMeses[mes - 1]
@@ -1292,9 +1297,6 @@ export function Indicadores() {
 
         // Tributos
         {
-          console.log('[DEBUG] Calculando Tributos para o mês:', mesNome)
-          console.log('[DEBUG] Objeto resultadosIndicadores["Tributos"] existe?', resultadosIndicadores["Tributos"])
-          
           const despesasTributarias = temContasParametrizadas('4.2.3') ? obterValorContaPorFonte('4.2.3', getVarFonte("Tributos", '4.2.3 DESPESAS TRIBUTÁRIAS')) : 0
           const iss = temContasParametrizadas('3.1.2.1') ? obterValorContaPorFonte('3.1.2.1', getVarFonte("Tributos", '3.1.2.1 ISS')) : 0
           const simplesNacional = temContasParametrizadas('3.1.2.2') ? obterValorContaPorFonte('3.1.2.2', getVarFonte("Tributos", '3.1.2.2 SIMPLES NACIONAL')) : 0
@@ -1302,15 +1304,15 @@ export function Indicadores() {
           const cofins = temContasParametrizadas('3.1.2.4') ? obterValorContaPorFonte('3.1.2.4', getVarFonte("Tributos", '3.1.2.4 COFINS')) : 0
           const icms = temContasParametrizadas('3.1.2.5') ? obterValorContaPorFonte('3.1.2.5', getVarFonte("Tributos", '3.1.2.5 ICMS')) : 0
           const totalTributos = despesasTributarias + iss + simplesNacional + pis + cofins + icms
-          
-          console.log('[DEBUG] Total de tributos calculado:', totalTributos)
-          
-          if (resultadosIndicadores["Tributos"]) {
-            resultadosIndicadores["Tributos"][mesNome] = totalTributos
-            console.log('[DEBUG] Tributos definido com sucesso para', mesNome)
-          } else {
-            console.error('[DEBUG] ERRO: resultadosIndicadores["Tributos"] é undefined!')
-          }
+          resultadosIndicadores["Tributos"][mesNome] = totalTributos
+        }
+
+        // Folha e Encargos
+        {
+          const custosComPessoal = temContasParametrizadas('4.1.2') ? obterValorContaPorFonte('4.1.2', getVarFonte("Folha e Encargos", '4.1.2 CUSTOS COM PESSOAL')) : 0
+          const custosComEncargos = temContasParametrizadas('4.1.3') ? obterValorContaPorFonte('4.1.3', getVarFonte("Folha e Encargos", '4.1.3 CUSTOS COM ENCARGOS SOCIAIS')) : 0
+          const totalFolhaEncargos = custosComPessoal + custosComEncargos
+          resultadosIndicadores["Folha e Encargos"][mesNome] = totalFolhaEncargos
         }
       })
 
@@ -1387,6 +1389,7 @@ export function Indicadores() {
       "Deduções das Receitas": "3.1.2 - DEDUÇÕES DA RECEITA",
       "Outras Receitas Operacionais": "3.1.3 - RECEITA FINANCEIRA",
       "Tributos": "4.2.3 DESPESAS TRIBUTÁRIAS + 3.1.2.1 ISS + 3.1.2.2 SIMPLES NACIONAL + 3.1.2.3 PIS + 3.1.2.4 COFINS + 3.1.2.5 ICMS",
+      "Folha e Encargos": "4.1.2 CUSTOS COM PESSOAL + 4.1.3 CUSTOS COM ENCARGOS SOCIAIS",
       "Resultado Líquido": "3 RECEITAS − 4 CUSTOS E DESPESAS",
       "ROE – Return on Equity (Retorno sobre o Patrimônio Líquido)": "((3 RECEITAS − 4 CUSTOS E DESPESAS) ÷ Patrimônio Líquido Médio) × 100",
       "ROA – Return on Assets (Retorno sobre Ativos)": "((3 RECEITAS − 4 CUSTOS E DESPESAS) ÷ Ativo Total Médio) × 100",
@@ -1650,6 +1653,16 @@ export function Indicadores() {
         return {
           componentes: [despesasTributarias, iss, simplesNacional, pis, cofins, icms, { label: 'Total Tributos', valor: totalTributos }],
           resultado: totalTributos
+        }
+      }
+
+      case "Folha e Encargos": {
+        const custosComPessoal = comp('4.1.2 CUSTOS COM PESSOAL', '4.1.2')
+        const custosComEncargos = comp('4.1.3 CUSTOS COM ENCARGOS SOCIAIS', '4.1.3')
+        const totalFolhaEncargos = custosComPessoal.valor + custosComEncargos.valor
+        return {
+          componentes: [custosComPessoal, custosComEncargos, { label: 'Total Folha e Encargos', valor: totalFolhaEncargos }],
+          resultado: totalFolhaEncargos
         }
       }
 
