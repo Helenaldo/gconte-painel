@@ -128,6 +128,7 @@ export function Indicadores() {
         'Margem de Contribuição',
         'Deduções das Receitas',
         'Outras Receitas Operacionais',
+        'Tributos',
         'Resultado Líquido'
       ],
     },
@@ -327,6 +328,14 @@ export function Indicadores() {
       '4.1.2 CUSTOS COM PESSOAL': 'movimento',
       '4.1.3 CUSTOS COM ENCARGOS SOCIAIS': 'movimento',
       '3.1.1 RECEITA BRUTA': 'movimento',
+    },
+    'Tributos': {
+      '4.2.3 DESPESAS TRIBUTÁRIAS': 'movimento',
+      '3.1.2.1 ISS': 'movimento',
+      '3.1.2.2 SIMPLES NACIONAL': 'movimento',
+      '3.1.2.3 PIS': 'movimento',
+      '3.1.2.4 COFINS': 'movimento',
+      '3.1.2.5 ICMS': 'movimento',
     },
   }
 
@@ -1276,6 +1285,18 @@ export function Indicadores() {
             resultadosIndicadores["Peso da Folha sobre a Receita"][mesNome] = null
           }
         }
+
+        // Tributos
+        {
+          const despesasTributarias = temContasParametrizadas('4.2.3') ? obterValorContaPorFonte('4.2.3', getVarFonte("Tributos", '4.2.3 DESPESAS TRIBUTÁRIAS')) : 0
+          const iss = temContasParametrizadas('3.1.2.1') ? obterValorContaPorFonte('3.1.2.1', getVarFonte("Tributos", '3.1.2.1 ISS')) : 0
+          const simplesNacional = temContasParametrizadas('3.1.2.2') ? obterValorContaPorFonte('3.1.2.2', getVarFonte("Tributos", '3.1.2.2 SIMPLES NACIONAL')) : 0
+          const pis = temContasParametrizadas('3.1.2.3') ? obterValorContaPorFonte('3.1.2.3', getVarFonte("Tributos", '3.1.2.3 PIS')) : 0
+          const cofins = temContasParametrizadas('3.1.2.4') ? obterValorContaPorFonte('3.1.2.4', getVarFonte("Tributos", '3.1.2.4 COFINS')) : 0
+          const icms = temContasParametrizadas('3.1.2.5') ? obterValorContaPorFonte('3.1.2.5', getVarFonte("Tributos", '3.1.2.5 ICMS')) : 0
+          const totalTributos = despesasTributarias + iss + simplesNacional + pis + cofins + icms
+          resultadosIndicadores["Tributos"][mesNome] = totalTributos
+        }
       })
 
       setIndicadores(resultadosIndicadores)
@@ -1309,6 +1330,7 @@ export function Indicadores() {
                 indicador === "Margem de Contribuição" ||
                 indicador === "Deduções das Receitas" ||
                 indicador === "Outras Receitas Operacionais" ||
+                indicador === "Tributos" ||
                 indicador === "Resultado Líquido" ||
                 indicador === "EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization" ||
                 indicador === "Necessidade de Capital de Giro (NCG)"
@@ -1349,6 +1371,7 @@ export function Indicadores() {
       "Margem de Contribuição": "3 RECEITAS − 4.1 CUSTOS",
       "Deduções das Receitas": "3.1.2 - DEDUÇÕES DA RECEITA",
       "Outras Receitas Operacionais": "3.1.3 - RECEITA FINANCEIRA",
+      "Tributos": "4.2.3 DESPESAS TRIBUTÁRIAS + 3.1.2.1 ISS + 3.1.2.2 SIMPLES NACIONAL + 3.1.2.3 PIS + 3.1.2.4 COFINS + 3.1.2.5 ICMS",
       "Resultado Líquido": "3 RECEITAS − 4 CUSTOS E DESPESAS",
       "ROE – Return on Equity (Retorno sobre o Patrimônio Líquido)": "((3 RECEITAS − 4 CUSTOS E DESPESAS) ÷ Patrimônio Líquido Médio) × 100",
       "ROA – Return on Assets (Retorno sobre Ativos)": "((3 RECEITAS − 4 CUSTOS E DESPESAS) ÷ Ativo Total Médio) × 100",
@@ -1598,6 +1621,20 @@ export function Indicadores() {
         return {
           componentes: [outrasReceitas],
           resultado: outrasReceitas.valor
+        }
+      }
+
+      case "Tributos": {
+        const despesasTributarias = comp('4.2.3 DESPESAS TRIBUTÁRIAS', '4.2.3')
+        const iss = comp('3.1.2.1 ISS', '3.1.2.1')
+        const simplesNacional = comp('3.1.2.2 SIMPLES NACIONAL', '3.1.2.2')
+        const pis = comp('3.1.2.3 PIS', '3.1.2.3')
+        const cofins = comp('3.1.2.4 COFINS', '3.1.2.4')
+        const icms = comp('3.1.2.5 ICMS', '3.1.2.5')
+        const totalTributos = despesasTributarias.valor + iss.valor + simplesNacional.valor + pis.valor + cofins.valor + icms.valor
+        return {
+          componentes: [despesasTributarias, iss, simplesNacional, pis, cofins, icms, { label: 'Total Tributos', valor: totalTributos }],
+          resultado: totalTributos
         }
       }
 
