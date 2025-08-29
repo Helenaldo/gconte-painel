@@ -787,9 +787,12 @@ export function Indicadores() {
       // Calcular indicadores para cada mês
       const resultadosIndicadores: { [nome: string]: IndicadorData } = {}
 
+      console.log('[DEBUG] Inicializando indicadores...')
       nomeIndicadores.forEach(nomeIndicador => {
+        console.log('[DEBUG] Inicializando indicador:', nomeIndicador)
         resultadosIndicadores[nomeIndicador] = {}
       })
+      console.log('[DEBUG] Indicadores inicializados:', Object.keys(resultadosIndicadores))
 
       mesesOrdenados.forEach(mes => {
         const mesNome = nomesMeses[mes - 1]
@@ -1289,6 +1292,9 @@ export function Indicadores() {
 
         // Tributos
         {
+          console.log('[DEBUG] Calculando Tributos para o mês:', mesNome)
+          console.log('[DEBUG] Objeto resultadosIndicadores["Tributos"] existe?', resultadosIndicadores["Tributos"])
+          
           const despesasTributarias = temContasParametrizadas('4.2.3') ? obterValorContaPorFonte('4.2.3', getVarFonte("Tributos", '4.2.3 DESPESAS TRIBUTÁRIAS')) : 0
           const iss = temContasParametrizadas('3.1.2.1') ? obterValorContaPorFonte('3.1.2.1', getVarFonte("Tributos", '3.1.2.1 ISS')) : 0
           const simplesNacional = temContasParametrizadas('3.1.2.2') ? obterValorContaPorFonte('3.1.2.2', getVarFonte("Tributos", '3.1.2.2 SIMPLES NACIONAL')) : 0
@@ -1296,7 +1302,15 @@ export function Indicadores() {
           const cofins = temContasParametrizadas('3.1.2.4') ? obterValorContaPorFonte('3.1.2.4', getVarFonte("Tributos", '3.1.2.4 COFINS')) : 0
           const icms = temContasParametrizadas('3.1.2.5') ? obterValorContaPorFonte('3.1.2.5', getVarFonte("Tributos", '3.1.2.5 ICMS')) : 0
           const totalTributos = despesasTributarias + iss + simplesNacional + pis + cofins + icms
-          resultadosIndicadores["Tributos"][mesNome] = totalTributos
+          
+          console.log('[DEBUG] Total de tributos calculado:', totalTributos)
+          
+          if (resultadosIndicadores["Tributos"]) {
+            resultadosIndicadores["Tributos"][mesNome] = totalTributos
+            console.log('[DEBUG] Tributos definido com sucesso para', mesNome)
+          } else {
+            console.error('[DEBUG] ERRO: resultadosIndicadores["Tributos"] é undefined!')
+          }
         }
       })
 
