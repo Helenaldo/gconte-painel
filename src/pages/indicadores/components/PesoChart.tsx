@@ -34,9 +34,10 @@ interface PesoChartProps {
     labelAbsoluto: string
     labelPercentual: string
   }
+  maxPercentage?: number
 }
 
-export function PesoChart({ data }: PesoChartProps) {
+export function PesoChart({ data, maxPercentage = 100 }: PesoChartProps) {
   const { theme } = useTheme()
   const isDark = theme === 'dark'
 
@@ -264,7 +265,7 @@ export function PesoChart({ data }: PesoChartProps) {
         display: true,
         position: 'right' as const,
         min: 0,
-        max: 100,
+        max: maxPercentage,
         title: {
           display: true,
           text: 'Percentual (%)',

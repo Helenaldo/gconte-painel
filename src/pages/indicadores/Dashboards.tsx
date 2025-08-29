@@ -1451,7 +1451,7 @@ export function Dashboards() {
                 </CardHeader>
                 <CardContent>
                   {dashboardData?.custosPesoReceita ? (
-                    <PesoChart data={dashboardData.custosPesoReceita} />
+                    <PesoChart data={dashboardData.custosPesoReceita} maxPercentage={120} />
                   ) : (
                     <div className="flex items-center justify-center h-64 text-muted-foreground">
                       <div className="text-center">
