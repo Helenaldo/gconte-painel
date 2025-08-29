@@ -1406,6 +1406,27 @@ export function Dashboards() {
           </TabsContent>
           
           <TabsContent value="pesos" className="space-y-6">
+            {/* Debug: mostrar estado dos dados */}
+            {process.env.NODE_ENV === 'development' && (
+              <Card className="bg-muted/50">
+                <CardHeader>
+                  <CardTitle>Debug - Estado dos Dados de Peso</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <pre className="text-xs">
+                    {JSON.stringify({
+                      custosPesoReceita: dashboardData?.custosPesoReceita ? 'Definido' : 'Undefined',
+                      despesasPesoReceita: dashboardData?.despesasPesoReceita ? 'Definido' : 'Undefined', 
+                      tributosPesoReceita: dashboardData?.tributosPesoReceita ? 'Definido' : 'Undefined',
+                      folhaPesoReceita: dashboardData?.folhaPesoReceita ? 'Definido' : 'Undefined',
+                      mesesCustos: dashboardData?.custosPesoReceita?.meses?.length || 0,
+                      mesesDespesas: dashboardData?.despesasPesoReceita?.meses?.length || 0,
+                    }, null, 2)}
+                  </pre>
+                </CardContent>
+              </Card>
+            )}
+            
             {/* Gráficos de Peso sobre a Receita */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card>
@@ -1429,7 +1450,16 @@ export function Dashboards() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <PesoChart data={dashboardData.custosPesoReceita} />
+                  {dashboardData?.custosPesoReceita ? (
+                    <PesoChart data={dashboardData.custosPesoReceita} />
+                  ) : (
+                    <div className="flex items-center justify-center h-64 text-muted-foreground">
+                      <div className="text-center">
+                        <p>Dados não disponíveis</p>
+                        <p className="text-sm mt-2">custosPesoReceita não definido</p>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
               
@@ -1454,7 +1484,16 @@ export function Dashboards() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <PesoChart data={dashboardData.despesasPesoReceita} />
+                  {dashboardData?.despesasPesoReceita ? (
+                    <PesoChart data={dashboardData.despesasPesoReceita} />
+                  ) : (
+                    <div className="flex items-center justify-center h-64 text-muted-foreground">
+                      <div className="text-center">
+                        <p>Dados não disponíveis</p>
+                        <p className="text-sm mt-2">despesasPesoReceita não definido</p>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
               
@@ -1479,7 +1518,16 @@ export function Dashboards() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <PesoChart data={dashboardData.tributosPesoReceita} />
+                  {dashboardData?.tributosPesoReceita ? (
+                    <PesoChart data={dashboardData.tributosPesoReceita} />
+                  ) : (
+                    <div className="flex items-center justify-center h-64 text-muted-foreground">
+                      <div className="text-center">
+                        <p>Dados não disponíveis</p>
+                        <p className="text-sm mt-2">tributosPesoReceita não definido</p>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
               
@@ -1504,7 +1552,16 @@ export function Dashboards() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <PesoChart data={dashboardData.folhaPesoReceita} />
+                  {dashboardData?.folhaPesoReceita ? (
+                    <PesoChart data={dashboardData.folhaPesoReceita} />
+                  ) : (
+                    <div className="flex items-center justify-center h-64 text-muted-foreground">
+                      <div className="text-center">
+                        <p>Dados não disponíveis</p>
+                        <p className="text-sm mt-2">folhaPesoReceita não definido</p>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
