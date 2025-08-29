@@ -68,6 +68,7 @@ export function Indicadores() {
     "Margem de Contribuição",
     "Deduções das Receitas",
     "Outras Receitas Operacionais",
+    "Tributos",
     "Resultado Líquido",
     "ROE – Return on Equity (Retorno sobre o Patrimônio Líquido)",
     "ROA – Return on Assets (Retorno sobre Ativos)",
