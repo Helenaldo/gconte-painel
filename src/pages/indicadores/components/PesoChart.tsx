@@ -263,6 +263,8 @@ export function PesoChart({ data }: PesoChartProps) {
         type: 'linear' as const,
         display: true,
         position: 'right' as const,
+        min: 0,
+        max: 100,
         title: {
           display: true,
           text: 'Percentual (%)',
