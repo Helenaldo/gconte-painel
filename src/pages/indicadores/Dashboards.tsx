@@ -16,6 +16,7 @@ import { MixedChart } from "./components/MixedChart"
 import { BarChart } from "./components/BarChart"
 import { LineChart } from "./components/LineChart"
 import { AreaChart } from "./components/AreaChart"
+import { PesoChart } from "./components/PesoChart"
 import { generateDashboardPDF } from "./utils/pdfGenerator"
 import InputMask from "react-input-mask"
 import { useAuth } from "@/context/auth-context"
@@ -56,6 +57,34 @@ interface DashboardData {
   capitalCirculanteLiquido: {
     meses: string[]
     valores: number[]
+  }
+  custosPesoReceita: {
+    meses: string[]
+    valoresAbsolutos: number[]
+    valoresPercentuais: number[]
+    labelAbsoluto: string
+    labelPercentual: string
+  }
+  despesasPesoReceita: {
+    meses: string[]
+    valoresAbsolutos: number[]
+    valoresPercentuais: number[]
+    labelAbsoluto: string
+    labelPercentual: string
+  }
+  tributosPesoReceita: {
+    meses: string[]
+    valoresAbsolutos: number[]
+    valoresPercentuais: number[]
+    labelAbsoluto: string
+    labelPercentual: string
+  }
+  folhaPesoReceita: {
+    meses: string[]
+    valoresAbsolutos: number[]
+    valoresPercentuais: number[]
+    labelAbsoluto: string
+    labelPercentual: string
   }
 }
 
@@ -500,6 +529,12 @@ export function Dashboards() {
     const liquidezCorrente = await buscarDadosIndicadorPorPeriodo(empresaSelecionada, 'Liquidez Corrente', mesInicioMes, anoInicio, mesFimMes, anoFim)
     const capitalCirculanteLiquido = await buscarDadosIndicadorPorPeriodo(empresaSelecionada, 'Capital Circulante Líquido (CCL)', mesInicioMes, anoInicio, mesFimMes, anoFim)
     
+    // Buscar dados dos gráficos de peso
+    const custosPesoReceita = await buscarDadosPesoIndicador(empresaSelecionada, 'Custos', 'Peso dos Custos sobre a Receita', mesInicioMes, anoInicio, mesFimMes, anoFim)
+    const despesasPesoReceita = await buscarDadosPesoIndicador(empresaSelecionada, 'Despesas', 'Peso das Despesas sobre a Receita', mesInicioMes, anoInicio, mesFimMes, anoFim)
+    const tributosPesoReceita = await buscarDadosPesoIndicador(empresaSelecionada, 'Tributos', 'Peso dos Tributos sobre a Receita', mesInicioMes, anoInicio, mesFimMes, anoFim)
+    const folhaPesoReceita = await buscarDadosPesoIndicador(empresaSelecionada, 'Folha e Encargos', 'Peso da Folha sobre a Receita', mesInicioMes, anoInicio, mesFimMes, anoFim)
+    
     return {
       empresa: empresaData,
       margemLiquidaMesFim,
@@ -508,7 +543,11 @@ export function Dashboards() {
       dreResumo,
       receitaOperacionalBruta,
       liquidezCorrente,
-      capitalCirculanteLiquido
+      capitalCirculanteLiquido,
+      custosPesoReceita,
+      despesasPesoReceita,
+      tributosPesoReceita,
+      folhaPesoReceita
     }
   }
 
@@ -705,6 +744,71 @@ export function Dashboards() {
     } catch (error) {
       console.error(`Erro ao buscar dados do indicador ${nomeIndicador}:`, error)
       return { meses: [], valores: [] }
+    }
+  }
+
+  const buscarDadosPesoIndicador = async (empresaCnpj: string, nomeIndicadorAbsoluto: string, nomeIndicadorPercentual: string, mesInicio: number, anoInicio: number, mesFim: number, anoFim: number) => {
+    try {
+      const meses: string[] = []
+      const valoresAbsolutos: number[] = []
+      const valoresPercentuais: number[] = []
+      
+      // Iterar pelos meses do período
+      for (let ano = anoInicio; ano <= anoFim; ano++) {
+        const mesInicioAtual = ano === anoInicio ? mesInicio : 1
+        const mesFimAtual = ano === anoFim ? mesFim : 12
+        
+        for (let mes = mesInicioAtual; mes <= mesFimAtual; mes++) {
+          const chaveMes = `${mes.toString().padStart(2, '0')}/${ano}`
+          meses.push(chaveMes)
+          
+          // Buscar valor absoluto
+          const { data: dataAbsoluto, error: errorAbsoluto } = await supabase
+            .from('indicadores_calculados')
+            .select('valor')
+            .eq('empresa_cnpj', empresaCnpj)
+            .eq('nome_indicador', nomeIndicadorAbsoluto)
+            .eq('mes', mes)
+            .eq('ano', ano)
+            .maybeSingle()
+          
+          // Buscar valor percentual
+          const { data: dataPercentual, error: errorPercentual } = await supabase
+            .from('indicadores_calculados')
+            .select('valor')
+            .eq('empresa_cnpj', empresaCnpj)
+            .eq('nome_indicador', nomeIndicadorPercentual)
+            .eq('mes', mes)
+            .eq('ano', ano)
+            .maybeSingle()
+          
+          if (errorAbsoluto || errorPercentual) {
+            console.error(`Erro ao buscar indicadores de peso:`, errorAbsoluto || errorPercentual)
+            valoresAbsolutos.push(0)
+            valoresPercentuais.push(0)
+          } else {
+            valoresAbsolutos.push(Math.abs(dataAbsoluto?.valor || 0))
+            valoresPercentuais.push(dataPercentual?.valor || 0)
+          }
+        }
+      }
+      
+      return {
+        meses,
+        valoresAbsolutos,
+        valoresPercentuais,
+        labelAbsoluto: nomeIndicadorAbsoluto,
+        labelPercentual: "Peso sobre a Receita"
+      }
+    } catch (error) {
+      console.error(`Erro ao buscar dados de peso:`, error)
+      return {
+        meses: [],
+        valoresAbsolutos: [],
+        valoresPercentuais: [],
+        labelAbsoluto: nomeIndicadorAbsoluto,
+        labelPercentual: "Peso sobre a Receita"
+      }
     }
   }
 
@@ -1007,6 +1111,7 @@ export function Dashboards() {
         <Tabs defaultValue="resumo" className="space-y-6">
           <TabsList>
             <TabsTrigger value="resumo">Resumo</TabsTrigger>
+            <TabsTrigger value="pesos">Pesos</TabsTrigger>
           </TabsList>
           
           <TabsContent value="resumo" className="space-y-6">
@@ -1229,6 +1334,111 @@ export function Dashboards() {
               </CardContent>
             </Card>
           </TabsContent>
+          
+          <TabsContent value="pesos" className="space-y-6">
+            {/* Gráficos de Peso sobre a Receita */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5" />
+                      Custos x Peso sobre a Receita
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFullscreenChart({
+                        type: 'peso',
+                        data: dashboardData.custosPesoReceita,
+                        title: 'Custos x Peso sobre a Receita'
+                      })}
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                    </Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <PesoChart data={dashboardData.custosPesoReceita} />
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5" />
+                      Despesas x Peso sobre a Receita
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFullscreenChart({
+                        type: 'peso',
+                        data: dashboardData.despesasPesoReceita,
+                        title: 'Despesas x Peso sobre a Receita'
+                      })}
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                    </Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <PesoChart data={dashboardData.despesasPesoReceita} />
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5" />
+                      Tributos x Peso sobre a Receita
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFullscreenChart({
+                        type: 'peso',
+                        data: dashboardData.tributosPesoReceita,
+                        title: 'Tributos x Peso sobre a Receita'
+                      })}
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                    </Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <PesoChart data={dashboardData.tributosPesoReceita} />
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5" />
+                      Folha x Peso sobre a Receita
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFullscreenChart({
+                        type: 'peso',
+                        data: dashboardData.folhaPesoReceita,
+                        title: 'Folha x Peso sobre a Receita'
+                      })}
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                    </Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <PesoChart data={dashboardData.folhaPesoReceita} />
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
         </Tabs>
       )}
 
@@ -1277,6 +1487,11 @@ export function Dashboards() {
                   title={fullscreenChart.title}
                   label="Capital Circulante Líquido (CCL)"
                 />
+              </div>
+            )}
+            {fullscreenChart?.type === 'peso' && (
+              <div className="w-full h-full">
+                <PesoChart data={fullscreenChart.data} />
               </div>
             )}
           </div>
