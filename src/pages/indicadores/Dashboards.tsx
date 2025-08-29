@@ -469,9 +469,14 @@ export function Dashboards() {
   }
   
   const carregarDadosDashboard = async (): Promise<DashboardData> => {
+    console.log('🚀 Iniciando carregamento do dashboard...')
+    
     // Extrair ano e mês do formato MM/AAAA
     const [mesInicioMes, anoInicio] = mesInicio.split('/').map(Number)
     const [mesFimMes, anoFim] = mesFim.split('/').map(Number)
+    
+    console.log(`📅 Período: ${mesInicioMes}/${anoInicio} até ${mesFimMes}/${anoFim}`)
+    console.log(`🏢 Empresa selecionada: ${empresaSelecionada}`)
     
     // Buscar dados da empresa
     const { data: empresaData, error: empresaError } = await supabase
@@ -481,6 +486,7 @@ export function Dashboards() {
       .single()
     
     if (empresaError) throw empresaError
+    console.log('✅ Dados da empresa carregados:', empresaData)
     
     // Buscar balancetes no período
     const { data: balancetes, error: balancetesError } = await supabase
@@ -524,26 +530,45 @@ export function Dashboards() {
     const fluxoResultados = await calcularFluxoResultados(empresaSelecionada, mesInicioMes, anoInicio, mesFimMes, anoFim)
     const dreResumo = await calcularDREResumo(empresaSelecionada, mesInicioMes, anoInicio, mesFimMes, anoFim)
     
+    console.log('🔄 Buscando dados dos gráficos padrão...')
+    
     // Buscar dados dos novos gráficos
     const receitaOperacionalBruta = await buscarDadosIndicadorPorPeriodo(empresaSelecionada, 'Receitas Brutas', mesInicioMes, anoInicio, mesFimMes, anoFim)
     const liquidezCorrente = await buscarDadosIndicadorPorPeriodo(empresaSelecionada, 'Liquidez Corrente', mesInicioMes, anoInicio, mesFimMes, anoFim)
     const capitalCirculanteLiquido = await buscarDadosIndicadorPorPeriodo(empresaSelecionada, 'Capital Circulante Líquido (CCL)', mesInicioMes, anoInicio, mesFimMes, anoFim)
     
+    console.log('✅ Gráficos padrão carregados')
+    
     // Buscar dados dos gráficos de peso
     console.log('🔄 Iniciando busca dos gráficos de peso...')
-    const custosPesoReceita = await buscarDadosPesoIndicador(empresaSelecionada, 'Custos', 'Peso dos Custos sobre a Receita', mesInicioMes, anoInicio, mesFimMes, anoFim)
-    const despesasPesoReceita = await buscarDadosPesoIndicador(empresaSelecionada, 'Despesas', 'Peso das Despesas sobre a Receita', mesInicioMes, anoInicio, mesFimMes, anoFim)
-    const tributosPesoReceita = await buscarDadosPesoIndicador(empresaSelecionada, 'Tributos', 'Peso dos Tributos sobre a Receita', mesInicioMes, anoInicio, mesFimMes, anoFim)
-    const folhaPesoReceita = await buscarDadosPesoIndicador(empresaSelecionada, 'Folha e Encargos', 'Peso da Folha sobre a Receita', mesInicioMes, anoInicio, mesFimMes, anoFim)
     
-    console.log('✅ Dados de peso recuperados:', {
-      custosPesoReceita: custosPesoReceita.meses.length,
-      despesasPesoReceita: despesasPesoReceita.meses.length,
-      tributosPesoReceita: tributosPesoReceita.meses.length,
-      folhaPesoReceita: folhaPesoReceita.meses.length
-    })
+    let custosPesoReceita, despesasPesoReceita, tributosPesoReceita, folhaPesoReceita
     
-    return {
+    try {
+      custosPesoReceita = await buscarDadosPesoIndicador(empresaSelecionada, 'Custos', 'Peso dos Custos sobre a Receita', mesInicioMes, anoInicio, mesFimMes, anoFim)
+      console.log('✅ Custos peso carregado:', custosPesoReceita?.meses?.length || 0, 'meses')
+      
+      despesasPesoReceita = await buscarDadosPesoIndicador(empresaSelecionada, 'Despesas', 'Peso das Despesas sobre a Receita', mesInicioMes, anoInicio, mesFimMes, anoFim)
+      console.log('✅ Despesas peso carregado:', despesasPesoReceita?.meses?.length || 0, 'meses')
+      
+      tributosPesoReceita = await buscarDadosPesoIndicador(empresaSelecionada, 'Tributos', 'Peso dos Tributos sobre a Receita', mesInicioMes, anoInicio, mesFimMes, anoFim)
+      console.log('✅ Tributos peso carregado:', tributosPesoReceita?.meses?.length || 0, 'meses')
+      
+      folhaPesoReceita = await buscarDadosPesoIndicador(empresaSelecionada, 'Folha e Encargos', 'Peso da Folha sobre a Receita', mesInicioMes, anoInicio, mesFimMes, anoFim)
+      console.log('✅ Folha peso carregado:', folhaPesoReceita?.meses?.length || 0, 'meses')
+      
+    } catch (error) {
+      console.error('💥 Erro ao buscar dados de peso:', error)
+      // Retornar dados vazios em caso de erro
+      custosPesoReceita = { meses: [], valoresAbsolutos: [], valoresPercentuais: [], labelAbsoluto: 'Custos', labelPercentual: 'Peso sobre a Receita' }
+      despesasPesoReceita = { meses: [], valoresAbsolutos: [], valoresPercentuais: [], labelAbsoluto: 'Despesas', labelPercentual: 'Peso sobre a Receita' }
+      tributosPesoReceita = { meses: [], valoresAbsolutos: [], valoresPercentuais: [], labelAbsoluto: 'Tributos', labelPercentual: 'Peso sobre a Receita' }
+      folhaPesoReceita = { meses: [], valoresAbsolutos: [], valoresPercentuais: [], labelAbsoluto: 'Folha e Encargos', labelPercentual: 'Peso sobre a Receita' }
+    }
+    
+    console.log('🏁 Preparando retorno do dashboard com todos os dados')
+    
+    const resultado = {
       empresa: empresaData,
       margemLiquidaMesFim,
       margemLiquidaAcumulada,
@@ -557,6 +582,16 @@ export function Dashboards() {
       tributosPesoReceita,
       folhaPesoReceita
     }
+    
+    console.log('📊 Resultado final dashboard:', {
+      empresa: resultado.empresa?.nome_empresarial,
+      custosPesoReceita: resultado.custosPesoReceita?.meses?.length || 0,
+      despesasPesoReceita: resultado.despesasPesoReceita?.meses?.length || 0,
+      tributosPesoReceita: resultado.tributosPesoReceita?.meses?.length || 0,
+      folhaPesoReceita: resultado.folhaPesoReceita?.meses?.length || 0
+    })
+    
+    return resultado
   }
 
   const buscarIndicadorCalculado = async (empresaCnpj: string, nomeIndicador: string, mes: number, ano: number): Promise<number | null> => {
