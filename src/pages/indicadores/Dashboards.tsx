@@ -530,10 +530,18 @@ export function Dashboards() {
     const capitalCirculanteLiquido = await buscarDadosIndicadorPorPeriodo(empresaSelecionada, 'Capital Circulante Líquido (CCL)', mesInicioMes, anoInicio, mesFimMes, anoFim)
     
     // Buscar dados dos gráficos de peso
+    console.log('🔄 Iniciando busca dos gráficos de peso...')
     const custosPesoReceita = await buscarDadosPesoIndicador(empresaSelecionada, 'Custos', 'Peso dos Custos sobre a Receita', mesInicioMes, anoInicio, mesFimMes, anoFim)
     const despesasPesoReceita = await buscarDadosPesoIndicador(empresaSelecionada, 'Despesas', 'Peso das Despesas sobre a Receita', mesInicioMes, anoInicio, mesFimMes, anoFim)
     const tributosPesoReceita = await buscarDadosPesoIndicador(empresaSelecionada, 'Tributos', 'Peso dos Tributos sobre a Receita', mesInicioMes, anoInicio, mesFimMes, anoFim)
     const folhaPesoReceita = await buscarDadosPesoIndicador(empresaSelecionada, 'Folha e Encargos', 'Peso da Folha sobre a Receita', mesInicioMes, anoInicio, mesFimMes, anoFim)
+    
+    console.log('✅ Dados de peso recuperados:', {
+      custosPesoReceita: custosPesoReceita.meses.length,
+      despesasPesoReceita: despesasPesoReceita.meses.length,
+      tributosPesoReceita: tributosPesoReceita.meses.length,
+      folhaPesoReceita: folhaPesoReceita.meses.length
+    })
     
     return {
       empresa: empresaData,
@@ -749,9 +757,24 @@ export function Dashboards() {
 
   const buscarDadosPesoIndicador = async (empresaCnpj: string, nomeIndicadorAbsoluto: string, nomeIndicadorPercentual: string, mesInicio: number, anoInicio: number, mesFim: number, anoFim: number) => {
     try {
+      console.log(`🔍 Buscando dados de peso para empresa: ${empresaCnpj}`)
+      console.log(`📊 Indicador Absoluto: ${nomeIndicadorAbsoluto}`)
+      console.log(`📈 Indicador Percentual: ${nomeIndicadorPercentual}`)
+      console.log(`📅 Período: ${mesInicio}/${anoInicio} até ${mesFim}/${anoFim}`)
+      
       const meses: string[] = []
       const valoresAbsolutos: number[] = []
       const valoresPercentuais: number[] = []
+      
+      // Primeiro, vamos verificar se os indicadores existem
+      const { data: indicadoresExistentes, error: errorCheck } = await supabase
+        .from('indicadores_calculados')
+        .select('nome_indicador')
+        .eq('empresa_cnpj', empresaCnpj)
+        .in('nome_indicador', [nomeIndicadorAbsoluto, nomeIndicadorPercentual])
+        .limit(10)
+      
+      console.log(`🔎 Indicadores encontrados para empresa ${empresaCnpj}:`, indicadoresExistentes?.map(i => i.nome_indicador) || [])
       
       // Iterar pelos meses do período
       for (let ano = anoInicio; ano <= anoFim; ano++) {
@@ -782,26 +805,38 @@ export function Dashboards() {
             .eq('ano', ano)
             .maybeSingle()
           
+          console.log(`📊 ${chaveMes} - ${nomeIndicadorAbsoluto}: ${dataAbsoluto?.valor || 0}, ${nomeIndicadorPercentual}: ${dataPercentual?.valor || 0}`)
+          
           if (errorAbsoluto || errorPercentual) {
-            console.error(`Erro ao buscar indicadores de peso:`, errorAbsoluto || errorPercentual)
+            console.error(`❌ Erro ao buscar indicadores de peso para ${chaveMes}:`, errorAbsoluto || errorPercentual)
             valoresAbsolutos.push(0)
             valoresPercentuais.push(0)
           } else {
-            valoresAbsolutos.push(Math.abs(dataAbsoluto?.valor || 0))
-            valoresPercentuais.push(dataPercentual?.valor || 0)
+            const valorAbsoluto = dataAbsoluto?.valor || 0
+            const valorPercentual = dataPercentual?.valor || 0
+            
+            // Para custos, despesas, etc., não precisa Math.abs() pois já vêm como valores positivos
+            valoresAbsolutos.push(valorAbsoluto)
+            valoresPercentuais.push(valorPercentual)
+            
+            console.log(`📊 ${chaveMes} - Absoluto: ${valorAbsoluto}, Percentual: ${valorPercentual}`)
           }
         }
       }
       
-      return {
+      const resultado = {
         meses,
         valoresAbsolutos,
         valoresPercentuais,
         labelAbsoluto: nomeIndicadorAbsoluto,
         labelPercentual: "Peso sobre a Receita"
       }
+      
+      console.log(`✅ Resultado final para ${nomeIndicadorAbsoluto}:`, resultado)
+      
+      return resultado
     } catch (error) {
-      console.error(`Erro ao buscar dados de peso:`, error)
+      console.error(`💥 Erro ao buscar dados de peso:`, error)
       return {
         meses: [],
         valoresAbsolutos: [],

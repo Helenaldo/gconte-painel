@@ -40,13 +40,20 @@ export function PesoChart({ data }: PesoChartProps) {
   const { theme } = useTheme()
   const isDark = theme === 'dark'
 
+  console.log('🎯 PesoChart recebeu dados:', data)
+
   if (!data || !data.meses || data.meses.length === 0) {
+    console.log('❌ PesoChart: Dados inválidos ou vazios')
     return (
       <div className="flex items-center justify-center h-64 text-muted-foreground">
         Nenhum dado disponível para exibir
       </div>
     )
   }
+
+  console.log('✅ PesoChart: Dados válidos encontrados, renderizando gráfico')
+  console.log('📊 Valores Absolutos:', data.valoresAbsolutos)
+  console.log('📈 Valores Percentuais:', data.valoresPercentuais)
 
   const chartData = {
     labels: data.meses,
