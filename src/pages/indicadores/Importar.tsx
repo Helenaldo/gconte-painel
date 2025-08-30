@@ -324,23 +324,8 @@ export function Importar() {
 
         if (contasError) throw contasError
 
-        // Forçar atualização do status do balancete após inserir as contas
-        // As triggers do banco irão automaticamente atualizar o status baseado
-        // nas parametrizações existentes para esta empresa
-        const { data: parametrizacoesExistentes } = await supabase
-          .from('parametrizacoes')
-          .select('conta_balancete_codigo')
-          .eq('empresa_cnpj', cnpj)
-          .limit(1)
-
-        // Se existem parametrizações, forçar uma atualização dos balancetes da empresa
-        if (parametrizacoesExistentes && parametrizacoesExistentes.length > 0) {
-          // Executar um update simples que irá acionar as triggers
-          await supabase
-            .from('balancetes')
-            .update({ updated_at: new Date().toISOString() })
-            .eq('cnpj', cnpj)
-        }
+        // O trigger 'balancetes_check_parametrizacoes' irá automaticamente 
+        // verificar e atualizar o status baseado nas parametrizações existentes
       }
 
       // Recarregar lista
