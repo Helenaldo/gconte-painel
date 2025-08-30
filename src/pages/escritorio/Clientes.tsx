@@ -4,12 +4,13 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Plus, Search, Users, Pencil, Eye, Download, Calendar as CalendarIcon, UserX } from "lucide-react"
+import { Plus, Search, Users, Pencil, Eye, Download, Calendar as CalendarIcon, UserX, Tag, Filter } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { format, parse } from "date-fns"
 import { ptBR } from "date-fns/locale"
@@ -17,6 +18,9 @@ import { cn } from "@/lib/utils"
 import InputMask from "react-input-mask"
 import { supabase } from "@/integrations/supabase/client"
 import { ClienteDetails } from "@/components/cliente-details"
+import { TagModal } from "@/components/clientes/TagModal"
+import { TagSelector } from "@/components/clientes/TagSelector"
+import { BulkTagActions } from "@/components/clientes/BulkTagActions"
 import * as XLSX from "xlsx"
 
 interface Cliente {
@@ -34,6 +38,14 @@ interface Cliente {
   uf: string
   cliente_desde: string
   fim_contrato: string | null
+  tags?: ClientTag[]
+}
+
+interface ClientTag {
+  id: string
+  titulo: string
+  cor: string
+  descricao: string | null
 }
 
 const ramosAtividade = [
@@ -60,6 +72,14 @@ export function Clientes() {
   const [currentPage, setCurrentPage] = useState(1)
   const [clienteDesdeInput, setClienteDesdeInput] = useState("")
   const [fimContratoInput, setFimContratoInput] = useState("")
+  
+  // Estados para etiquetas
+  const [availableTags, setAvailableTags] = useState<ClientTag[]>([])
+  const [selectedTags, setSelectedTags] = useState<ClientTag[]>([])
+  const [tagFilter, setTagFilter] = useState<string[]>([])
+  const [tagFilterMode, setTagFilterMode] = useState<'AND' | 'OR'>('OR')
+  const [tagModalOpen, setTagModalOpen] = useState(false)
+  
   const itemsPerPage = 10
   
   const [formData, setFormData] = useState({
@@ -96,21 +116,38 @@ export function Clientes() {
   const [summary, setSummary] = useState<{ total: number; inserted: number; duplicates: number; invalid: number; failed: number }>({ total: 0, inserted: 0, duplicates: 0, invalid: 0, failed: 0 })
   const { toast } = useToast()
 
-  // Carregar clientes do banco de dados
+  // Carregar clientes e etiquetas do banco de dados
   const loadClientes = async () => {
     try {
-      const [clientsRes, taxationRes, contactsRes] = await Promise.all([
-        supabase.from('clients').select('*').order('nome_empresarial'),
+      const [clientsRes, taxationRes, contactsRes, clientTagsRes] = await Promise.all([
+        supabase
+          .from('clients')
+          .select(`
+            *,
+            client_tag_assignments(
+              client_tags(id, titulo, cor, descricao)
+            )
+          `)
+          .order('nome_empresarial'),
         supabase.from('taxation').select('client_id,status').eq('status', 'ativa'),
-        supabase.from('contacts').select('client_id')
+        supabase.from('contacts').select('client_id'),
+        supabase.from('client_tags').select('*').order('titulo')
       ])
 
-      if (clientsRes.error || taxationRes.error || contactsRes.error) {
-        console.error('Erro ao carregar dados:', clientsRes.error || taxationRes.error || contactsRes.error)
+      if (clientsRes.error || taxationRes.error || contactsRes.error || clientTagsRes.error) {
+        console.error('Erro ao carregar dados:', 
+          clientsRes.error || taxationRes.error || contactsRes.error || clientTagsRes.error)
         return
       }
 
-      setClientes(clientsRes.data || [])
+      // Processar clientes com suas etiquetas
+      const clientsWithTags = (clientsRes.data || []).map(client => ({
+        ...client,
+        tags: client.client_tag_assignments?.map((assignment: any) => assignment.client_tags) || []
+      }))
+
+      setClientes(clientsWithTags)
+      setAvailableTags(clientTagsRes.data || [])
       setTaxedClientIds(new Set((taxationRes.data || []).map((t: any) => t.client_id)))
       setContactedClientIds(new Set((contactsRes.data || []).map((c: any) => c.client_id)))
     } catch (error) {
@@ -125,6 +162,34 @@ export function Clientes() {
   const validateCNPJ = (cnpj: string) => {
     const cleaned = cnpj.replace(/\D/g, "")
     return cleaned.length === 14
+  }
+
+  // Função para atualizar etiquetas do cliente
+  const updateClientTags = async (clientId: string, tags: ClientTag[]) => {
+    try {
+      // Remover todas as etiquetas atuais do cliente
+      await supabase
+        .from('client_tag_assignments')
+        .delete()
+        .eq('client_id', clientId)
+
+      // Adicionar as novas etiquetas
+      if (tags.length > 0) {
+        const assignments = tags.map(tag => ({
+          client_id: clientId,
+          tag_id: tag.id
+        }))
+        
+        const { error } = await supabase
+          .from('client_tag_assignments')
+          .insert(assignments)
+        
+        if (error) throw error
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar etiquetas:', error)
+      throw error
+    }
   }
 
   // Buscar dados por CNPJ
@@ -225,7 +290,20 @@ export function Clientes() {
     const matchesContato = contatoFilter === 'todos' || (contatoFilter === 'sem' && !contactedClientIds.has(cliente.id))
     const matchesRamo = ramoFilter === 'todos' || (ramoFilter === 'nao' && cliente.ramo_atividade === 'Não informado')
     
-    return matchesSearch && matchesStatus && matchesTrib && matchesContato && matchesRamo
+    // Filtro por etiquetas
+    let matchesTags = true
+    if (tagFilter.length > 0) {
+      const clientTagIds = cliente.tags?.map(tag => tag.id) || []
+      if (tagFilterMode === 'AND') {
+        // Todas as etiquetas selecionadas devem estar no cliente
+        matchesTags = tagFilter.every(tagId => clientTagIds.includes(tagId))
+      } else {
+        // Pelo menos uma etiqueta selecionada deve estar no cliente
+        matchesTags = tagFilter.some(tagId => clientTagIds.includes(tagId))
+      }
+    }
+    
+    return matchesSearch && matchesStatus && matchesTrib && matchesContato && matchesRamo && matchesTags
   })
 
   // Paginação
@@ -236,7 +314,7 @@ export function Clientes() {
   // Reset da página quando filtros mudam
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, statusFilter, taxFilter, contatoFilter, ramoFilter])
+  }, [searchTerm, statusFilter, taxFilter, contatoFilter, ramoFilter, tagFilter])
 
   const parseDate = (dateString: string) => {
     if (!dateString) return undefined
@@ -293,13 +371,25 @@ export function Clientes() {
           .eq('id', editingCliente.id)
         
         if (error) throw error
+        
+        // Atualizar etiquetas do cliente
+        await updateClientTags(editingCliente.id, selectedTags)
+        
         toast({ title: "Sucesso", description: "Cliente atualizado com sucesso" })
       } else {
-        const { error } = await supabase
+        const { data: newClient, error } = await supabase
           .from('clients')
           .insert([clientData])
+          .select()
+          .single()
         
         if (error) throw error
+        
+        // Adicionar etiquetas ao novo cliente
+        if (newClient && selectedTags.length > 0) {
+          await updateClientTags(newClient.id, selectedTags)
+        }
+        
         toast({ title: "Sucesso", description: "Cliente cadastrado com sucesso" })
       }
 
@@ -333,6 +423,7 @@ export function Clientes() {
     })
     setClienteDesdeInput("")
     setFimContratoInput("")
+    setSelectedTags([])
     setEditingCliente(null)
     setIsModalOpen(false)
   }
@@ -355,6 +446,7 @@ export function Clientes() {
     })
     setClienteDesdeInput(format(new Date(cliente.cliente_desde), "dd/MM/yyyy"))
     setFimContratoInput(cliente.fim_contrato ? format(new Date(cliente.fim_contrato), "dd/MM/yyyy") : "")
+    setSelectedTags(cliente.tags || [])
     setEditingCliente(cliente)
     setIsModalOpen(true)
   }
@@ -588,6 +680,17 @@ export function Clientes() {
         </div>
         
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setTagModalOpen(true)}>
+            <Tag className="mr-2 h-4 w-4" />
+            Gerenciar Etiquetas
+          </Button>
+          
+          <BulkTagActions 
+            clients={filteredClientes.map(c => ({ id: c.id, nome_empresarial: c.nome_empresarial, cnpj: c.cnpj }))}
+            availableTags={availableTags}
+            onComplete={loadClientes}
+          />
+          
           <Button variant="outline" onClick={handleExportXLSX}>
             <Download className="mr-2 h-4 w-4" />
             Gerar XLSX
@@ -657,15 +760,25 @@ export function Clientes() {
                     />
                   </div>
 
-                  <div className="col-span-2 space-y-2">
-                    <Label htmlFor="nome_fantasia">Nome Fantasia</Label>
-                    <Input
-                      id="nome_fantasia"
-                      value={formData.nome_fantasia}
-                      onChange={(e) => setFormData(prev => ({...prev, nome_fantasia: e.target.value}))}
-                      placeholder="Nome fantasia"
-                    />
-                  </div>
+                   <div className="col-span-2 space-y-2">
+                     <Label htmlFor="nome_fantasia">Nome Fantasia</Label>
+                     <Input
+                       id="nome_fantasia"
+                       value={formData.nome_fantasia}
+                       onChange={(e) => setFormData(prev => ({...prev, nome_fantasia: e.target.value}))}
+                       placeholder="Nome fantasia"
+                     />
+                   </div>
+
+                   {/* Campo para etiquetas */}
+                   <div className="col-span-2 space-y-2">
+                     <Label>Etiquetas</Label>
+                     <TagSelector
+                       selectedTags={selectedTags}
+                       onTagsChange={setSelectedTags}
+                       placeholder="Selecionar etiquetas para o cliente"
+                     />
+                   </div>
 
                    <div className="space-y-2">
                      <Label htmlFor="cep">CEP</Label>
@@ -855,7 +968,51 @@ export function Clientes() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4">
+          <div className="space-y-4">
+            {/* Filtros rápidos por etiqueta */}
+            {availableTags.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium flex items-center gap-2">
+                    <Filter className="h-4 w-4" />
+                    Filtrar por etiquetas
+                  </Label>
+                  <Select value={tagFilterMode} onValueChange={(v: 'AND' | 'OR') => setTagFilterMode(v)}>
+                    <SelectTrigger className="w-20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="OR">OU</SelectItem>
+                      <SelectItem value="AND">E</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {availableTags.map((tag) => {
+                    const isSelected = tagFilter.includes(tag.id)
+                    return (
+                      <Badge
+                        key={tag.id}
+                        variant={isSelected ? "default" : "outline"}
+                        style={isSelected ? { backgroundColor: tag.cor, color: '#fff' } : { borderColor: tag.cor, color: tag.cor }}
+                        className="cursor-pointer hover:opacity-80"
+                        onClick={() => {
+                          if (isSelected) {
+                            setTagFilter(prev => prev.filter(id => id !== tag.id))
+                          } else {
+                            setTagFilter(prev => [...prev, tag.id])
+                          }
+                        }}
+                      >
+                        {tag.titulo}
+                      </Badge>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+            
+            <div className="flex gap-4">
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -904,6 +1061,7 @@ export function Clientes() {
                 <SelectItem value="nao">Ramo: Não informado</SelectItem>
               </SelectContent>
             </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -947,12 +1105,26 @@ export function Clientes() {
                       <p className="text-sm text-muted-foreground">
                         {cliente.cnpj} • {cliente.ramo_atividade}
                       </p>
-                      <p className="text-sm text-muted-foreground">
-                        Cliente desde: {format(new Date(cliente.cliente_desde), "PPP", { locale: ptBR })}
-                        {cliente.fim_contrato && (
-                          <> • Inativo desde: {format(new Date(cliente.fim_contrato), "PPP", { locale: ptBR })}</>
-                        )}
-                      </p>
+                       <p className="text-sm text-muted-foreground">
+                         Cliente desde: {format(new Date(cliente.cliente_desde), "PPP", { locale: ptBR })}
+                         {cliente.fim_contrato && (
+                           <> • Inativo desde: {format(new Date(cliente.fim_contrato), "PPP", { locale: ptBR })}</>
+                         )}
+                       </p>
+                       {/* Exibir etiquetas do cliente */}
+                       {cliente.tags && cliente.tags.length > 0 && (
+                         <div className="flex flex-wrap gap-1 mt-2">
+                           {cliente.tags.map((tag) => (
+                             <Badge 
+                               key={tag.id}
+                               style={{ backgroundColor: tag.cor, color: '#fff' }}
+                               className="text-xs"
+                             >
+                               {tag.titulo}
+                             </Badge>
+                           ))}
+                         </div>
+                       )}
                     </div>
                     <div className="flex gap-2">
                       <Button
@@ -1219,20 +1391,26 @@ export function Clientes() {
         </DialogContent>
       </Dialog>
 
-      {/* Resumo da Importação */}
-      <AlertDialog open={summaryOpen} onOpenChange={setSummaryOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Importação concluída</AlertDialogTitle>
-            <AlertDialogDescription>
-              {summary.inserted} cadastrado(s), {summary.duplicates} duplicado(s), {summary.invalid} inválido(s), {summary.failed} com erro.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction onClick={() => setSummaryOpen(false)}>OK</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
-  )
-}
+       {/* Resumo da Importação */}
+       <AlertDialog open={summaryOpen} onOpenChange={setSummaryOpen}>
+         <AlertDialogContent>
+           <AlertDialogHeader>
+             <AlertDialogTitle>Importação concluída</AlertDialogTitle>
+             <AlertDialogDescription>
+               {summary.inserted} cadastrado(s), {summary.duplicates} duplicado(s), {summary.invalid} inválido(s), {summary.failed} com erro.
+             </AlertDialogDescription>
+           </AlertDialogHeader>
+           <AlertDialogFooter>
+             <AlertDialogAction onClick={() => setSummaryOpen(false)}>OK</AlertDialogAction>
+           </AlertDialogFooter>
+         </AlertDialogContent>
+       </AlertDialog>
+
+       {/* Modal de Gerenciamento de Etiquetas */}
+       <TagModal 
+         open={tagModalOpen} 
+         onOpenChange={setTagModalOpen}
+       />
+     </div>
+   )
+ }
