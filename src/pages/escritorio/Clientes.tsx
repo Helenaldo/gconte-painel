@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
@@ -1081,113 +1082,150 @@ export function Clientes() {
               <p className="text-sm">
                 {searchTerm || statusFilter !== "ativos" 
                   ? "Tente ajustar os filtros de busca" 
-                  : 'Clique em "Novo Cliente" para adicionar'
+                  : "Clique em \"Novo Cliente\" para adicionar"
                 }
               </p>
             </div>
           ) : (
             <>
-              <div className="space-y-4">
-                {paginatedClientes.map((cliente) => (
-                  <div key={cliente.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-medium">{cliente.nome_empresarial}</h4>
-                        {cliente.fim_contrato && (
-                          <span className="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>CNPJ / Ramo</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Etiquetas</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedClientes.map((cliente) => (
+                    <TableRow key={cliente.id}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{cliente.nome_empresarial}</p>
+                          {cliente.nome_fantasia && (
+                            <p className="text-sm text-muted-foreground">{cliente.nome_fantasia}</p>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            Cliente desde: {format(new Date(cliente.cliente_desde), "dd/MM/yyyy")}
+                          </p>
+                        </div>
+                      </TableCell>
+                      
+                      <TableCell>
+                        <div>
+                          <p className="text-sm">{cliente.cnpj}</p>
+                          <p className="text-xs text-muted-foreground">{cliente.ramo_atividade}</p>
+                        </div>
+                      </TableCell>
+                      
+                      <TableCell>
+                        {cliente.fim_contrato ? (
+                          <Badge variant="destructive" className="text-xs">
                             Inativo
-                          </span>
+                          </Badge>
+                        ) : (
+                          <Badge variant="success" className="text-xs">
+                            Ativo
+                          </Badge>
                         )}
-                      </div>
-                      {cliente.nome_fantasia && (
-                        <p className="text-sm text-muted-foreground">{cliente.nome_fantasia}</p>
-                      )}
-                      <p className="text-sm text-muted-foreground">
-                        {cliente.cnpj} • {cliente.ramo_atividade}
-                      </p>
-                       <p className="text-sm text-muted-foreground">
-                         Cliente desde: {format(new Date(cliente.cliente_desde), "PPP", { locale: ptBR })}
-                         {cliente.fim_contrato && (
-                           <> • Inativo desde: {format(new Date(cliente.fim_contrato), "PPP", { locale: ptBR })}</>
-                         )}
-                       </p>
-                       {/* Exibir etiquetas do cliente */}
-                       {cliente.tags && cliente.tags.length > 0 && (
-                         <div className="flex flex-wrap gap-1 mt-2">
-                           {cliente.tags.map((tag) => (
-                             <Badge 
-                               key={tag.id}
-                               style={{ backgroundColor: tag.cor, color: '#fff' }}
-                               className="text-xs"
-                             >
-                               {tag.titulo}
-                             </Badge>
-                           ))}
-                         </div>
-                       )}
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openViewModal(cliente)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openEditModal(cliente)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      {taxFilter === 'sem' && !cliente.fim_contrato && (
-                        <Button
-                          size="sm"
-                          onClick={() => { setSelectedClientForTax(cliente); setOpenTaxModal(true) }}
-                        >
-                          Nova Tributação
-                        </Button>
-                      )}
-                      {contatoFilter === 'sem' && (
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => { setSelectedClientForContact(cliente); setOpenContactModal(true) }}
-                        >
-                          Novo Contato
-                        </Button>
-                      )}
-                      {ramoFilter === 'nao' && (
-                        <Button
-                          size="sm"
-                          onClick={() => openEditModal(cliente)}
-                        >
-                          Informar atividade
-                        </Button>
-                      )}
-                      {!cliente.fim_contrato && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => desativarCliente(cliente.id)}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <UserX className="h-4 w-4" />
-                        </Button>
-                      )}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => excluirCliente(cliente.id)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        🗑️
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                      </TableCell>
+                      
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {cliente.tags && cliente.tags.length > 0 ? (
+                            cliente.tags.map((tag) => (
+                              <Badge
+                                key={tag.id}
+                                style={{ backgroundColor: tag.cor, color: "#fff" }}
+                                className="text-xs"
+                              >
+                                {tag.titulo}
+                              </Badge>
+                            ))
+                          ) : (
+                            <span className="text-xs text-muted-foreground">-</span>
+                          )}
+                        </div>
+                      </TableCell>
+                      
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openViewModal(cliente)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openEditModal(cliente)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          {taxFilter === "sem" && !cliente.fim_contrato && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedClientForTax(cliente)
+                                setOpenTaxModal(true)
+                              }}
+                              className="text-xs"
+                            >
+                              Nova Tributação
+                            </Button>
+                          )}
+                          {contatoFilter === "sem" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedClientForContact(cliente)
+                                setOpenContactModal(true)
+                              }}
+                              className="text-xs"
+                            >
+                              Novo Contato
+                            </Button>
+                          )}
+                          {ramoFilter === "nao" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => openEditModal(cliente)}
+                              className="text-xs"
+                            >
+                              Informar atividade
+                            </Button>
+                          )}
+                          {!cliente.fim_contrato && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => desativarCliente(cliente.id)}
+                              className="text-orange-600 hover:text-orange-700"
+                            >
+                              <UserX className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => excluirCliente(cliente.id)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            🗑️
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
               
               {totalPages > 1 && (
                 <div className="flex justify-center items-center gap-2 mt-6">
