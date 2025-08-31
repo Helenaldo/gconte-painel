@@ -54,6 +54,18 @@ interface DashboardData {
     meses: string[]
     valores: number[]
   }
+  liquidezSeca: {
+    meses: string[]
+    valores: number[]
+  }
+  liquidezGeral: {
+    meses: string[]
+    valores: number[]
+  }
+  necessidadeCapitalGiro: {
+    meses: string[]
+    valores: number[]
+  }
   capitalCirculanteLiquido: {
     meses: string[]
     valores: number[]
@@ -535,6 +547,9 @@ export function Dashboards() {
     // Buscar dados dos novos gráficos
     const receitaOperacionalBruta = await buscarDadosIndicadorPorPeriodo(empresaSelecionada, 'Receitas Brutas', mesInicioMes, anoInicio, mesFimMes, anoFim)
     const liquidezCorrente = await buscarDadosIndicadorPorPeriodo(empresaSelecionada, 'Liquidez Corrente', mesInicioMes, anoInicio, mesFimMes, anoFim)
+    const liquidezSeca = await buscarDadosIndicadorPorPeriodo(empresaSelecionada, 'Liquidez Seca', mesInicioMes, anoInicio, mesFimMes, anoFim)
+    const liquidezGeral = await buscarDadosIndicadorPorPeriodo(empresaSelecionada, 'Liquidez Geral', mesInicioMes, anoInicio, mesFimMes, anoFim)
+    const necessidadeCapitalGiro = await buscarDadosIndicadorPorPeriodo(empresaSelecionada, 'Necessidade de Capital de Giro (NCG)', mesInicioMes, anoInicio, mesFimMes, anoFim)
     const capitalCirculanteLiquido = await buscarDadosIndicadorPorPeriodo(empresaSelecionada, 'Capital Circulante Líquido (CCL)', mesInicioMes, anoInicio, mesFimMes, anoFim)
     
     console.log('✅ Gráficos padrão carregados')
@@ -576,6 +591,9 @@ export function Dashboards() {
       dreResumo,
       receitaOperacionalBruta,
       liquidezCorrente,
+      liquidezSeca,
+      liquidezGeral,
+      necessidadeCapitalGiro,
       capitalCirculanteLiquido,
       custosPesoReceita,
       despesasPesoReceita,
@@ -1181,6 +1199,7 @@ export function Dashboards() {
         <Tabs defaultValue="resumo" className="space-y-6">
           <TabsList>
             <TabsTrigger value="resumo">Resumo</TabsTrigger>
+            <TabsTrigger value="liquidez">Liquidez</TabsTrigger>
             <TabsTrigger value="pesos">Pesos</TabsTrigger>
           </TabsList>
           
@@ -1404,6 +1423,127 @@ export function Dashboards() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          <TabsContent value="liquidez" className="space-y-6">
+            {/* Gráficos de Liquidez */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="h-5 w-5" />
+                      Liquidez Corrente
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFullscreenChart({
+                        type: 'line',
+                        data: dashboardData.liquidezCorrente,
+                        title: 'Liquidez Corrente'
+                      })}
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                    </Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <LineChart
+                    data={dashboardData.liquidezCorrente}
+                    title="Liquidez Corrente"
+                    label="Liquidez Corrente"
+                  />
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="h-5 w-5" />
+                      Liquidez Seca
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFullscreenChart({
+                        type: 'line',
+                        data: dashboardData.liquidezSeca,
+                        title: 'Liquidez Seca'
+                      })}
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                    </Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <LineChart
+                    data={dashboardData.liquidezSeca}
+                    title="Liquidez Seca"
+                    label="Liquidez Seca"
+                  />
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="h-5 w-5" />
+                      Liquidez Geral
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFullscreenChart({
+                        type: 'line',
+                        data: dashboardData.liquidezGeral,
+                        title: 'Liquidez Geral'
+                      })}
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                    </Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <LineChart
+                    data={dashboardData.liquidezGeral}
+                    title="Liquidez Geral"
+                    label="Liquidez Geral"
+                  />
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5" />
+                      Necessidade de Capital de Giro (NCG)
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFullscreenChart({
+                        type: 'area',
+                        data: dashboardData.necessidadeCapitalGiro,
+                        title: 'Necessidade de Capital de Giro (NCG)'
+                      })}
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                    </Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <AreaChart
+                    data={dashboardData.necessidadeCapitalGiro}
+                    title="Necessidade de Capital de Giro (NCG)"
+                    label="NCG"
+                  />
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
           
           <TabsContent value="pesos" className="space-y-6">
             {/* Debug: mostrar estado dos dados */}
@@ -1603,7 +1743,7 @@ export function Dashboards() {
                 <LineChart
                   data={fullscreenChart.data}
                   title={fullscreenChart.title}
-                  label="Liquidez Corrente"
+                  label={fullscreenChart.title}
                 />
               </div>
             )}
@@ -1612,7 +1752,7 @@ export function Dashboards() {
                 <AreaChart
                   data={fullscreenChart.data}
                   title={fullscreenChart.title}
-                  label="Capital Circulante Líquido (CCL)"
+                  label={fullscreenChart.title}
                 />
               </div>
             )}
