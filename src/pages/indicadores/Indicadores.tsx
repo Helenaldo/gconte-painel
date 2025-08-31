@@ -71,6 +71,7 @@ export function Indicadores() {
      "Tributos",
      "Folha e Encargos",
      "Resultado Líquido",
+     "Resultado Líquido Acumulado",
     "ROE – Return on Equity (Retorno sobre o Patrimônio Líquido)",
     "ROA – Return on Assets (Retorno sobre Ativos)",
     "EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization",
@@ -132,7 +133,8 @@ export function Indicadores() {
         'Outras Receitas Operacionais',
         'Tributos',
         'Folha e Encargos',
-        'Resultado Líquido'
+        'Resultado Líquido',
+        'Resultado Líquido Acumulado'
       ],
     },
     {
@@ -183,6 +185,7 @@ export function Indicadores() {
     "Tributos": "Soma dos valores de impostos e tributos pagos no período, incluindo IRPJ, CSLL, ISS, Simples Nacional, PIS, COFINS e ICMS.",
     "Folha e Encargos": "Soma dos custos com pessoal (salários) e encargos sociais (FGTS, INSS, etc.), representando o custo total da folha de pagamento da empresa.",
     "Resultado Líquido": "É o lucro ou prejuízo líquido do período. Se for positivo, significa que a empresa teve mais receitas do que gastos. Se for negativo, significa que a empresa teve mais gastos do que receitas.",
+    "Resultado Líquido Acumulado": "Representa o resultado líquido acumulado considerando os saldos atuais das contas de receitas, custos e despesas. Calculado através da fórmula: 3 RECEITAS - 4 CUSTOS E DESPESAS, utilizando os valores acumulados até a data de referência.",
     "ROE – Return on Equity (Retorno sobre o Patrimônio Líquido)": "Mede o retorno obtido para cada unidade monetária investida pelos sócios. Indica a rentabilidade do capital próprio da empresa. Quanto maior, melhor para os acionistas.",
     "ROA – Return on Assets (Retorno sobre Ativos)": "Avalia a capacidade da empresa de gerar lucro em relação ao total de ativos que possui. Quanto maior o índice, mais eficiente é a utilização dos recursos disponíveis.",
     "EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization": "Indica o lucro operacional antes do impacto de juros, tributos, depreciação e amortização. É utilizado para avaliar a geração de caixa operacional da empresa, desconsiderando efeitos financeiros e contábeis.",
@@ -345,6 +348,10 @@ export function Indicadores() {
     'Folha e Encargos': {
       '4.1.2 CUSTOS COM PESSOAL': 'movimento',
       '4.1.3 CUSTOS COM ENCARGOS SOCIAIS': 'movimento',
+    },
+    'Resultado Líquido Acumulado': {
+      '3 RECEITAS': 'saldo_atual',
+      '4 CUSTOS E DESPESAS': 'saldo_atual',
     },
   }
 
@@ -1205,6 +1212,17 @@ export function Indicadores() {
           }
         }
 
+        // Resultado Líquido Acumulado
+        {
+          if (temContasParametrizadas('3') && temContasParametrizadas('4')) {
+            const receitas = obterValorContaPorFonte('3', getVarFonte("Resultado Líquido Acumulado", '3 RECEITAS'))
+            const custosEDespesas = obterValorContaPorFonte('4', getVarFonte("Resultado Líquido Acumulado", '4 CUSTOS E DESPESAS'))
+            resultadosIndicadores["Resultado Líquido Acumulado"][mesNome] = receitas - custosEDespesas
+          } else {
+            resultadosIndicadores["Resultado Líquido Acumulado"][mesNome] = null
+          }
+        }
+
         // ROE – Return on Equity (Retorno sobre o Patrimônio Líquido)
         {
           if (temContasParametrizadas('3') && temContasParametrizadas('4') && temContasParametrizadas('2.3')) {
@@ -1347,10 +1365,11 @@ export function Indicadores() {
                 indicador === "Margem de Contribuição" ||
                 indicador === "Deduções das Receitas" ||
                 indicador === "Outras Receitas Operacionais" ||
-                indicador === "Tributos" ||
-                indicador === "Folha e Encargos" ||
-                indicador === "Resultado Líquido" ||
-                indicador === "EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization" ||
+                 indicador === "Tributos" ||
+                 indicador === "Folha e Encargos" ||
+                 indicador === "Resultado Líquido" ||
+                 indicador === "Resultado Líquido Acumulado" ||
+                 indicador === "EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization" ||
                 indicador === "Necessidade de Capital de Giro (NCG)"
   
     if (isPercent) {
@@ -1392,6 +1411,7 @@ export function Indicadores() {
       "Tributos": "4.2.3 DESPESAS TRIBUTÁRIAS + 3.1.2.1 ISS + 3.1.2.2 SIMPLES NACIONAL + 3.1.2.3 PIS + 3.1.2.4 COFINS + 3.1.2.5 ICMS",
       "Folha e Encargos": "4.1.2 CUSTOS COM PESSOAL + 4.1.3 CUSTOS COM ENCARGOS SOCIAIS",
       "Resultado Líquido": "3 RECEITAS − 4 CUSTOS E DESPESAS",
+      "Resultado Líquido Acumulado": "3 RECEITAS − 4 CUSTOS E DESPESAS",
       "ROE – Return on Equity (Retorno sobre o Patrimônio Líquido)": "((3 RECEITAS − 4 CUSTOS E DESPESAS) ÷ Patrimônio Líquido Médio) × 100",
       "ROA – Return on Assets (Retorno sobre Ativos)": "((3 RECEITAS − 4 CUSTOS E DESPESAS) ÷ Ativo Total Médio) × 100",
       "EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization": "Lucro Operacional + Tributos + Depreciação e Amortização",
@@ -1673,6 +1693,16 @@ export function Indicadores() {
         const resultado = receitas.valor - custosEDespesas.valor
         return {
           componentes: [receitas, custosEDespesas, { label: 'Resultado Líquido', valor: resultado }],
+          resultado
+        }
+      }
+
+      case "Resultado Líquido Acumulado": {
+        const receitas = comp('3 RECEITAS', '3')
+        const custosEDespesas = comp('4 CUSTOS E DESPESAS', '4')
+        const resultado = receitas.valor - custosEDespesas.valor
+        return {
+          componentes: [receitas, custosEDespesas, { label: 'Resultado Líquido Acumulado', valor: resultado }],
           resultado
         }
       }
