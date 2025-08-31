@@ -1085,7 +1085,7 @@ export function Indicadores() {
           if (temContasParametrizadas('1.1') && temContasParametrizadas('2.1')) {
             const ativoCirculanteOp = obterValorContaPorFonte('1.1', getVarFonte("Necessidade de Capital de Giro (NCG)", '1.1 ATIVO CIRCULANTE'))
             const passivoCirculanteOp = obterValorContaPorFonte('2.1', getVarFonte("Necessidade de Capital de Giro (NCG)", '2.1 PASSIVO CIRCULANTE'))
-            resultadosIndicadores["Necessidade de Capital de Giro (NCG)"][mesNome] = ativoCirculanteOp - passivoCirculanteOp
+            resultadosIndicadores["Necessidade de Capital de Giro (NCG)"][mesNome] = (ativoCirculanteOp - passivoCirculanteOp) * -1
           } else {
             resultadosIndicadores["Necessidade de Capital de Giro (NCG)"][mesNome] = null
           }
@@ -1400,7 +1400,7 @@ export function Indicadores() {
       "Prazo Médio de Recebimento (PMR)": "(1.1.2.1 CLIENTES ÷ 3.1.1 RECEITA BRUTA) × (360 ÷ 12 × número do mês)",
       "Ciclo Operacional (CO)": "Prazo Médio de Estocagem + Prazo Médio de Recebimento",
       "Ciclo Financeiro (CF)": "Ciclo Operacional − Prazo Médio de Pagamento",
-      "Necessidade de Capital de Giro (NCG)": "1.1 ATIVO CIRCULANTE − 2.1 PASSIVO CIRCULANTE",
+      "Necessidade de Capital de Giro (NCG)": "(1.1 ATIVO CIRCULANTE − 2.1 PASSIVO CIRCULANTE) × -1",
       "Peso dos Custos sobre a Receita": "(4.1 CUSTOS ÷ 3.1.1 RECEITA BRUTA) × 100",
       "Peso das Despesas sobre a Receita": "(4.2 DESPESAS OPERACIONAIS ÷ 3.1.1 RECEITA BRUTA) × 100",
       "Peso dos Tributos sobre a Receita": "((4.2.3 DESPESAS TRIBUTÁRIAS + 3.1.2.1 ISS + 3.1.2.2 SIMPLES NACIONAL + 3.1.2.3 PIS + 3.1.2.4 COFINS + 3.1.2.5 ICMS) ÷ 3.1.1 RECEITA BRUTA) × 100",
@@ -1742,7 +1742,7 @@ export function Indicadores() {
       case "Necessidade de Capital de Giro (NCG)": {
         const ativoCirculante = comp('1.1 ATIVO CIRCULANTE', '1.1')
         const passivoCirculante = comp('2.1 PASSIVO CIRCULANTE', '2.1')
-        const resultado = ativoCirculante.valor - passivoCirculante.valor
+        const resultado = (ativoCirculante.valor - passivoCirculante.valor) * -1
         return {
           componentes: [ativoCirculante, passivoCirculante],
           resultado
