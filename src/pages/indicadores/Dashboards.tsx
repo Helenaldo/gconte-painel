@@ -1546,27 +1546,6 @@ export function Dashboards() {
           </TabsContent>
           
           <TabsContent value="pesos" className="space-y-6">
-            {/* Debug: mostrar estado dos dados */}
-            {process.env.NODE_ENV === 'development' && (
-              <Card className="bg-muted/50">
-                <CardHeader>
-                  <CardTitle>Debug - Estado dos Dados de Peso</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <pre className="text-xs">
-                    {JSON.stringify({
-                      custosPesoReceita: dashboardData?.custosPesoReceita ? 'Definido' : 'Undefined',
-                      despesasPesoReceita: dashboardData?.despesasPesoReceita ? 'Definido' : 'Undefined', 
-                      tributosPesoReceita: dashboardData?.tributosPesoReceita ? 'Definido' : 'Undefined',
-                      folhaPesoReceita: dashboardData?.folhaPesoReceita ? 'Definido' : 'Undefined',
-                      mesesCustos: dashboardData?.custosPesoReceita?.meses?.length || 0,
-                      mesesDespesas: dashboardData?.despesasPesoReceita?.meses?.length || 0,
-                    }, null, 2)}
-                  </pre>
-                </CardContent>
-              </Card>
-            )}
-            
             {/* Gráficos de Peso sobre a Receita */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card>
