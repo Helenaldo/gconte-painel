@@ -965,10 +965,10 @@ export function Indicadores() {
           }
         }
 
-        // Margem Bruta: precisa de Receitas (3.1) e Custos (4.1) parametrizados
+        // Margem Bruta: precisa de Receitas (3) e Custos (4.1) parametrizados
         {
-          if (temContasParametrizadas('3.1') && temContasParametrizadas('4.1')) {
-            const rec = obterValorContaPorFonte('3.1', getVarFonte("Margem Bruta (%)", 'Receitas'))
+          if (temContasParametrizadas('3') && temContasParametrizadas('4.1')) {
+            const rec = obterValorContaPorFonte('3', getVarFonte("Margem Bruta (%)", 'Receitas'))
             const custos41 = obterValorContaPorFonte('4.1', getVarFonte("Margem Bruta (%)", 'Custos'))
             const lucroBruto = rec - custos41
             resultadosIndicadores["Margem Bruta (%)"][mesNome] = rec !== 0 ? (lucroBruto / rec) * 100 : null
