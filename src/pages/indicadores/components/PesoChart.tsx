@@ -56,6 +56,15 @@ export function PesoChart({ data, maxPercentage = 100 }: PesoChartProps) {
   console.log('📊 Valores Absolutos:', data.valoresAbsolutos)
   console.log('📈 Valores Percentuais:', data.valoresPercentuais)
 
+  // Calcular min e max dinâmicos para o eixo Y de percentuais
+  const minPercentage = Math.min(...data.valoresPercentuais)
+  const maxPercentageData = Math.max(...data.valoresPercentuais)
+  
+  // Adicionar padding de 10% para melhor visualização
+  const padding = Math.abs(maxPercentageData - minPercentage) * 0.1
+  const dynamicMin = minPercentage - padding
+  const dynamicMax = maxPercentageData + padding
+
   // Definir cores específicas para cada tipo de indicador
   const getColors = (labelAbsoluto: string) => {
     switch (labelAbsoluto) {
@@ -264,8 +273,8 @@ export function PesoChart({ data, maxPercentage = 100 }: PesoChartProps) {
         type: 'linear' as const,
         display: true,
         position: 'right' as const,
-        min: 0,
-        max: maxPercentage,
+        min: dynamicMin,
+        max: dynamicMax,
         title: {
           display: true,
           text: 'Percentual (%)',
