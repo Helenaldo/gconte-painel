@@ -1067,6 +1067,51 @@ export type Database = {
         }
         Relationships: []
       }
+      responsible_assignments: {
+        Row: {
+          client_id: string
+          collaborator_id: string
+          created_at: string
+          created_by: string | null
+          data_fim: string | null
+          data_inicio: string
+          ended_at: string | null
+          ended_by: string | null
+          id: string
+          setores: string[]
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          collaborator_id: string
+          created_at?: string
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio: string
+          ended_at?: string | null
+          ended_by?: string | null
+          id?: string
+          setores?: string[]
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          collaborator_id?: string
+          created_at?: string
+          created_by?: string | null
+          data_fim?: string | null
+          data_inicio?: string
+          ended_at?: string | null
+          ended_by?: string | null
+          id?: string
+          setores?: string[]
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       taxation: {
         Row: {
           client_id: string

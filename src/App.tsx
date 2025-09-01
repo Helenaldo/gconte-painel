@@ -14,6 +14,7 @@ import { Colaboradores } from "@/pages/escritorio/Colaboradores";
 import { Contatos } from "@/pages/escritorio/Contatos";
 import { Eventos } from "@/pages/escritorio/Eventos";
 import { Tributacao } from "@/pages/escritorio/Tributacao";
+import { Responsaveis } from "@/pages/escritorio/Responsaveis";
 import { Configuracoes } from "@/pages/escritorio/Configuracoes";
 import { Importar } from "@/pages/indicadores/Importar";
 import { Parametrizacao } from "@/pages/indicadores/Parametrizacao";
@@ -124,6 +125,16 @@ function AppRoutes() {
           <ProtectedRoute>
             <MainLayout user={userForLayout} onLogout={logout}>
               <Tributacao />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/escritorio/responsaveis"
+        element={
+          <ProtectedRoute>
+            <MainLayout user={userForLayout} onLogout={logout}>
+              <Responsaveis />
             </MainLayout>
           </ProtectedRoute>
         }

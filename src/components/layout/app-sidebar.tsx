@@ -71,9 +71,9 @@ const menuItems: MenuItem[] = [
         icon: Users,
       },
       {
-        title: "Colaboradores",
-        url: "/escritorio/colaboradores",
-        icon: Contact,
+        title: "Responsáveis",
+        url: "/escritorio/responsaveis",
+        icon: Users,
       },
       {
         title: "Contatos",
