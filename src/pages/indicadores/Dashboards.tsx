@@ -98,6 +98,44 @@ interface DashboardData {
     labelAbsoluto: string
     labelPercentual: string
   }
+  // Dados para a aba Resultado
+  margemContribuicao: {
+    meses: string[]
+    valoresAbsolutos: number[]
+    valoresPercentuais: number[]
+    labelAbsoluto: string
+    labelPercentual: string
+  }
+  resultadoLiquidoMensal: {
+    meses: string[]
+    valoresAbsolutos: number[]
+    valoresPercentuais: number[]
+    labelAbsoluto: string
+    labelPercentual: string
+  }
+  resultadoLiquidoAcumulado: {
+    meses: string[]
+    valoresAbsolutos: number[]
+    valoresPercentuais: number[]
+    labelAbsoluto: string
+    labelPercentual: string
+  }
+  receitasLiquidas: {
+    meses: string[]
+    valores: number[]
+  }
+  custos: {
+    meses: string[]
+    valores: number[]
+  }
+  despesas: {
+    meses: string[]
+    valores: number[]
+  }
+  folhaEncargos: {
+    meses: string[]
+    valores: number[]
+  }
 }
 
 interface CacheItem {
@@ -583,6 +621,37 @@ export function Dashboards() {
     
     console.log('🏁 Preparando retorno do dashboard com todos os dados')
     
+    // Buscar dados para aba Resultado
+    console.log('🔄 Buscando dados da aba Resultado...')
+    
+    let margemContribuicao, resultadoLiquidoMensal, resultadoLiquidoAcumulado
+    let receitasLiquidas, custos, despesas, folhaEncargos
+    
+    try {
+      // Dados para gráficos conjugados (PesoChart)
+      margemContribuicao = await buscarDadosPesoIndicador(empresaSelecionada, 'Margem de Contribuição', 'Margem Bruta (%)', mesInicioMes, anoInicio, mesFimMes, anoFim)
+      resultadoLiquidoMensal = await buscarDadosPesoIndicador(empresaSelecionada, 'Resultado Líquido', 'Margem Líquida (%)', mesInicioMes, anoInicio, mesFimMes, anoFim)
+      resultadoLiquidoAcumulado = await buscarDadosPesoIndicador(empresaSelecionada, 'Resultado Líquido Acumulado', 'Margem Líquida Acumulada (%)', mesInicioMes, anoInicio, mesFimMes, anoFim)
+      
+      // Dados para gráficos de barras simples (BarChart)
+      receitasLiquidas = await buscarDadosIndicadorPorPeriodo(empresaSelecionada, 'Receitas Líquidas', mesInicioMes, anoInicio, mesFimMes, anoFim)
+      custos = await buscarDadosIndicadorPorPeriodo(empresaSelecionada, 'Custos', mesInicioMes, anoInicio, mesFimMes, anoFim)
+      despesas = await buscarDadosIndicadorPorPeriodo(empresaSelecionada, 'Despesas', mesInicioMes, anoInicio, mesFimMes, anoFim)
+      folhaEncargos = await buscarDadosIndicadorPorPeriodo(empresaSelecionada, 'Folha e Encargos', mesInicioMes, anoInicio, mesFimMes, anoFim)
+      
+      console.log('✅ Dados da aba Resultado carregados')
+    } catch (error) {
+      console.error('💥 Erro ao buscar dados da aba Resultado:', error)
+      // Dados vazios em caso de erro
+      margemContribuicao = { meses: [], valoresAbsolutos: [], valoresPercentuais: [], labelAbsoluto: 'Margem de Contribuição', labelPercentual: 'Margem Bruta (%)' }
+      resultadoLiquidoMensal = { meses: [], valoresAbsolutos: [], valoresPercentuais: [], labelAbsoluto: 'Resultado Líquido', labelPercentual: 'Margem Líquida (%)' }
+      resultadoLiquidoAcumulado = { meses: [], valoresAbsolutos: [], valoresPercentuais: [], labelAbsoluto: 'Resultado Líquido Acumulado', labelPercentual: 'Margem Líquida Acumulada (%)' }
+      receitasLiquidas = { meses: [], valores: [] }
+      custos = { meses: [], valores: [] }
+      despesas = { meses: [], valores: [] }
+      folhaEncargos = { meses: [], valores: [] }
+    }
+    
     const resultado = {
       empresa: empresaData,
       margemLiquidaMesFim,
@@ -598,7 +667,14 @@ export function Dashboards() {
       custosPesoReceita,
       despesasPesoReceita,
       tributosPesoReceita,
-      folhaPesoReceita
+      folhaPesoReceita,
+      margemContribuicao,
+      resultadoLiquidoMensal,
+      resultadoLiquidoAcumulado,
+      receitasLiquidas,
+      custos,
+      despesas,
+      folhaEncargos
     }
     
     console.log('📊 Resultado final dashboard:', {
@@ -1201,6 +1277,7 @@ export function Dashboards() {
             <TabsTrigger value="resumo">Resumo</TabsTrigger>
             <TabsTrigger value="liquidez">Liquidez</TabsTrigger>
             <TabsTrigger value="pesos">Pesos</TabsTrigger>
+            <TabsTrigger value="resultado">Resultado</TabsTrigger>
           </TabsList>
           
           <TabsContent value="resumo" className="space-y-6">
@@ -1678,6 +1755,272 @@ export function Dashboards() {
                       <div className="text-center">
                         <p>Dados não disponíveis</p>
                         <p className="text-sm mt-2">folhaPesoReceita não definido</p>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="resultado" className="space-y-6">
+            {/* Gráficos da aba Resultado */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* 1. Margem de Contribuição */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5" />
+                      Margem de Contribuição
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFullscreenChart({
+                        type: 'peso',
+                        data: dashboardData.margemContribuicao,
+                        title: 'Margem de Contribuição'
+                      })}
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                    </Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {dashboardData?.margemContribuicao ? (
+                    <PesoChart data={dashboardData.margemContribuicao} />
+                  ) : (
+                    <div className="flex items-center justify-center h-64 text-muted-foreground">
+                      <div className="text-center">
+                        <p>Dados não disponíveis</p>
+                        <p className="text-sm mt-2">margemContribuicao não definido</p>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+              
+              {/* 2. Resultado Líquido mensal */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5" />
+                      Resultado Líquido Mensal
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFullscreenChart({
+                        type: 'peso',
+                        data: dashboardData.resultadoLiquidoMensal,
+                        title: 'Resultado Líquido Mensal'
+                      })}
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                    </Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {dashboardData?.resultadoLiquidoMensal ? (
+                    <PesoChart data={dashboardData.resultadoLiquidoMensal} />
+                  ) : (
+                    <div className="flex items-center justify-center h-64 text-muted-foreground">
+                      <div className="text-center">
+                        <p>Dados não disponíveis</p>
+                        <p className="text-sm mt-2">resultadoLiquidoMensal não definido</p>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+              
+              {/* 3. Resultado Líquido Acumulado */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5" />
+                      Resultado Líquido Acumulado
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFullscreenChart({
+                        type: 'peso',
+                        data: dashboardData.resultadoLiquidoAcumulado,
+                        title: 'Resultado Líquido Acumulado'
+                      })}
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                    </Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {dashboardData?.resultadoLiquidoAcumulado ? (
+                    <PesoChart data={dashboardData.resultadoLiquidoAcumulado} />
+                  ) : (
+                    <div className="flex items-center justify-center h-64 text-muted-foreground">
+                      <div className="text-center">
+                        <p>Dados não disponíveis</p>
+                        <p className="text-sm mt-2">resultadoLiquidoAcumulado não definido</p>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+              
+              {/* 4. Receitas Líquidas */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5" />
+                      Receitas Líquidas
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFullscreenChart({
+                        type: 'bar',
+                        data: dashboardData.receitasLiquidas,
+                        title: 'Receitas Líquidas'
+                      })}
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                    </Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {dashboardData?.receitasLiquidas ? (
+                    <BarChart
+                      data={dashboardData.receitasLiquidas}
+                      title="Receitas Líquidas"
+                      label="Receitas Líquidas"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-64 text-muted-foreground">
+                      <div className="text-center">
+                        <p>Dados não disponíveis</p>
+                        <p className="text-sm mt-2">receitasLiquidas não definido</p>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+              
+              {/* 5. Custos */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5" />
+                      Custos
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFullscreenChart({
+                        type: 'bar',
+                        data: dashboardData.custos,
+                        title: 'Custos'
+                      })}
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                    </Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {dashboardData?.custos ? (
+                    <BarChart
+                      data={dashboardData.custos}
+                      title="Custos"
+                      label="Custos"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-64 text-muted-foreground">
+                      <div className="text-center">
+                        <p>Dados não disponíveis</p>
+                        <p className="text-sm mt-2">custos não definido</p>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+              
+              {/* 6. Despesas */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5" />
+                      Despesas
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFullscreenChart({
+                        type: 'bar',
+                        data: dashboardData.despesas,
+                        title: 'Despesas'
+                      })}
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                    </Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {dashboardData?.despesas ? (
+                    <BarChart
+                      data={dashboardData.despesas}
+                      title="Despesas"
+                      label="Despesas"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-64 text-muted-foreground">
+                      <div className="text-center">
+                        <p>Dados não disponíveis</p>
+                        <p className="text-sm mt-2">despesas não definido</p>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+              
+              {/* 7. Folha e Encargos */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5" />
+                      Folha e Encargos
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFullscreenChart({
+                        type: 'bar',
+                        data: dashboardData.folhaEncargos,
+                        title: 'Folha e Encargos'
+                      })}
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                    </Button>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {dashboardData?.folhaEncargos ? (
+                    <BarChart
+                      data={dashboardData.folhaEncargos}
+                      title="Folha e Encargos"
+                      label="Folha e Encargos"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-64 text-muted-foreground">
+                      <div className="text-center">
+                        <p>Dados não disponíveis</p>
+                        <p className="text-sm mt-2">folhaEncargos não definido</p>
                       </div>
                     </div>
                   )}
