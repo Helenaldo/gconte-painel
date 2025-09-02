@@ -310,57 +310,134 @@ export function ResponsavelForm({
             {/* Data Início */}
             <div className="space-y-2">
               <Label>Data de Início *</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !formData.data_inicio && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formData.data_inicio ? format(formData.data_inicio, "dd/MM/yyyy", { locale: ptBR }) : "Selecionar data"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={formData.data_inicio}
-                    onSelect={(date) => setFormData(prev => ({ ...prev, data_inicio: date }))}
-                    initialFocus
-                    locale={ptBR}
-                  />
-                </PopoverContent>
-              </Popover>
+              <div className="relative">
+                <Input
+                  placeholder="dd/mm/aaaa"
+                  value={formData.data_inicio ? format(formData.data_inicio, "dd/MM/yyyy", { locale: ptBR }) : ""}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    // Remove caracteres não numéricos exceto /
+                    const cleaned = value.replace(/[^\d/]/g, '')
+                    
+                    // Adiciona barras automaticamente
+                    let formatted = cleaned
+                    if (cleaned.length >= 3 && cleaned.length <= 5 && !cleaned.includes('/')) {
+                      formatted = cleaned.slice(0, 2) + '/' + cleaned.slice(2)
+                    }
+                    if (cleaned.length >= 6 && cleaned.split('/').length === 2) {
+                      const parts = cleaned.split('/')
+                      formatted = parts[0] + '/' + parts[1].slice(0, 2) + '/' + parts[1].slice(2)
+                    }
+                    
+                    // Limita o comprimento
+                    if (formatted.length <= 10) {
+                      // Tenta fazer o parse da data
+                      if (formatted.length === 10) {
+                        const [day, month, year] = formatted.split('/')
+                        const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+                        if (!isNaN(date.getTime()) && 
+                            date.getFullYear().toString() === year &&
+                            (date.getMonth() + 1).toString().padStart(2, '0') === month &&
+                            date.getDate().toString().padStart(2, '0') === day) {
+                          setFormData(prev => ({ ...prev, data_inicio: date }))
+                        }
+                      }
+                      e.target.value = formatted
+                    }
+                  }}
+                  className="pr-10"
+                />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3 py-0 hover:bg-transparent"
+                    >
+                      <CalendarIcon className="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={formData.data_inicio}
+                      onSelect={(date) => setFormData(prev => ({ ...prev, data_inicio: date }))}
+                      initialFocus
+                      locale={ptBR}
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
 
             {/* Data Fim */}
             <div className="space-y-2">
               <Label>Data de Término</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !formData.data_fim && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formData.data_fim ? format(formData.data_fim, "dd/MM/yyyy", { locale: ptBR }) : "Opcional"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={formData.data_fim}
-                    onSelect={(date) => setFormData(prev => ({ ...prev, data_fim: date }))}
-                    initialFocus
-                    locale={ptBR}
-                  />
-                </PopoverContent>
-              </Popover>
+              <div className="relative">
+                <Input
+                  placeholder="dd/mm/aaaa (opcional)"
+                  value={formData.data_fim ? format(formData.data_fim, "dd/MM/yyyy", { locale: ptBR }) : ""}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    if (value === "") {
+                      setFormData(prev => ({ ...prev, data_fim: undefined }))
+                      return
+                    }
+                    
+                    // Remove caracteres não numéricos exceto /
+                    const cleaned = value.replace(/[^\d/]/g, '')
+                    
+                    // Adiciona barras automaticamente
+                    let formatted = cleaned
+                    if (cleaned.length >= 3 && cleaned.length <= 5 && !cleaned.includes('/')) {
+                      formatted = cleaned.slice(0, 2) + '/' + cleaned.slice(2)
+                    }
+                    if (cleaned.length >= 6 && cleaned.split('/').length === 2) {
+                      const parts = cleaned.split('/')
+                      formatted = parts[0] + '/' + parts[1].slice(0, 2) + '/' + parts[1].slice(2)
+                    }
+                    
+                    // Limita o comprimento
+                    if (formatted.length <= 10) {
+                      // Tenta fazer o parse da data
+                      if (formatted.length === 10) {
+                        const [day, month, year] = formatted.split('/')
+                        const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+                        if (!isNaN(date.getTime()) && 
+                            date.getFullYear().toString() === year &&
+                            (date.getMonth() + 1).toString().padStart(2, '0') === month &&
+                            date.getDate().toString().padStart(2, '0') === day) {
+                          setFormData(prev => ({ ...prev, data_fim: date }))
+                        }
+                      }
+                      e.target.value = formatted
+                    }
+                  }}
+                  className="pr-10"
+                />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3 py-0 hover:bg-transparent"
+                    >
+                      <CalendarIcon className="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={formData.data_fim}
+                      onSelect={(date) => setFormData(prev => ({ ...prev, data_fim: date }))}
+                      initialFocus
+                      locale={ptBR}
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
           </div>
 
