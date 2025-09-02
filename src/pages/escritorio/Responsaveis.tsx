@@ -65,9 +65,9 @@ export function Responsaveis() {
   const [collaborators, setCollaborators] = useState<Collaborator[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
-  const [clientFilter, setClientFilter] = useState<string>("")
-  const [collaboratorFilter, setCollaboratorFilter] = useState<string>("")
-  const [setorFilter, setSetorFilter] = useState<string>("")
+  const [clientFilter, setClientFilter] = useState<string>("all")
+  const [collaboratorFilter, setCollaboratorFilter] = useState<string>("all")
+  const [setorFilter, setSetorFilter] = useState<string>("all")
   const [statusFilter, setStatusFilter] = useState<string>("vigente")
   const [currentPage, setCurrentPage] = useState(1)
   const [isFormOpen, setIsFormOpen] = useState(false)
@@ -138,10 +138,10 @@ export function Responsaveis() {
       assignment.client.cnpj.includes(searchTerm) ||
       assignment.collaborator.nome.toLowerCase().includes(searchTerm.toLowerCase())
     
-    const matchesClient = !clientFilter || assignment.client_id === clientFilter
-    const matchesCollaborator = !collaboratorFilter || assignment.collaborator_id === collaboratorFilter
-    const matchesSetor = !setorFilter || assignment.setores.includes(setorFilter)
-    const matchesStatus = !statusFilter || assignment.status === statusFilter
+    const matchesClient = clientFilter === "all" || assignment.client_id === clientFilter
+    const matchesCollaborator = collaboratorFilter === "all" || assignment.collaborator_id === collaboratorFilter
+    const matchesSetor = setorFilter === "all" || assignment.setores.includes(setorFilter)
+    const matchesStatus = statusFilter === "all" || assignment.status === statusFilter
     
     return matchesSearch && matchesClient && matchesCollaborator && matchesSetor && matchesStatus
   })
@@ -265,7 +265,7 @@ export function Responsaveis() {
                   <SelectValue placeholder="Todas" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todas</SelectItem>
+                  <SelectItem value="all">Todas</SelectItem>
                   {clients.map(client => (
                     <SelectItem key={client.id} value={client.id}>
                       {client.nome_empresarial}
@@ -282,7 +282,7 @@ export function Responsaveis() {
                   <SelectValue placeholder="Todos" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
                   {collaborators.map(collaborator => (
                     <SelectItem key={collaborator.id} value={collaborator.id}>
                       {collaborator.nome}
@@ -299,7 +299,7 @@ export function Responsaveis() {
                   <SelectValue placeholder="Todos" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
                   {SETORES.map(setor => (
                     <SelectItem key={setor} value={setor}>
                       {setor}
@@ -316,7 +316,7 @@ export function Responsaveis() {
                   <SelectValue placeholder="Todos" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
                   <SelectItem value="vigente">Vigente</SelectItem>
                   <SelectItem value="encerrado">Encerrado</SelectItem>
                 </SelectContent>
@@ -328,9 +328,9 @@ export function Responsaveis() {
                 variant="outline" 
                 onClick={() => {
                   setSearchTerm("")
-                  setClientFilter("")
-                  setCollaboratorFilter("")
-                  setSetorFilter("")
+                  setClientFilter("all")
+                  setCollaboratorFilter("all")
+                  setSetorFilter("all")
                   setStatusFilter("vigente")
                 }}
                 className="w-full"
