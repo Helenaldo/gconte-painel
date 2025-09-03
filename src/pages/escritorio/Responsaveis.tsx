@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogTrigger, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Plus, Search, Users, Pencil, UserX, History, ArrowRightLeft, Filter, ChevronLeft, ChevronRight } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { supabase } from "@/integrations/supabase/client"
@@ -225,7 +226,8 @@ export function Responsaveis() {
   }
 
   return (
-    <div className="space-y-6">
+    <TooltipProvider>
+      <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Responsáveis</h1>
@@ -428,54 +430,75 @@ export function Responsaveis() {
                           {isVigente(assignment) ? "Vigente" : "Encerrado"}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openForm(assignment)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          
-                          {isVigente(assignment) && (
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="sm">
-                                  <UserX className="h-4 w-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Encerrar Vínculo</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Deseja encerrar o vínculo de {assignment.collaborator.nome} com {assignment.client.nome_empresarial}?
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => encerrarVinculo(assignment.id, new Date().toISOString().split('T')[0])}
-                                  >
-                                    Encerrar
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          )}
-                          
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedClientForHistory(assignment.client_id)
-                              setHistoricoModalOpen(true)
-                            }}
-                          >
-                            <History className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
+                       <TableCell className="text-right">
+                         <div className="flex items-center justify-end gap-2">
+                           <Tooltip>
+                             <TooltipTrigger asChild>
+                               <Button
+                                 variant="ghost"
+                                 size="sm"
+                                 onClick={() => openForm(assignment)}
+                               >
+                                 <Pencil className="h-4 w-4" />
+                               </Button>
+                             </TooltipTrigger>
+                             <TooltipContent>
+                               <p>Editar vínculo</p>
+                             </TooltipContent>
+                           </Tooltip>
+                           
+                           {isVigente(assignment) && (
+                             <AlertDialog>
+                               <Tooltip>
+                                 <TooltipTrigger asChild>
+                                   <AlertDialogTrigger asChild>
+                                     <Button variant="ghost" size="sm">
+                                       <UserX className="h-4 w-4" />
+                                     </Button>
+                                   </AlertDialogTrigger>
+                                 </TooltipTrigger>
+                                 <TooltipContent>
+                                   <p>Encerrar vínculo</p>
+                                 </TooltipContent>
+                               </Tooltip>
+                               <AlertDialogContent>
+                                 <AlertDialogHeader>
+                                   <AlertDialogTitle>Encerrar Vínculo</AlertDialogTitle>
+                                   <AlertDialogDescription>
+                                     Deseja encerrar o vínculo de {assignment.collaborator.nome} com {assignment.client.nome_empresarial}?
+                                   </AlertDialogDescription>
+                                 </AlertDialogHeader>
+                                 <AlertDialogFooter>
+                                   <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                   <AlertDialogAction
+                                     onClick={() => encerrarVinculo(assignment.id, new Date().toISOString().split('T')[0])}
+                                   >
+                                     Encerrar
+                                   </AlertDialogAction>
+                                 </AlertDialogFooter>
+                               </AlertDialogContent>
+                             </AlertDialog>
+                           )}
+                           
+                           <Tooltip>
+                             <TooltipTrigger asChild>
+                               <Button
+                                 variant="ghost"
+                                 size="sm"
+                                 onClick={() => {
+                                   setSelectedClientForHistory(assignment.client_id)
+                                   setHistoricoModalOpen(true)
+                                 }}
+                               >
+                                 <History className="h-4 w-4" />
+                               </Button>
+                             </TooltipTrigger>
+                             <TooltipContent>
+                               <p>Ver histórico</p>
+                             </TooltipContent>
+                           </Tooltip>
+                         </div>
+                       </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -542,5 +565,6 @@ export function Responsaveis() {
         clients={clients}
       />
     </div>
+    </TooltipProvider>
   )
 }
