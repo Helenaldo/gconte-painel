@@ -40,6 +40,10 @@ interface Cliente {
   cliente_desde: string
   fim_contrato: string | null
   tags?: ClientTag[]
+  responsavel?: {
+    nome: string
+    email: string
+  }
 }
 
 interface ClientTag {
@@ -127,6 +131,10 @@ export function Clientes() {
             *,
             client_tag_assignments(
               client_tags(id, titulo, cor, descricao)
+            ),
+            responsible_assignments!client_id(
+              status,
+              collaborator:profiles!collaborator_id(nome, email)
             )
           `)
           .order('nome_empresarial'),
@@ -141,11 +149,15 @@ export function Clientes() {
         return
       }
 
-      // Processar clientes com suas etiquetas
-      const clientsWithTags = (clientsRes.data || []).map(client => ({
-        ...client,
-        tags: client.client_tag_assignments?.map((assignment: any) => assignment.client_tags) || []
-      }))
+      // Processar clientes com suas etiquetas e responsável
+      const clientsWithTags = (clientsRes.data || []).map(client => {
+        const activeAssignment = client.responsible_assignments?.find((ra: any) => ra.status === 'vigente')
+        return {
+          ...client,
+          tags: client.client_tag_assignments?.map((assignment: any) => assignment.client_tags) || [],
+          responsavel: activeAssignment?.collaborator || null
+        }
+      })
 
       setClientes(clientsWithTags)
       setAvailableTags(clientTagsRes.data || [])
@@ -1088,16 +1100,17 @@ export function Clientes() {
             </div>
           ) : (
             <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Cliente</TableHead>
-                    <TableHead>CNPJ / Ramo</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Etiquetas</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
+               <Table>
+                 <TableHeader>
+                   <TableRow>
+                     <TableHead>Cliente</TableHead>
+                     <TableHead>CNPJ / Ramo</TableHead>
+                     <TableHead>Responsável</TableHead>
+                     <TableHead>Status</TableHead>
+                     <TableHead>Etiquetas</TableHead>
+                     <TableHead className="text-right">Ações</TableHead>
+                   </TableRow>
+                 </TableHeader>
                 <TableBody>
                   {paginatedClientes.map((cliente) => (
                     <TableRow key={cliente.id}>
@@ -1114,11 +1127,22 @@ export function Clientes() {
                       </TableCell>
                       
                       <TableCell>
-                        <div>
-                          <p className="text-sm">{cliente.cnpj}</p>
-                          <p className="text-xs text-muted-foreground">{cliente.ramo_atividade}</p>
-                        </div>
-                      </TableCell>
+                         <div>
+                           <p className="text-sm">{cliente.cnpj}</p>
+                           <p className="text-xs text-muted-foreground">{cliente.ramo_atividade}</p>
+                         </div>
+                       </TableCell>
+                       
+                       <TableCell>
+                         {cliente.responsavel ? (
+                           <div>
+                             <p className="text-sm font-medium">{cliente.responsavel.nome}</p>
+                             <p className="text-xs text-muted-foreground">{cliente.responsavel.email}</p>
+                           </div>
+                         ) : (
+                           <span className="text-xs text-muted-foreground">Não atribuído</span>
+                         )}
+                       </TableCell>
                       
                       <TableCell>
                         {cliente.fim_contrato ? (
