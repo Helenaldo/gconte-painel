@@ -25,6 +25,7 @@ import { cn, buildProcessoLink } from "@/lib/utils";
 import { getSla } from "@/lib/sla";
 import DuplicarModal, { ProcessoBase } from "@/components/processos/DuplicarModal";
 import ImportarProcessosModal from "@/components/processos/ImportarProcessosModal";
+import ConclusaoModal from "@/components/processos/ConclusaoModal";
 
 // Types
 interface Processo {
@@ -197,6 +198,10 @@ export default function ProcessosListar() {
   const [processoToDelete, setProcessoToDelete] = useState<Processo | null>(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
+
+  // Conclusão
+  const [conclusaoOpen, setConclusaoOpen] = useState(false);
+  const [processoToConclude, setProcessoToConclude] = useState<Processo | null>(null);
 
   useEffect(() => {
     document.title = "Processos | GConte";
@@ -808,16 +813,23 @@ export default function ProcessosListar() {
                             <p>Editar processo</p>
                           </TooltipContent>
                         </Tooltip>
-                       <Tooltip>
-                         <TooltipTrigger asChild>
-                           <Button size="sm" variant="ghost" onClick={() => changeStatus(p.id, "concluido")}>
-                             <CheckCircle2 className="h-4 w-4" />
-                           </Button>
-                         </TooltipTrigger>
-                         <TooltipContent>
-                           <p>Marcar como concluído</p>
-                         </TooltipContent>
-                       </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              onClick={() => {
+                                setProcessoToConclude(p);
+                                setConclusaoOpen(true);
+                              }}
+                            >
+                              <CheckCircle2 className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Marcar como concluído</p>
+                          </TooltipContent>
+                        </Tooltip>
                        <Tooltip>
                          <TooltipTrigger asChild>
                            <Button size="sm" variant="ghost" onClick={() => changeStatus(p.id, "cancelado")}>
@@ -985,6 +997,33 @@ export default function ProcessosListar() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ConclusaoModal
+        open={conclusaoOpen}
+        onOpenChange={setConclusaoOpen}
+        processoId={processoToConclude?.id || ""}
+        processoTitulo={processoToConclude?.titulo || ""}
+        onConcluded={() => {
+          // Atualizar o processo na lista local
+          if (processoToConclude) {
+            setRows(prev => prev.map(r => 
+              r.id === processoToConclude.id 
+                ? { ...r, status: "concluido" }
+                : r
+            ));
+          }
+        }}
+      />
+
+      <ImportarProcessosModal
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        onImported={() => {
+          toast.success("Processos importados com sucesso!");
+          // Recarregar a lista
+          setTimeout(() => window.location.reload(), 1000);
+        }}
+      />
     </main>
     </TooltipProvider>
   );
