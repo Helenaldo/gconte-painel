@@ -10,7 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Plus, Search, Users, Pencil, UserX, History, ArrowRightLeft, Filter, ChevronLeft, ChevronRight } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { format } from "date-fns"
+import { format, parseISO } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { supabase } from "@/integrations/supabase/client"
 import { useAuth } from "@/context/auth-context"
@@ -196,8 +196,8 @@ export function Responsaveis() {
   // Verificar se o vínculo está vigente
   const isVigente = (assignment: ResponsibleAssignment) => {
     const hoje = new Date()
-    const inicio = new Date(assignment.data_inicio)
-    const fim = assignment.data_fim ? new Date(assignment.data_fim) : null
+    const inicio = parseISO(assignment.data_inicio)
+    const fim = assignment.data_fim ? parseISO(assignment.data_fim) : null
     
     return hoje >= inicio && (!fim || hoje <= fim)
   }
@@ -414,11 +414,11 @@ export function Responsaveis() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {format(new Date(assignment.data_inicio), "dd/MM/yyyy", { locale: ptBR })}
+                        {format(parseISO(assignment.data_inicio), "dd/MM/yyyy", { locale: ptBR })}
                       </TableCell>
                       <TableCell>
                         {assignment.data_fim 
-                          ? format(new Date(assignment.data_fim), "dd/MM/yyyy", { locale: ptBR })
+                          ? format(parseISO(assignment.data_fim), "dd/MM/yyyy", { locale: ptBR })
                           : "-"
                         }
                       </TableCell>
