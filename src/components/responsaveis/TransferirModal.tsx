@@ -54,6 +54,8 @@ export function TransferirModal({
     data_inicio: undefined as Date | undefined
   })
   
+  const [dataInicioInput, setDataInicioInput] = useState("")
+  
   const { profile } = useAuth()
   const { toast } = useToast()
 
@@ -65,6 +67,7 @@ export function TransferirModal({
       empresa_id: "",
       data_inicio: undefined
     })
+    setDataInicioInput("")
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -385,7 +388,7 @@ export function TransferirModal({
             <div className="relative">
               <Input
                 placeholder="dd/mm/aaaa"
-                value={formData.data_inicio ? format(formData.data_inicio, "dd/MM/yyyy", { locale: ptBR }) : ""}
+                value={dataInicioInput}
                 onChange={(e) => {
                   const value = e.target.value
                   // Remove caracteres não numéricos exceto /
@@ -403,6 +406,8 @@ export function TransferirModal({
                   
                   // Limita o comprimento
                   if (formatted.length <= 10) {
+                    setDataInicioInput(formatted)
+                    
                     // Tenta fazer o parse da data
                     if (formatted.length === 10) {
                       const [day, month, year] = formatted.split('/')
@@ -414,7 +419,6 @@ export function TransferirModal({
                         setFormData(prev => ({ ...prev, data_inicio: date }))
                       }
                     }
-                    e.target.value = formatted
                   }
                 }}
                 className="pr-10"
@@ -433,7 +437,10 @@ export function TransferirModal({
                   <Calendar
                     mode="single"
                     selected={formData.data_inicio}
-                    onSelect={(date) => setFormData(prev => ({ ...prev, data_inicio: date }))}
+                    onSelect={(date) => {
+                      setFormData(prev => ({ ...prev, data_inicio: date }))
+                      setDataInicioInput(date ? format(date, "dd/MM/yyyy", { locale: ptBR }) : "")
+                    }}
                     initialFocus
                     locale={ptBR}
                     className="p-3 pointer-events-auto"

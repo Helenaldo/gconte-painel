@@ -67,6 +67,11 @@ export function ResponsavelForm({
     data_fim: undefined as Date | undefined
   })
   
+  const [dateInputs, setDateInputs] = useState({
+    data_inicio: "",
+    data_fim: ""
+  })
+  
   const { profile } = useAuth()
   const { toast } = useToast()
 
@@ -74,12 +79,18 @@ export function ResponsavelForm({
   useEffect(() => {
     if (open) {
       if (assignment) {
+        const dataInicio = new Date(assignment.data_inicio)
+        const dataFim = assignment.data_fim ? new Date(assignment.data_fim) : undefined
         setFormData({
           client_id: assignment.client_id,
           collaborator_id: assignment.collaborator_id,
           setores: [...assignment.setores],
-          data_inicio: new Date(assignment.data_inicio),
-          data_fim: assignment.data_fim ? new Date(assignment.data_fim) : undefined
+          data_inicio: dataInicio,
+          data_fim: dataFim
+        })
+        setDateInputs({
+          data_inicio: format(dataInicio, "dd/MM/yyyy", { locale: ptBR }),
+          data_fim: dataFim ? format(dataFim, "dd/MM/yyyy", { locale: ptBR }) : ""
         })
       } else {
         setFormData({
@@ -88,6 +99,10 @@ export function ResponsavelForm({
           setores: [],
           data_inicio: undefined,
           data_fim: undefined
+        })
+        setDateInputs({
+          data_inicio: "",
+          data_fim: ""
         })
       }
     }
@@ -313,7 +328,7 @@ export function ResponsavelForm({
               <div className="relative">
                 <Input
                   placeholder="dd/mm/aaaa"
-                  value={formData.data_inicio ? format(formData.data_inicio, "dd/MM/yyyy", { locale: ptBR }) : ""}
+                  value={dateInputs.data_inicio}
                   onChange={(e) => {
                     const value = e.target.value
                     // Remove caracteres não numéricos exceto /
@@ -331,6 +346,8 @@ export function ResponsavelForm({
                     
                     // Limita o comprimento
                     if (formatted.length <= 10) {
+                      setDateInputs(prev => ({ ...prev, data_inicio: formatted }))
+                      
                       // Tenta fazer o parse da data
                       if (formatted.length === 10) {
                         const [day, month, year] = formatted.split('/')
@@ -342,7 +359,6 @@ export function ResponsavelForm({
                           setFormData(prev => ({ ...prev, data_inicio: date }))
                         }
                       }
-                      e.target.value = formatted
                     }
                   }}
                   className="pr-10"
@@ -361,7 +377,13 @@ export function ResponsavelForm({
                     <Calendar
                       mode="single"
                       selected={formData.data_inicio}
-                      onSelect={(date) => setFormData(prev => ({ ...prev, data_inicio: date }))}
+                      onSelect={(date) => {
+                        setFormData(prev => ({ ...prev, data_inicio: date }))
+                        setDateInputs(prev => ({ 
+                          ...prev, 
+                          data_inicio: date ? format(date, "dd/MM/yyyy", { locale: ptBR }) : ""
+                        }))
+                      }}
                       initialFocus
                       locale={ptBR}
                       className="p-3 pointer-events-auto"
@@ -377,10 +399,11 @@ export function ResponsavelForm({
               <div className="relative">
                 <Input
                   placeholder="dd/mm/aaaa (opcional)"
-                  value={formData.data_fim ? format(formData.data_fim, "dd/MM/yyyy", { locale: ptBR }) : ""}
+                  value={dateInputs.data_fim}
                   onChange={(e) => {
                     const value = e.target.value
                     if (value === "") {
+                      setDateInputs(prev => ({ ...prev, data_fim: "" }))
                       setFormData(prev => ({ ...prev, data_fim: undefined }))
                       return
                     }
@@ -400,6 +423,8 @@ export function ResponsavelForm({
                     
                     // Limita o comprimento
                     if (formatted.length <= 10) {
+                      setDateInputs(prev => ({ ...prev, data_fim: formatted }))
+                      
                       // Tenta fazer o parse da data
                       if (formatted.length === 10) {
                         const [day, month, year] = formatted.split('/')
@@ -411,7 +436,6 @@ export function ResponsavelForm({
                           setFormData(prev => ({ ...prev, data_fim: date }))
                         }
                       }
-                      e.target.value = formatted
                     }
                   }}
                   className="pr-10"
@@ -430,7 +454,13 @@ export function ResponsavelForm({
                     <Calendar
                       mode="single"
                       selected={formData.data_fim}
-                      onSelect={(date) => setFormData(prev => ({ ...prev, data_fim: date }))}
+                      onSelect={(date) => {
+                        setFormData(prev => ({ ...prev, data_fim: date }))
+                        setDateInputs(prev => ({ 
+                          ...prev, 
+                          data_fim: date ? format(date, "dd/MM/yyyy", { locale: ptBR }) : ""
+                        }))
+                      }}
                       initialFocus
                       locale={ptBR}
                       className="p-3 pointer-events-auto"
