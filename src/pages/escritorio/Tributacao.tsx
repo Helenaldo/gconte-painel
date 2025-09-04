@@ -11,7 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Badge } from "@/components/ui/badge"
 import { Plus, Search, Calculator, Calendar as CalendarIcon, Pencil, Eye, Trash2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { format, parse } from "date-fns"
+import { format, parse, parseISO } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 import { supabase } from "@/integrations/supabase/client"
@@ -96,7 +96,7 @@ export function Tributacao() {
         id: item.id,
         client_id: item.client_id,
         clienteNome: item.clients.nome_empresarial,
-        data: new Date(item.data),
+        data: parseISO(item.data),
         tipo: item.tipo,
         status: item.status || 'ativa'
       }))
@@ -424,7 +424,7 @@ export function Tributacao() {
                       </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      {format(tributacao.data, "PPP", { locale: ptBR })} • {tributacao.tipo}
+                      {format(tributacao.data, "dd/MM/yyyy", { locale: ptBR })} • {tributacao.tipo}
                     </p>
                   </div>
                   <div className="flex gap-2">
@@ -472,7 +472,7 @@ export function Tributacao() {
               </div>
               <div>
                 <Label className="text-sm font-medium text-muted-foreground">Data</Label>
-                <p className="mt-1">{format(viewingTributacao.data, "PPP", { locale: ptBR })}</p>
+                <p className="mt-1">{format(viewingTributacao.data, "dd/MM/yyyy", { locale: ptBR })}</p>
               </div>
               <div>
                 <Label className="text-sm font-medium text-muted-foreground">Tipo de Tributação</Label>
