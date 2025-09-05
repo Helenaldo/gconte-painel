@@ -44,6 +44,7 @@ interface ResponsavelFormProps {
   clients: Client[]
   collaborators: Collaborator[]
   onSave: () => void
+  preSelectedClientId?: string
 }
 
 const SETORES = ['Contábil', 'Fiscal', 'Pessoal'] as const
@@ -54,7 +55,8 @@ export function ResponsavelForm({
   assignment, 
   clients, 
   collaborators, 
-  onSave 
+  onSave,
+  preSelectedClientId
 }: ResponsavelFormProps) {
   const [loading, setLoading] = useState(false)
   const [clientOpen, setClientOpen] = useState(false)
@@ -94,7 +96,7 @@ export function ResponsavelForm({
         })
       } else {
         setFormData({
-          client_id: "",
+          client_id: preSelectedClientId || "",
           collaborator_id: "",
           setores: [],
           data_inicio: undefined,
@@ -106,7 +108,7 @@ export function ResponsavelForm({
         })
       }
     }
-  }, [open, assignment])
+  }, [open, assignment, preSelectedClientId])
 
   const handleSetorChange = (setor: string, checked: boolean) => {
     setFormData(prev => ({
@@ -203,6 +205,7 @@ export function ResponsavelForm({
                     role="combobox"
                     aria-expanded={clientOpen}
                     className="w-full justify-between"
+                    disabled={!!preSelectedClientId}
                   >
                     {selectedClient 
                       ? selectedClient.nome_empresarial
@@ -211,41 +214,48 @@ export function ResponsavelForm({
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[400px] p-0">
-                  <Command>
-                    <CommandInput placeholder="Buscar empresa..." />
-                    <CommandList>
-                      <CommandEmpty>Nenhuma empresa encontrada.</CommandEmpty>
-                      <CommandGroup>
-                        {clients.map((client) => (
-                          <CommandItem
-                            key={client.id}
-                            value={`${client.nome_empresarial} ${client.cnpj}`}
-                            onSelect={() => {
-                              setFormData(prev => ({
-                                ...prev,
-                                client_id: client.id
-                              }))
-                              setClientOpen(false)
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                formData.client_id === client.id ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            <div>
-                              <div className="font-medium">{client.nome_empresarial}</div>
-                              <div className="text-sm text-muted-foreground">{client.cnpj}</div>
-                            </div>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
+                {!preSelectedClientId && (
+                  <PopoverContent className="w-[400px] p-0">
+                    <Command>
+                      <CommandInput placeholder="Buscar empresa..." />
+                      <CommandList>
+                        <CommandEmpty>Nenhuma empresa encontrada.</CommandEmpty>
+                        <CommandGroup>
+                          {clients.map((client) => (
+                            <CommandItem
+                              key={client.id}
+                              value={`${client.nome_empresarial} ${client.cnpj}`}
+                              onSelect={() => {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  client_id: client.id
+                                }))
+                                setClientOpen(false)
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  formData.client_id === client.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <div>
+                                <div className="font-medium">{client.nome_empresarial}</div>
+                                <div className="text-sm text-muted-foreground">{client.cnpj}</div>
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                )}
               </Popover>
+              {preSelectedClientId && (
+                <p className="text-xs text-muted-foreground">
+                  Empresa pré-selecionada para cadastro de responsável
+                </p>
+              )}
             </div>
 
             {/* Colaborador */}

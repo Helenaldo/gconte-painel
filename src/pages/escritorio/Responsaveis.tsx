@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogTrigger, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
-import { Plus, Search, Users, Pencil, UserX, History, ArrowRightLeft, Filter, ChevronLeft, ChevronRight } from "lucide-react"
+import { Plus, Search, Users, Pencil, UserX, History, ArrowRightLeft, Filter, ChevronLeft, ChevronRight, Building2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { format, parseISO } from "date-fns"
@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { ResponsavelForm } from "@/components/responsaveis/ResponsavelForm"
 import { TransferirModal } from "@/components/responsaveis/TransferirModal"
 import { HistoricoModal } from "@/components/responsaveis/HistoricoModal"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 interface ResponsibleAssignment {
   id: string
@@ -64,7 +65,10 @@ export function Responsaveis() {
   const [assignments, setAssignments] = useState<ResponsibleAssignment[]>([])
   const [clients, setClients] = useState<Client[]>([])
   const [collaborators, setCollaborators] = useState<Collaborator[]>([])
+  const [clientsWithoutResponsible, setClientsWithoutResponsible] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingUnassigned, setLoadingUnassigned] = useState(false)
+  const [activeTab, setActiveTab] = useState("assignments")
   const [searchTerm, setSearchTerm] = useState("")
   const [clientFilter, setClientFilter] = useState<string>("all")
   const [collaboratorFilter, setCollaboratorFilter] = useState<string>("all")
@@ -76,6 +80,7 @@ export function Responsaveis() {
   const [transferModalOpen, setTransferModalOpen] = useState(false)
   const [historicoModalOpen, setHistoricoModalOpen] = useState(false)
   const [selectedClientForHistory, setSelectedClientForHistory] = useState<string>("")
+  const [preSelectedClientId, setPreSelectedClientId] = useState<string | undefined>()
   
   const itemsPerPage = 10
   const { profile } = useAuth()
@@ -128,9 +133,47 @@ export function Responsaveis() {
     }
   }
 
+  // Carregar clientes sem responsáveis
+  const loadClientsWithoutResponsible = async () => {
+    setLoadingUnassigned(true)
+    try {
+      const { data, error } = await supabase
+        .from('clients')
+        .select(`
+          id, 
+          nome_empresarial, 
+          cnpj
+        `)
+        .not('id', 'in', `(
+          SELECT DISTINCT client_id 
+          FROM responsible_assignments 
+          WHERE status = 'vigente'
+        )`)
+        .order('nome_empresarial')
+
+      if (error) throw error
+      setClientsWithoutResponsible(data || [])
+    } catch (error) {
+      console.error('Erro ao carregar clientes sem responsáveis:', error)
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar clientes sem responsáveis",
+        variant: "destructive"
+      })
+    } finally {
+      setLoadingUnassigned(false)
+    }
+  }
+
   useEffect(() => {
     loadData()
   }, [])
+
+  useEffect(() => {
+    if (activeTab === "unassigned") {
+      loadClientsWithoutResponsible()
+    }
+  }, [activeTab])
 
   // Filtrar assignments
   const filteredAssignments = assignments.filter(assignment => {
@@ -147,19 +190,39 @@ export function Responsaveis() {
     return matchesSearch && matchesClient && matchesCollaborator && matchesSetor && matchesStatus
   })
 
+  // Filtrar clientes sem responsáveis
+  const filteredClientsWithoutResponsible = clientsWithoutResponsible.filter(client => {
+    const matchesSearch = 
+      client.nome_empresarial.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      client.cnpj.includes(searchTerm)
+    
+    return matchesSearch
+  })
+
   // Paginação
-  const totalPages = Math.ceil(filteredAssignments.length / itemsPerPage)
+  const totalPages = activeTab === "assignments" 
+    ? Math.ceil(filteredAssignments.length / itemsPerPage)
+    : Math.ceil(filteredClientsWithoutResponsible.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
   const paginatedAssignments = filteredAssignments.slice(startIndex, startIndex + itemsPerPage)
+  const paginatedClientsWithoutResponsible = filteredClientsWithoutResponsible.slice(startIndex, startIndex + itemsPerPage)
 
   // Reset da página quando filtros mudam
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, clientFilter, collaboratorFilter, setorFilter, statusFilter])
+  }, [searchTerm, clientFilter, collaboratorFilter, setorFilter, statusFilter, activeTab])
 
   // Abrir modal de formulário
   const openForm = (assignment?: ResponsibleAssignment) => {
     setEditingAssignment(assignment || null)
+    setPreSelectedClientId(undefined)
+    setIsFormOpen(true)
+  }
+
+  // Abrir formulário com cliente pré-selecionado
+  const openFormWithClient = (clientId: string) => {
+    setEditingAssignment(null)
+    setPreSelectedClientId(clientId)
     setIsFormOpen(true)
   }
 
@@ -179,6 +242,9 @@ export function Responsaveis() {
       if (error) throw error
 
       await loadData()
+      if (activeTab === "unassigned") {
+        await loadClientsWithoutResponsible()
+      }
       toast({
         title: "Sucesso",
         description: "Vínculo encerrado com sucesso"
@@ -225,20 +291,34 @@ export function Responsaveis() {
     )
   }
 
-  return (
-    <TooltipProvider>
-      <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Responsáveis</h1>
-        <Button onClick={() => openForm()} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Novo Vínculo
-        </Button>
-      </div>
+    return (
+      <TooltipProvider>
+        <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold">Responsáveis</h1>
+          <Button onClick={() => openForm()} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Novo Vínculo
+          </Button>
+        </div>
 
-      {/* Filtros */}
-      <Card>
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="assignments" className="gap-2">
+              <Users className="h-4 w-4" />
+              Vínculos de Responsabilidade
+            </TabsTrigger>
+            <TabsTrigger value="unassigned" className="gap-2">
+              <Building2 className="h-4 w-4" />
+              Empresas sem Responsáveis
+            </TabsTrigger>
+          </TabsList>
+
+        <TabsContent value="assignments" className="space-y-6">
+          {/* Filtros */}
+          <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Filter className="h-5 w-5" />
@@ -537,6 +617,147 @@ export function Responsaveis() {
           )}
         </CardContent>
       </Card>
+      </TabsContent>
+
+      {/* Tab Empresas sem Responsáveis */}
+      <TabsContent value="unassigned" className="space-y-6">
+        {/* Filtros simplificados */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Filter className="h-5 w-5" />
+              Buscar Empresas
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-4 items-end">
+              <div className="flex-1 space-y-2">
+                <label className="text-sm font-medium">Buscar</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Nome da empresa ou CNPJ"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+              <Button 
+                variant="outline" 
+                onClick={() => setSearchTerm("")}
+              >
+                Limpar
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Tabela de Empresas sem Responsáveis */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <Building2 className="h-5 w-5" />
+                Empresas sem Responsáveis
+              </span>
+              <div className="text-sm text-muted-foreground">
+                {filteredClientsWithoutResponsible.length} {filteredClientsWithoutResponsible.length === 1 ? 'empresa' : 'empresas'}
+              </div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loadingUnassigned ? (
+              <div className="space-y-4">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Skeleton key={i} className="h-16 w-full" />
+                ))}
+              </div>
+            ) : (
+              <>
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Empresa</TableHead>
+                        <TableHead>CNPJ</TableHead>
+                        <TableHead className="text-right">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {paginatedClientsWithoutResponsible.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                            {searchTerm ? "Nenhuma empresa encontrada" : "Todas as empresas possuem responsáveis"}
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        paginatedClientsWithoutResponsible.map((client) => (
+                          <TableRow key={client.id}>
+                            <TableCell>
+                              <div className="font-medium">{client.nome_empresarial}</div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="font-mono text-sm">{client.cnpj}</div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    onClick={() => openFormWithClient(client.id)}
+                                    className="gap-2"
+                                  >
+                                    <Plus className="h-4 w-4" />
+                                    Cadastrar Responsável
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Cadastrar responsável para {client.nome_empresarial}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Paginação para empresas sem responsáveis */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between mt-4">
+                    <div className="text-sm text-muted-foreground">
+                      Mostrando {startIndex + 1} a {Math.min(startIndex + itemsPerPage, filteredClientsWithoutResponsible.length)} de {filteredClientsWithoutResponsible.length} empresas
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(currentPage - 1)}
+                        disabled={currentPage === 1}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <span className="text-sm">
+                        Página {currentPage} de {totalPages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </TabsContent>
+      </Tabs>
 
       {/* Modais */}
       <ResponsavelForm
@@ -545,7 +766,13 @@ export function Responsaveis() {
         assignment={editingAssignment}
         clients={clients}
         collaborators={collaborators}
-        onSave={loadData}
+        onSave={() => {
+          loadData()
+          if (activeTab === "unassigned") {
+            loadClientsWithoutResponsible()
+          }
+        }}
+        preSelectedClientId={preSelectedClientId}
       />
 
       {isAdmin && (
@@ -564,7 +791,7 @@ export function Responsaveis() {
         clientId={selectedClientForHistory}
         clients={clients}
       />
-    </div>
-    </TooltipProvider>
-  )
+      </div>
+      </TooltipProvider>
+    )
 }
