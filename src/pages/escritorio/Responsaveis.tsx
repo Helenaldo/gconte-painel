@@ -137,22 +137,29 @@ export function Responsaveis() {
   const loadClientsWithoutResponsible = async () => {
     setLoadingUnassigned(true)
     try {
-      const { data, error } = await supabase
+      // Buscar todos os clientes
+      const { data: allClients, error: clientsError } = await supabase
         .from('clients')
-        .select(`
-          id, 
-          nome_empresarial, 
-          cnpj
-        `)
-        .not('id', 'in', `(
-          SELECT DISTINCT client_id 
-          FROM responsible_assignments 
-          WHERE status = 'vigente'
-        )`)
+        .select('id, nome_empresarial, cnpj')
         .order('nome_empresarial')
 
-      if (error) throw error
-      setClientsWithoutResponsible(data || [])
+      if (clientsError) throw clientsError
+
+      // Buscar IDs de clientes com responsáveis ativos
+      const { data: activeAssignments, error: assignmentsError } = await supabase
+        .from('responsible_assignments')
+        .select('client_id')
+        .eq('status', 'vigente')
+
+      if (assignmentsError) throw assignmentsError
+
+      // Filtrar clientes sem responsáveis
+      const clientsWithResponsibleIds = (activeAssignments || []).map(a => a.client_id)
+      const clientsWithoutResponsible = (allClients || []).filter(
+        client => !clientsWithResponsibleIds.includes(client.id)
+      )
+
+      setClientsWithoutResponsible(clientsWithoutResponsible)
     } catch (error) {
       console.error('Erro ao carregar clientes sem responsáveis:', error)
       toast({
