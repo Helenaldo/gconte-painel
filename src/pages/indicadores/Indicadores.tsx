@@ -75,6 +75,9 @@ export function Indicadores() {
     "ROE – Return on Equity (Retorno sobre o Patrimônio Líquido)",
     "ROA – Return on Assets (Retorno sobre Ativos)",
     "EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization",
+    "EBITDA Acumulado",
+    "EBITDA Acumulado s/Receita",
+    "EBITDA Mensal s/Receita",
     "Peso dos Custos sobre a Receita",
     "Peso das Despesas sobre a Receita",
     "Peso dos Tributos sobre a Receita",
@@ -142,7 +145,10 @@ export function Indicadores() {
       itens: [
         'ROE – Return on Equity (Retorno sobre o Patrimônio Líquido)',
         'ROA – Return on Assets (Retorno sobre Ativos)',
-        'EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization'
+        'EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization',
+        'EBITDA Acumulado',
+        'EBITDA Acumulado s/Receita',
+        'EBITDA Mensal s/Receita'
       ],
     },
     {
@@ -189,6 +195,9 @@ export function Indicadores() {
     "ROE – Return on Equity (Retorno sobre o Patrimônio Líquido)": "Mede o retorno obtido para cada unidade monetária investida pelos sócios. Indica a rentabilidade do capital próprio da empresa. Quanto maior, melhor para os acionistas.",
     "ROA – Return on Assets (Retorno sobre Ativos)": "Avalia a capacidade da empresa de gerar lucro em relação ao total de ativos que possui. Quanto maior o índice, mais eficiente é a utilização dos recursos disponíveis.",
     "EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization": "Indica o lucro operacional antes do impacto de juros, tributos, depreciação e amortização. É utilizado para avaliar a geração de caixa operacional da empresa, desconsiderando efeitos financeiros e contábeis.",
+    "EBITDA Acumulado": "Mede o EBITDA acumulado no período, calculado como: (Receitas - Custos e Despesas) + Despesas Tributárias + Depreciação e Amortizações + Impostos (ISS, Simples Nacional, PIS, COFINS, ICMS). Utiliza valores acumulados (saldo atual).",
+    "EBITDA Acumulado s/Receita": "Representa o EBITDA Acumulado como percentual das receitas totais acumuladas. Fórmula: (EBITDA Acumulado ÷ Receitas Acumuladas) × 100. Indica a margem EBITDA sobre as receitas no período acumulado.",
+    "EBITDA Mensal s/Receita": "Representa o EBITDA mensal como percentual das receitas mensais. Utiliza valores de movimento do mês para calcular: (EBITDA Mensal ÷ Receitas Mensais) × 100. Indica a margem EBITDA operacional mensal.",
     "Peso dos Custos sobre a Receita": "Indica o percentual que os custos representam em relação à receita bruta da empresa. Este indicador ajuda a avaliar a eficiência operacional e o controle de custos diretos.",
     "Peso das Despesas sobre a Receita": "Mostra o percentual que as despesas operacionais representam sobre a receita bruta. Importante para análise da estrutura de gastos administrativos e operacionais.",
     "Peso dos Tributos sobre a Receita": "Representa o percentual da carga tributária total (IRPJ, CSLL, ISS, Simples Nacional, PIS, COFINS, ICMS) sobre a receita bruta. Fundamental para análise da eficiência tributária.",
@@ -352,6 +361,39 @@ export function Indicadores() {
     'Resultado Líquido Acumulado': {
       '3 RECEITAS': 'saldo_atual',
       '4 CUSTOS E DESPESAS': 'saldo_atual',
+    },
+    'EBITDA Acumulado': {
+      '3 RECEITAS': 'saldo_atual',
+      '4 CUSTOS E DESPESAS': 'saldo_atual',
+      '4.2.3 DESPESAS TRIBUTÁRIAS': 'saldo_atual',
+      '4.2.1.4 DEPRECIAÇÃO E AMORTIZAÇÕES': 'saldo_atual',
+      '3.1.2.1 ISS': 'saldo_atual',
+      '3.1.2.2 SIMPLES NACIONAL': 'saldo_atual',
+      '3.1.2.3 PIS': 'saldo_atual',
+      '3.1.2.4 COFINS': 'saldo_atual',
+      '3.1.2.5 ICMS': 'saldo_atual',
+    },
+    'EBITDA Acumulado s/Receita': {
+      '3 RECEITAS': 'saldo_atual',
+      '4 CUSTOS E DESPESAS': 'saldo_atual',
+      '4.2.3 DESPESAS TRIBUTÁRIAS': 'saldo_atual',
+      '4.2.1.4 DEPRECIAÇÃO E AMORTIZAÇÕES': 'saldo_atual',
+      '3.1.2.1 ISS': 'saldo_atual',
+      '3.1.2.2 SIMPLES NACIONAL': 'saldo_atual',
+      '3.1.2.3 PIS': 'saldo_atual',
+      '3.1.2.4 COFINS': 'saldo_atual',
+      '3.1.2.5 ICMS': 'saldo_atual',
+    },
+    'EBITDA Mensal s/Receita': {
+      '3 RECEITAS': 'movimento',
+      '4 CUSTOS E DESPESAS': 'movimento',
+      '4.2.3 DESPESAS TRIBUTÁRIAS': 'movimento',
+      '4.2.1.4 DEPRECIAÇÃO E AMORTIZAÇÕES': 'movimento',
+      '3.1.2.1 ISS': 'movimento',
+      '3.1.2.2 SIMPLES NACIONAL': 'movimento',
+      '3.1.2.3 PIS': 'movimento',
+      '3.1.2.4 COFINS': 'movimento',
+      '3.1.2.5 ICMS': 'movimento',
     },
   }
 
@@ -1261,6 +1303,126 @@ export function Indicadores() {
           }
         }
 
+        // EBITDA Acumulado
+        {
+          if (temContasParametrizadas('3') && temContasParametrizadas('4')) {
+            const receitas = obterValorContaPorFonte('3', getVarFonte("EBITDA Acumulado", '3 RECEITAS'))
+            const custosEDespesas = obterValorContaPorFonte('4', getVarFonte("EBITDA Acumulado", '4 CUSTOS E DESPESAS'))
+            const despesasTributarias = temContasParametrizadas('4.2.3') ? obterValorContaPorFonte('4.2.3', getVarFonte("EBITDA Acumulado", '4.2.3 DESPESAS TRIBUTÁRIAS')) : 0
+            const depreciacao = temContasParametrizadas('4.2.1.4') ? obterValorContaPorFonte('4.2.1.4', getVarFonte("EBITDA Acumulado", '4.2.1.4 DEPRECIAÇÃO E AMORTIZAÇÕES')) : 0
+            const iss = temContasParametrizadas('3.1.2.1') ? obterValorContaPorFonte('3.1.2.1', getVarFonte("EBITDA Acumulado", '3.1.2.1 ISS')) : 0
+            const simplesNacional = temContasParametrizadas('3.1.2.2') ? obterValorContaPorFonte('3.1.2.2', getVarFonte("EBITDA Acumulado", '3.1.2.2 SIMPLES NACIONAL')) : 0
+            const pis = temContasParametrizadas('3.1.2.3') ? obterValorContaPorFonte('3.1.2.3', getVarFonte("EBITDA Acumulado", '3.1.2.3 PIS')) : 0
+            const cofins = temContasParametrizadas('3.1.2.4') ? obterValorContaPorFonte('3.1.2.4', getVarFonte("EBITDA Acumulado", '3.1.2.4 COFINS')) : 0
+            const icms = temContasParametrizadas('3.1.2.5') ? obterValorContaPorFonte('3.1.2.5', getVarFonte("EBITDA Acumulado", '3.1.2.5 ICMS')) : 0
+            
+            const ebitdaAcumulado = (receitas - custosEDespesas) + despesasTributarias + depreciacao + iss + simplesNacional + pis + cofins + icms
+            resultadosIndicadores["EBITDA Acumulado"][mesNome] = ebitdaAcumulado
+          } else {
+            resultadosIndicadores["EBITDA Acumulado"][mesNome] = null
+          }
+        }
+
+        // EBITDA Acumulado s/Receita
+        {
+          if (temContasParametrizadas('3') && temContasParametrizadas('4')) {
+            const receitas = obterValorContaPorFonte('3', getVarFonte("EBITDA Acumulado s/Receita", '3 RECEITAS'))
+            const custosEDespesas = obterValorContaPorFonte('4', getVarFonte("EBITDA Acumulado s/Receita", '4 CUSTOS E DESPESAS'))
+            const despesasTributarias = temContasParametrizadas('4.2.3') ? obterValorContaPorFonte('4.2.3', getVarFonte("EBITDA Acumulado s/Receita", '4.2.3 DESPESAS TRIBUTÁRIAS')) : 0
+            const depreciacao = temContasParametrizadas('4.2.1.4') ? obterValorContaPorFonte('4.2.1.4', getVarFonte("EBITDA Acumulado s/Receita", '4.2.1.4 DEPRECIAÇÃO E AMORTIZAÇÕES')) : 0
+            const iss = temContasParametrizadas('3.1.2.1') ? obterValorContaPorFonte('3.1.2.1', getVarFonte("EBITDA Acumulado s/Receita", '3.1.2.1 ISS')) : 0
+            const simplesNacional = temContasParametrizadas('3.1.2.2') ? obterValorContaPorFonte('3.1.2.2', getVarFonte("EBITDA Acumulado s/Receita", '3.1.2.2 SIMPLES NACIONAL')) : 0
+            const pis = temContasParametrizadas('3.1.2.3') ? obterValorContaPorFonte('3.1.2.3', getVarFonte("EBITDA Acumulado s/Receita", '3.1.2.3 PIS')) : 0
+            const cofins = temContasParametrizadas('3.1.2.4') ? obterValorContaPorFonte('3.1.2.4', getVarFonte("EBITDA Acumulado s/Receita", '3.1.2.4 COFINS')) : 0
+            const icms = temContasParametrizadas('3.1.2.5') ? obterValorContaPorFonte('3.1.2.5', getVarFonte("EBITDA Acumulado s/Receita", '3.1.2.5 ICMS')) : 0
+            
+            const ebitdaAcumulado = (receitas - custosEDespesas) + despesasTributarias + depreciacao + iss + simplesNacional + pis + cofins + icms
+            resultadosIndicadores["EBITDA Acumulado s/Receita"][mesNome] = receitas !== 0 ? (ebitdaAcumulado / receitas) * 100 : null
+          } else {
+            resultadosIndicadores["EBITDA Acumulado s/Receita"][mesNome] = null
+          }
+        }
+
+        // EBITDA Mensal s/Receita
+        {
+          if (temContasParametrizadas('3') && temContasParametrizadas('4')) {
+            const receitas = obterValorContaPorFonte('3', getVarFonte("EBITDA Mensal s/Receita", '3 RECEITAS'))
+            const custosEDespesas = obterValorContaPorFonte('4', getVarFonte("EBITDA Mensal s/Receita", '4 CUSTOS E DESPESAS'))
+            const despesasTributarias = temContasParametrizadas('4.2.3') ? obterValorContaPorFonte('4.2.3', getVarFonte("EBITDA Mensal s/Receita", '4.2.3 DESPESAS TRIBUTÁRIAS')) : 0
+            const depreciacao = temContasParametrizadas('4.2.1.4') ? obterValorContaPorFonte('4.2.1.4', getVarFonte("EBITDA Mensal s/Receita", '4.2.1.4 DEPRECIAÇÃO E AMORTIZAÇÕES')) : 0
+            const iss = temContasParametrizadas('3.1.2.1') ? obterValorContaPorFonte('3.1.2.1', getVarFonte("EBITDA Mensal s/Receita", '3.1.2.1 ISS')) : 0
+            const simplesNacional = temContasParametrizadas('3.1.2.2') ? obterValorContaPorFonte('3.1.2.2', getVarFonte("EBITDA Mensal s/Receita", '3.1.2.2 SIMPLES NACIONAL')) : 0
+            const pis = temContasParametrizadas('3.1.2.3') ? obterValorContaPorFonte('3.1.2.3', getVarFonte("EBITDA Mensal s/Receita", '3.1.2.3 PIS')) : 0
+            const cofins = temContasParametrizadas('3.1.2.4') ? obterValorContaPorFonte('3.1.2.4', getVarFonte("EBITDA Mensal s/Receita", '3.1.2.4 COFINS')) : 0
+            const icms = temContasParametrizadas('3.1.2.5') ? obterValorContaPorFonte('3.1.2.5', getVarFonte("EBITDA Mensal s/Receita", '3.1.2.5 ICMS')) : 0
+            
+            const ebitdaMensal = (receitas - custosEDespesas) + despesasTributarias + depreciacao + iss + simplesNacional + pis + cofins + icms
+            resultadosIndicadores["EBITDA Mensal s/Receita"][mesNome] = receitas !== 0 ? (ebitdaMensal / receitas) * 100 : null
+          } else {
+            resultadosIndicadores["EBITDA Mensal s/Receita"][mesNome] = null
+          }
+        }
+
+        // EBITDA Acumulado
+        {
+          if (temContasParametrizadas('3') && temContasParametrizadas('4')) {
+            const receitas = obterValorContaPorFonte('3', getVarFonte("EBITDA Acumulado", '3 RECEITAS'))
+            const custosEDespesas = obterValorContaPorFonte('4', getVarFonte("EBITDA Acumulado", '4 CUSTOS E DESPESAS'))
+            const despesasTributarias = temContasParametrizadas('4.2.3') ? obterValorContaPorFonte('4.2.3', getVarFonte("EBITDA Acumulado", '4.2.3 DESPESAS TRIBUTÁRIAS')) : 0
+            const depreciacao = temContasParametrizadas('4.2.1.4') ? obterValorContaPorFonte('4.2.1.4', getVarFonte("EBITDA Acumulado", '4.2.1.4 DEPRECIAÇÃO E AMORTIZAÇÕES')) : 0
+            const iss = temContasParametrizadas('3.1.2.1') ? obterValorContaPorFonte('3.1.2.1', getVarFonte("EBITDA Acumulado", '3.1.2.1 ISS')) : 0
+            const simplesNacional = temContasParametrizadas('3.1.2.2') ? obterValorContaPorFonte('3.1.2.2', getVarFonte("EBITDA Acumulado", '3.1.2.2 SIMPLES NACIONAL')) : 0
+            const pis = temContasParametrizadas('3.1.2.3') ? obterValorContaPorFonte('3.1.2.3', getVarFonte("EBITDA Acumulado", '3.1.2.3 PIS')) : 0
+            const cofins = temContasParametrizadas('3.1.2.4') ? obterValorContaPorFonte('3.1.2.4', getVarFonte("EBITDA Acumulado", '3.1.2.4 COFINS')) : 0
+            const icms = temContasParametrizadas('3.1.2.5') ? obterValorContaPorFonte('3.1.2.5', getVarFonte("EBITDA Acumulado", '3.1.2.5 ICMS')) : 0
+            
+            const ebitdaAcumulado = (receitas - custosEDespesas) + despesasTributarias + depreciacao + iss + simplesNacional + pis + cofins + icms
+            resultadosIndicadores["EBITDA Acumulado"][mesNome] = ebitdaAcumulado
+          } else {
+            resultadosIndicadores["EBITDA Acumulado"][mesNome] = null
+          }
+        }
+
+        // EBITDA Acumulado s/Receita
+        {
+          if (temContasParametrizadas('3') && temContasParametrizadas('4')) {
+            const receitas = obterValorContaPorFonte('3', getVarFonte("EBITDA Acumulado s/Receita", '3 RECEITAS'))
+            const custosEDespesas = obterValorContaPorFonte('4', getVarFonte("EBITDA Acumulado s/Receita", '4 CUSTOS E DESPESAS'))
+            const despesasTributarias = temContasParametrizadas('4.2.3') ? obterValorContaPorFonte('4.2.3', getVarFonte("EBITDA Acumulado s/Receita", '4.2.3 DESPESAS TRIBUTÁRIAS')) : 0
+            const depreciacao = temContasParametrizadas('4.2.1.4') ? obterValorContaPorFonte('4.2.1.4', getVarFonte("EBITDA Acumulado s/Receita", '4.2.1.4 DEPRECIAÇÃO E AMORTIZAÇÕES')) : 0
+            const iss = temContasParametrizadas('3.1.2.1') ? obterValorContaPorFonte('3.1.2.1', getVarFonte("EBITDA Acumulado s/Receita", '3.1.2.1 ISS')) : 0
+            const simplesNacional = temContasParametrizadas('3.1.2.2') ? obterValorContaPorFonte('3.1.2.2', getVarFonte("EBITDA Acumulado s/Receita", '3.1.2.2 SIMPLES NACIONAL')) : 0
+            const pis = temContasParametrizadas('3.1.2.3') ? obterValorContaPorFonte('3.1.2.3', getVarFonte("EBITDA Acumulado s/Receita", '3.1.2.3 PIS')) : 0
+            const cofins = temContasParametrizadas('3.1.2.4') ? obterValorContaPorFonte('3.1.2.4', getVarFonte("EBITDA Acumulado s/Receita", '3.1.2.4 COFINS')) : 0
+            const icms = temContasParametrizadas('3.1.2.5') ? obterValorContaPorFonte('3.1.2.5', getVarFonte("EBITDA Acumulado s/Receita", '3.1.2.5 ICMS')) : 0
+            
+            const ebitdaAcumulado = (receitas - custosEDespesas) + despesasTributarias + depreciacao + iss + simplesNacional + pis + cofins + icms
+            resultadosIndicadores["EBITDA Acumulado s/Receita"][mesNome] = receitas !== 0 ? (ebitdaAcumulado / receitas) * 100 : null
+          } else {
+            resultadosIndicadores["EBITDA Acumulado s/Receita"][mesNome] = null
+          }
+        }
+
+        // EBITDA Mensal s/Receita
+        {
+          if (temContasParametrizadas('3') && temContasParametrizadas('4')) {
+            const receitas = obterValorContaPorFonte('3', getVarFonte("EBITDA Mensal s/Receita", '3 RECEITAS'))
+            const custosEDespesas = obterValorContaPorFonte('4', getVarFonte("EBITDA Mensal s/Receita", '4 CUSTOS E DESPESAS'))
+            const despesasTributarias = temContasParametrizadas('4.2.3') ? obterValorContaPorFonte('4.2.3', getVarFonte("EBITDA Mensal s/Receita", '4.2.3 DESPESAS TRIBUTÁRIAS')) : 0
+            const depreciacao = temContasParametrizadas('4.2.1.4') ? obterValorContaPorFonte('4.2.1.4', getVarFonte("EBITDA Mensal s/Receita", '4.2.1.4 DEPRECIAÇÃO E AMORTIZAÇÕES')) : 0
+            const iss = temContasParametrizadas('3.1.2.1') ? obterValorContaPorFonte('3.1.2.1', getVarFonte("EBITDA Mensal s/Receita", '3.1.2.1 ISS')) : 0
+            const simplesNacional = temContasParametrizadas('3.1.2.2') ? obterValorContaPorFonte('3.1.2.2', getVarFonte("EBITDA Mensal s/Receita", '3.1.2.2 SIMPLES NACIONAL')) : 0
+            const pis = temContasParametrizadas('3.1.2.3') ? obterValorContaPorFonte('3.1.2.3', getVarFonte("EBITDA Mensal s/Receita", '3.1.2.3 PIS')) : 0
+            const cofins = temContasParametrizadas('3.1.2.4') ? obterValorContaPorFonte('3.1.2.4', getVarFonte("EBITDA Mensal s/Receita", '3.1.2.4 COFINS')) : 0
+            const icms = temContasParametrizadas('3.1.2.5') ? obterValorContaPorFonte('3.1.2.5', getVarFonte("EBITDA Mensal s/Receita", '3.1.2.5 ICMS')) : 0
+            
+            const ebitdaMensal = (receitas - custosEDespesas) + despesasTributarias + depreciacao + iss + simplesNacional + pis + cofins + icms
+            resultadosIndicadores["EBITDA Mensal s/Receita"][mesNome] = receitas !== 0 ? (ebitdaMensal / receitas) * 100 : null
+          } else {
+            resultadosIndicadores["EBITDA Mensal s/Receita"][mesNome] = null
+          }
+        }
+
         // Peso dos Custos sobre a Receita
         {
           if (temContasParametrizadas('4.1') && temContasParametrizadas('3.1.1')) {
@@ -1355,7 +1517,7 @@ export function Indicadores() {
   const formatarValor = (valor: number | null, indicador: string): string => {
     if (valor === null || valor === undefined) return "–"
     
-    const isPercent = indicador.includes("(%)") || indicador.startsWith("ROE") || indicador.startsWith("ROA") || indicador.startsWith("Peso")
+    const isPercent = indicador.includes("(%)") || indicador.startsWith("ROE") || indicador.startsWith("ROA") || indicador.startsWith("Peso") || indicador === "EBITDA Acumulado s/Receita" || indicador === "EBITDA Mensal s/Receita"
     const isCurrency = indicador.includes("CCL") || 
                 indicador === "Receitas Líquidas" || 
                 indicador === "Receitas Brutas" || 
@@ -1370,6 +1532,7 @@ export function Indicadores() {
                  indicador === "Resultado Líquido" ||
                  indicador === "Resultado Líquido Acumulado" ||
                  indicador === "EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization" ||
+                 indicador === "EBITDA Acumulado" ||
                 indicador === "Necessidade de Capital de Giro (NCG)"
   
     if (isPercent) {
@@ -1415,6 +1578,9 @@ export function Indicadores() {
       "ROE – Return on Equity (Retorno sobre o Patrimônio Líquido)": "((3 RECEITAS − 4 CUSTOS E DESPESAS) ÷ Patrimônio Líquido Médio) × 100",
       "ROA – Return on Assets (Retorno sobre Ativos)": "((3 RECEITAS − 4 CUSTOS E DESPESAS) ÷ Ativo Total Médio) × 100",
       "EBITDA – Earnings Before Interest, Taxes, Depreciation and Amortization": "Lucro Operacional + Tributos + Depreciação e Amortização",
+      "EBITDA Acumulado": "(3 RECEITAS − 4 CUSTOS E DESPESAS) + 4.2.3 DESPESAS TRIBUTÁRIAS + 4.2.1.4 DEPRECIAÇÃO E AMORTIZAÇÕES + 3.1.2.1 ISS + 3.1.2.2 SIMPLES NACIONAL + 3.1.2.3 PIS + 3.1.2.4 COFINS + 3.1.2.5 ICMS",
+      "EBITDA Acumulado s/Receita": "((EBITDA Acumulado) ÷ 3 RECEITAS) × 100",
+      "EBITDA Mensal s/Receita": "((EBITDA Mensal usando movimento) ÷ 3 RECEITAS movimento) × 100",
       "Prazo Médio de Pagamento (PMP)": "(2.1.1 FORNECEDORES ÷ (4.1 CUSTOS − 4.1.2 CUSTOS COM PESSOAL − 4.1.3 CUSTOS COM ENCARGOS SOCIAIS)) × (360 ÷ 12 × número do mês)",
       "Prazo Médio de Estocagem (PME)": "(1.1.4 ESTOQUES ÷ (4.1 CUSTOS − 4.1.2 CUSTOS COM PESSOAL − 4.1.3 CUSTOS COM ENCARGOS SOCIAIS)) × (360 ÷ 12 × número do mês)",
       "Prazo Médio de Recebimento (PMR)": "(1.1.2.1 CLIENTES ÷ 3.1.1 RECEITA BRUTA) × (360 ÷ 12 × número do mês)",
