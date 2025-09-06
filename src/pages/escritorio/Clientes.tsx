@@ -22,6 +22,7 @@ import { ClienteDetails } from "@/components/cliente-details"
 import { TagModal } from "@/components/clientes/TagModal"
 import { TagSelector } from "@/components/clientes/TagSelector"
 import { BulkTagActions } from "@/components/clientes/BulkTagActions"
+import { useAuth } from "@/context/auth-context"
 import * as XLSX from "xlsx"
 
 interface Cliente {
@@ -68,6 +69,8 @@ const estadosBrasil = [
 ]
 
 export function Clientes() {
+  const { profile } = useAuth()
+  const isAdmin = profile?.role === 'administrador'
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingCliente, setEditingCliente] = useState<Cliente | null>(null)
@@ -469,6 +472,15 @@ export function Clientes() {
   }
 
   const desativarCliente = async (clienteId: string) => {
+    if (!isAdmin) {
+      toast({
+        title: "Acesso Negado",
+        description: "Apenas administradores podem desativar clientes",
+        variant: "destructive"
+      })
+      return
+    }
+
     try {
       const { error } = await supabase
         .from('clients')
@@ -493,6 +505,15 @@ export function Clientes() {
   }
 
   const excluirCliente = async (clienteId: string) => {
+    if (!isAdmin) {
+      toast({
+        title: "Acesso Negado",
+        description: "Apenas administradores podem excluir clientes",
+        variant: "destructive"
+      })
+      return
+    }
+
     try {
       const { error } = await supabase
         .from('clients')
@@ -1226,24 +1247,28 @@ export function Clientes() {
                               Informar atividade
                             </Button>
                           )}
-                          {!cliente.fim_contrato && (
+                          {!cliente.fim_contrato && isAdmin && (
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => desativarCliente(cliente.id)}
                               className="text-orange-600 hover:text-orange-700"
+                              title="Desativar cliente (Apenas Admin)"
                             >
                               <UserX className="h-4 w-4" />
                             </Button>
                           )}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => excluirCliente(cliente.id)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            🗑️
-                          </Button>
+                          {isAdmin && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => excluirCliente(cliente.id)}
+                              className="text-red-600 hover:text-red-700"
+                              title="Excluir cliente (Apenas Admin)"
+                            >
+                              🗑️
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

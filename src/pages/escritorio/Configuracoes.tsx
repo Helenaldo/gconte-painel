@@ -6,10 +6,11 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Plus, Settings, Pencil, Building2, Upload } from "lucide-react"
+import { Plus, Settings, Pencil, Building2, Upload, Shield } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import InputMask from "react-input-mask"
 import { supabase } from "@/integrations/supabase/client"
+import { useAuth } from "@/context/auth-context"
 
 interface Escritorio {
   id: string
@@ -37,6 +38,8 @@ const estadosBrasil = [
 ]
 
 export function Configuracoes() {
+  const { profile } = useAuth()
+  const isAdmin = profile?.role === 'administrador'
   const [escritorio, setEscritorio] = useState<Escritorio | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [formData, setFormData] = useState({
@@ -85,6 +88,15 @@ export function Configuracoes() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    if (!isAdmin) {
+      toast({
+        title: "Acesso Negado",
+        description: "Apenas administradores podem alterar configurações do escritório",
+        variant: "destructive"
+      })
+      return
+    }
     
     if (!formData.nome || !formData.cnpj || !formData.cep || !formData.telefone) {
       toast({
@@ -235,27 +247,28 @@ export function Configuracoes() {
           </p>
         </div>
         
-        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-gradient-primary hover:opacity-90" onClick={openEditModal}>
-              {escritorio ? (
-                <>
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Editar Escritório
-                </>
-              ) : (
-                <>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Cadastrar Escritório
-                </>
-              )}
-            </Button>
-          </DialogTrigger>
-          
-          <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>{escritorio ? "Editar Escritório" : "Cadastrar Escritório"}</DialogTitle>
-            </DialogHeader>
+        {isAdmin && (
+          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-gradient-primary hover:opacity-90" onClick={openEditModal}>
+                {escritorio ? (
+                  <>
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Editar Escritório
+                  </>
+                ) : (
+                  <>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Cadastrar Escritório
+                  </>
+                )}
+              </Button>
+            </DialogTrigger>
+            
+            <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>{escritorio ? "Editar Escritório" : "Cadastrar Escritório"}</DialogTitle>
+              </DialogHeader>
             
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -550,7 +563,15 @@ export function Configuracoes() {
               </div>
             </form>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        )}
+        
+        {!isAdmin && (
+          <div className="text-muted-foreground text-sm bg-muted/50 px-4 py-2 rounded-lg">
+            <Shield className="inline mr-2 h-4 w-4" />
+            Apenas administradores podem editar configurações do escritório
+          </div>
+        )}
       </div>
 
       {escritorio ? (
@@ -596,15 +617,17 @@ export function Configuracoes() {
                     {escritorio.email && <p>E-mail: {escritorio.email}</p>}
                     {escritorio.instagram && <p>Instagram: {escritorio.instagram}</p>}
                   </div>
-                  
-                  <Button 
-                    variant="outline" 
-                    onClick={openEditModal}
-                    className="w-full md:w-auto"
-                  >
-                    <Pencil className="mr-2 h-4 w-4" />
-                    Editar Informações
-                  </Button>
+                   
+                   {isAdmin && (
+                     <Button 
+                       variant="outline" 
+                       onClick={openEditModal}
+                       className="w-full md:w-auto"
+                     >
+                       <Pencil className="mr-2 h-4 w-4" />
+                       Editar Informações
+                     </Button>
+                   )}
                 </div>
               </div>
             </CardContent>
@@ -697,10 +720,12 @@ export function Configuracoes() {
             <p className="text-muted-foreground text-center mb-6">
               Configure os dados do seu escritório para personalizar o sistema
             </p>
-            <Button onClick={openEditModal} className="bg-gradient-primary hover:opacity-90">
-              <Plus className="mr-2 h-4 w-4" />
-              Cadastrar Escritório
-            </Button>
+            {isAdmin && (
+              <Button onClick={openEditModal} className="bg-gradient-primary hover:opacity-90">
+                <Plus className="mr-2 h-4 w-4" />
+                Cadastrar Escritório
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}

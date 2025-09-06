@@ -170,6 +170,26 @@ export function Colaboradores() {
     
     if (!selectedColaborador) return
     
+    // Impedir operador de se promover para administrador
+    if (profile?.role === 'operador' && formData.role === 'administrador' && selectedColaborador.id === profile.id) {
+      toast({
+        title: "Acesso Negado",
+        description: "Operadores não podem alterar seu próprio status para administrador",
+        variant: "destructive"
+      })
+      return
+    }
+
+    // Apenas admin pode alterar roles
+    if (!isAdmin) {
+      toast({
+        title: "Acesso Negado", 
+        description: "Apenas administradores podem alterar níveis de acesso",
+        variant: "destructive"
+      })
+      return
+    }
+    
     setLoading(true)
     
     try {
@@ -241,6 +261,15 @@ export function Colaboradores() {
   }
 
   const handleDeleteColaborador = async (colaborador: Colaborador) => {
+    if (!isAdmin) {
+      toast({
+        title: "Acesso Negado",
+        description: "Apenas administradores podem excluir colaboradores",
+        variant: "destructive"
+      })
+      return
+    }
+
     if (!confirm(`Tem certeza que deseja excluir ${colaborador.nome}? Esta ação não pode ser desfeita.`)) {
       return
     }
